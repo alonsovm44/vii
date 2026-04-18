@@ -172,24 +172,6 @@ static void lex_push(Lexer *l, Token t) {
     l->tokens[l->tok_count++] = t;
 }
 
-static void lex_indent(Lexer *l) { // No filename needed here, as it's internal to lexing
-    int spaces = 0;
-    while (l->src[l->pos] == ' ') { spaces++; l->pos++; }
-    if (l->src[l->pos] == '\r') l->pos++;  /* skip \r in CRLF */
-    if (l->src[l->pos] == '\n' || l->src[l->pos] == '\0') return; /* blank line */
-
-    if (spaces > l->indent) {
-        l->indents[++l->indent_top] = spaces;
-        l->indent = spaces;
-        lex_push(l, (Token){TOK_INDENT, NULL, 0, l->line, l->pos});
-    }
-    while (spaces < l->indent) {
-        l->indent_top--;
-        l->indent = l->indents[l->indent_top];
-        lex_push(l, (Token){TOK_DEDENT, NULL, 0, l->line, l->pos});
-    }
-}
-
 static void lex(Lexer *l, const char *filename) {
     l->tok_count = 0;
     l->indent = 0;
@@ -218,18 +200,31 @@ static void lex(Lexer *l, const char *filename) {
 
         /* indent/dedent at line start */
         if (l->at_line_start) {
-            if (c == ' ') {
-                lex_indent(l);
+            int spaces = 0;
+            int p = l->pos;
+            while (l->src[p] == ' ') { spaces++; p++; }
+
+            char next = l->src[p];
+            /* skip blank lines and comments without affecting indentation */
+            if (next == '\n' || next == '\r' || next == '#' || next == '\0') {
+                l->pos = p;
+                l->at_line_start = false; /* Clear flag so we don't loop on the same newline */
+            } else {
+                if (spaces > l->indent) {
+                    l->indents[++l->indent_top] = spaces;
+                    l->indent = spaces;
+                    lex_push(l, (Token){TOK_INDENT, NULL, 0, l->line, l->pos});
+                }
+                while (spaces < l->indent) {
+                    l->indent_top--;
+                    l->indent = l->indents[l->indent_top];
+                    lex_push(l, (Token){TOK_DEDENT, NULL, 0, l->line, l->pos});
+                }
+                l->pos = p;
                 l->at_line_start = false;
-                continue;
             }
-            /* no leading spaces but indent > 0 → dedent */
-            while (0 < l->indent) {
-                l->indent_top--;
-                l->indent = l->indents[l->indent_top];
-                lex_push(l, (Token){TOK_DEDENT, NULL, 0, l->line, l->pos});
-            }
-            l->at_line_start = false;
+            c = l->src[l->pos];
+            if (!c) break;
         }
 
         /* skip spaces */
@@ -457,6 +452,12 @@ static Node *parse_postfix(Parser *p) {
             nd_push(set, parse_postfix(p));  /* index */
             nd_push(set, parse_expr(p));     /* value */
             expr = set;
+        } else if (peek(p)->kind == TOK_PUT) {
+            advance(p);
+            Node *put = nd_new(ND_PUT);
+            put->left = expr;  /* path */
+            put->right = parse_expr(p); /* data */
+            expr = put;
         } else if (peek(p)->kind == TOK_ASK && expr->kind != ND_ASK) {
             /* "file.txt" ask — file read */
             advance(p);
@@ -522,14 +523,6 @@ static Node *parse_expr(Parser *p) {
 static Node *parse_stmt(Parser *p) {
     skip_newlines(p);
     Token *t = peek(p);
-
-    if (t->kind == TOK_PUT) {
-        advance(p);
-        Node *put = nd_new(ND_PUT);
-        put->left = parse_expr(p);   /* path */
-        put->right = parse_expr(p);  /* data */
-        return put;
-    }
 
     if (t->kind == TOK_PASTE) {
         advance(p);
@@ -615,6 +608,31 @@ static Node *parse_program(Parser *p) {
         skip_newlines(p);
     }
     return prog;
+}
+
+/* ──────────────────────── Debug Dumper ──────────────────────── */
+
+static void dump_ast_json(Node *n, FILE *f, int indent) {
+    for (int i = 0; i < indent; i++) fprintf(f, "  ");
+    fprintf(f, "{ \"kind\": %d", n->kind);
+    if (n->name) fprintf(f, ", \"name\": \"%s\"", n->name);
+    if (n->kind == ND_NUM) fprintf(f, ", \"val\": %g", n->num);
+    if (n->str) fprintf(f, ", \"str\": \"%s\"", n->str);
+    if (n->body_count > 0) {
+        fprintf(f, ",\n");
+        for (int i = 0; i < indent; i++) fprintf(f, "  ");
+        fprintf(f, "  \"body\": [\n");
+        for (int i = 0; i < n->body_count; i++) {
+            dump_ast_json(n->body[i], f, indent + 2);
+            if (i < n->body_count - 1) fprintf(f, ",\n");
+        }
+        fprintf(f, "\n");
+        for (int i = 0; i < indent; i++) fprintf(f, "  ");
+        fprintf(f, "  ]");
+    }
+    if (n->left) { fprintf(f, ",\n"); for (int i = 0; i < indent; i++) fprintf(f, "  "); fprintf(f, "  \"left\": \n"); dump_ast_json(n->left, f, indent + 2); }
+    if (n->right) { fprintf(f, ",\n"); for (int i = 0; i < indent; i++) fprintf(f, "  "); fprintf(f, "  \"right\": \n"); dump_ast_json(n->right, f, indent + 2); }
+    fprintf(f, " }");
 }
 
 /* ──────────────────────── Interpreter ──────────────────────── */
@@ -711,7 +729,15 @@ static Value *eval(Node *n, Table *env) {
         case ND_STR:   return val_str(n->str);
         case ND_VAR:   {
             Value *v = table_get(env, n->name);
-            if (!v) { fprintf(stderr, "Runtime error: undefined variable '%s'\n", n->name); exit(1); }
+            if (!v) {
+                Func *fn = func_find(n->name);
+                if (fn) {
+                    /* Fallback: treat variable access as a 0-argument function call */
+                    Table *scope = table_new(env);
+                    return eval_block(fn->def->left, scope);
+                }
+                fprintf(stderr, "Runtime error: undefined variable '%s'\n", n->name); exit(1);
+            }
             return v;
         }
         case ND_ASSIGN: {
@@ -980,13 +1006,15 @@ static void emit_c_header(FILE *f) {
     fprintf(f, "static bool val_truthy(Value *v) { if(!v) return false; if(v->kind==VAL_NUM) return v->num != 0; if(v->kind==VAL_STR) return v->str[0]!='\\0'; return v->item_count > 0; }\n");
     fprintf(f, "static void val_print(Value *v) { if(!v) return; if(v->kind==VAL_NUM) printf(v->num==(long long)v->num?\"%%lld\":\"%%g\",(long long)v->num); else if(v->kind==VAL_STR) printf(\"%%s\",v->str); else if(v->kind==VAL_LIST){ printf(\"[\"); for(int i=0;i<v->item_count;i++){ if(i)printf(\", \"); val_print(v->items[i]); } printf(\"]\"); } }\n");
     fprintf(f, "static Value* runtime_binop(int op, Value* l, Value* r) {\n");
-    fprintf(f, "  if(op==16 && (l->kind==VAL_STR||r->kind==VAL_STR)){ char b[1024]; sprintf(b, \"%%s%%s\", l->kind==VAL_STR?l->str:\"\", r->kind==VAL_STR?r->str:\"\"); return val_str(b); }\n");
-    fprintf(f, "  if(op==15){ if(l->kind==VAL_STR&&r->kind==VAL_STR) return val_num(strcmp(l->str,r->str)==0?-1:0); }\n");
+    fprintf(f, "  if(op==%d && (l->kind==VAL_STR||r->kind==VAL_STR)){ char b[1024]; sprintf(b, \"%%s%%s\", l->kind==VAL_STR?l->str:\"\", r->kind==VAL_STR?r->str:\"\"); return val_str(b); }\n", TOK_PLUS);
+    fprintf(f, "  if(op==%d){ if(l->kind==VAL_STR&&r->kind==VAL_STR) return val_num(strcmp(l->str,r->str)==0?-1:0); }\n", TOK_EQEQ);
     fprintf(f, "  double a=l->num, b=r->num; switch(op){\n");
-    fprintf(f, "    case 16: return val_num(a+b); case 17: return val_num(a-b); case 18: return val_num(a*b); case 19: return val_num(b?(int)a/(int)b:0); case 20: return val_num(b?(int)a%%(int)b:0);\n");
-    fprintf(f, "    case 21: return val_num(a<b?-1:0); case 22: return val_num(a>b?-1:0); case 15: return val_num(a==b?-1:0); default: return val_none();\n");
+    fprintf(f, "    case %d: return val_num(a+b); case %d: return val_num(a-b); case %d: return val_num(a*b); case %d: return val_num(b?(int)a/(int)b:0); case %d: return val_num(b?(int)a%%(int)b:0);\n", TOK_PLUS, TOK_MINUS, TOK_STAR, TOK_SLASH, TOK_PCT);
+    fprintf(f, "    case %d: return val_num(a<b?-1:0); case %d: return val_num(a>b?-1:0); case %d: return val_num(a==b?-1:0); default: return val_none();\n", TOK_LT, TOK_GT, TOK_EQEQ);
     fprintf(f, "  }\n}\n");
     fprintf(f, "static Value* runtime_call(Value* f, Table* e, int c, Value** v) { if(f->kind==VAL_FUNC) return f->func(e, c, v); return val_none(); }\n");
+    fprintf(f, "static Value* io_args;\n");
+    fprintf(f, "static Value* runtime_var_get(Table* e, const char* k) { Value* v=table_get(e,k); if(v->kind==VAL_FUNC) return v->func(e,0,NULL); return v; }\n");
     fprintf(f, "static Value* runtime_at(Value* l, Value* r) { int i=(int)r->num; if(l->kind==VAL_STR){ if(i<0||i>=strlen(l->str)) return val_none(); char b[2]={l->str[i],0}; return val_str(b); } if(l->kind==VAL_LIST){ if(i<0||i>=l->item_count) return val_none(); return l->items[i]; } return val_none(); }\n");
     fprintf(f, "static void runtime_set(Value* l, Value* i, Value* v) { if(l->kind!=VAL_LIST) return; int idx=(int)i->num; if(idx==l->item_count){ if(l->item_count>=l->item_cap){ l->item_cap*=2; l->items=realloc(l->items,l->item_cap*sizeof(Value*)); } l->items[l->item_count++]=v; } else if(idx>=0 && idx<l->item_count) l->items[idx]=v; }\n");
     fprintf(f, "static Value* runtime_ask(Value* p) { if(p&&p->kind==VAL_STR){ FILE* f=fopen(p->str,\"rb\"); if(!f) return val_str(\"\"); fseek(f,0,SEEK_END); long l=ftell(f); fseek(f,0,SEEK_SET); char* b=malloc(l+1); fread(b,1,l,f); b[l]=0; fclose(f); Value* v=val_str(b); free(b); return v; } char buf[1024]; if(!fgets(buf,1024,stdin)) return val_str(\"\"); buf[strcspn(buf,\"\\n\")]=0; return val_str(buf); }\n");
@@ -994,6 +1022,7 @@ static void emit_c_header(FILE *f) {
     fprintf(f, "static Value* runtime_ord(Value* v) { if(v->kind==VAL_STR&&v->str[0]) return val_num((unsigned char)v->str[0]); return val_num(0); }\n");
     fprintf(f, "static Value* runtime_chr(Value* v) { char b[2]={v->num,0}; return val_str(b); }\n");
     fprintf(f, "static Value* runtime_tonum(Value* v) { if(v->kind==VAL_STR){ char*e; double d=strtod(v->str,&e); return val_num(*e==0&&e!=v->str?d:0); } if(v->kind==VAL_NUM) return v; return val_num(0); }\n");
+    fprintf(f, "static Value* runtime_put(Value* p, Value* d) { if(p->kind!=VAL_STR) return val_none(); FILE* f=fopen(p->str,\"w\"); if(!f) return val_none(); if(d->kind==VAL_STR) fprintf(f,\"%%s\",d->str); else { if(d->kind==VAL_NUM) fprintf(f,d->num==(long long)d->num?\"%%lld\":\"%%g\",(long long)d->num); } fclose(f); return val_none(); }\n");
     fprintf(f, "static Value* runtime_tostr(Value* v) { char b[64]; if(v->kind==VAL_NUM){ if(v->num==(long long)v->num) snprintf(b,64,\"%%%%lld\",(long long)v->num); else snprintf(b,64,\"%%%%g\",v->num); return val_str(b); } if(v->kind==VAL_STR) return v; return val_str(\"\"); }\n");
 }
 
@@ -1003,8 +1032,20 @@ static void emit_c_stmt(Node *n, int indent, FILE *f);
 static void emit_c_expr(Node *n, FILE *f) {
     switch (n->kind) {
         case ND_NUM:   fprintf(f, "val_num(%g)", n->num); break;
-        case ND_STR:   fprintf(f, "val_str(\"%s\")", n->str); break;
-        case ND_VAR:   fprintf(f, "table_get(env, \"%s\")", n->name); break;
+        case ND_STR: {
+            fprintf(f, "val_str(\"");
+            for (char *p = n->str; *p; p++) {
+                if (*p == '\n') fprintf(f, "\\n");
+                else if (*p == '\r') fprintf(f, "\\r");
+                else if (*p == '\t') fprintf(f, "\\t");
+                else if (*p == '\\') fprintf(f, "\\\\");
+                else if (*p == '\"') fprintf(f, "\\\"");
+                else fputc(*p, f);
+            }
+            fprintf(f, "\")");
+            break;
+        }
+        case ND_VAR:   fprintf(f, "runtime_var_get(env, \"%s\")", n->name); break;
         case ND_ARG:   fprintf(f, "io_args"); break;
         case ND_BINOP:
             fprintf(f, "runtime_binop(%d, ", n->op);
@@ -1057,6 +1098,13 @@ static void emit_c_expr(Node *n, FILE *f) {
             emit_c_expr(n->body[0], f);
             fprintf(f, ", ");
             emit_c_expr(n->body[1], f);
+            fprintf(f, ")");
+            break;
+        case ND_PUT:
+            fprintf(f, "runtime_put(");
+            emit_c_expr(n->left, f);
+            fprintf(f, ", ");
+            emit_c_expr(n->right, f);
             fprintf(f, ")");
             break;
         case ND_LEN:
@@ -1122,13 +1170,6 @@ static void emit_c_stmt(Node *n, int indent, FILE *f) {
             emit_c_expr(n->left, f);
             fprintf(f, "); printf(\"\\n\");\n");
             break;
-        case ND_PUT:
-            fprintf(f, "runtime_put(");
-            emit_c_expr(n->left, f);
-            fprintf(f, ", ");
-            emit_c_expr(n->right, f);
-            fprintf(f, ");\n");
-            break;
         case ND_DO:
             fprintf(f, "table_set(env, \"%s\", val_func(io_func_%s));\n", n->name, n->name);
             break;
@@ -1168,7 +1209,7 @@ static void compile_to_bin(Node *prog, const char *out_name, bool keep_c) {
     emit_c_functions(prog, f);
 
     fprintf(f, "\nint main(int argc, char **argv) {\n");
-    fprintf(f, "  Value* io_args = val_list();\n");
+    fprintf(f, "  io_args = val_list();\n");
     fprintf(f, "  for(int i=1; i<argc; i++) { \n");
     fprintf(f, "    if(io_args->item_count >= io_args->item_cap) { io_args->item_cap*=2; io_args->items=realloc(io_args->items, io_args->item_cap*sizeof(Value*)); }\n");
     fprintf(f, "    io_args->items[io_args->item_count++] = val_str(argv[i]);\n");
@@ -1214,13 +1255,16 @@ int main(int argc, char **argv) {
     enable_ansi_colors();
     const char *input_path = NULL;
     const char *output_name = NULL;
+    bool debug_ast = false;
     bool keep_c = false;
 
     if (argc < 2) goto usage;
 
     /* Argument Parsing */
     for (int i = 1; i < argc; i++) {
-        if (strcmp(argv[i], "-o") == 0) {
+        if (strcmp(argv[i], "--debug") == 0) {
+            debug_ast = true;
+        } else if (strcmp(argv[i], "-o") == 0) {
             if (i + 1 < argc) output_name = argv[++i];
             else { fprintf(stderr, "Error: -o requires a filename\n"); return 1; }
         } else if (strcmp(argv[i], "-k") == 0 || strcmp(argv[i], "--keep") == 0) {
@@ -1240,7 +1284,8 @@ int main(int argc, char **argv) {
         printf("io - a minimalist programming language\n");
         printf("Usage: io <file.io> [-o program] [-k] [args...]\n");
         printf("       io --version\n");
-        printf("       io --help\n\n");
+        printf("       io --help\n");
+        printf("       io --debug <file.io>\n\n");
         printf("Options:\n");
         printf("  -o <name>   Compile to executable\n");
         printf("  -k, --keep  Keep transpiled .c source\n\n");
@@ -1272,6 +1317,7 @@ int main(int argc, char **argv) {
     /* build CLI arg list */
     cli_args = val_list();
     for (int i = 1; i < argc; i++) {
+        if (strcmp(argv[i], "--debug") == 0) continue;
         if (strcmp(argv[i], "-o") == 0) { i++; continue; }
         if (strcmp(argv[i], "-k") == 0 || strcmp(argv[i], "--keep") == 0) continue;
         if (argv[i] == input_path) continue;
@@ -1289,6 +1335,15 @@ int main(int argc, char **argv) {
 
     Parser parser = { .tokens = lexer.tokens, .pos = 0, .src = src, .filename = input_path };
     Node *prog = parse_program(&parser);
+
+    if (debug_ast) {
+        FILE *df = fopen("debug_ast.json", "w");
+        if (df) {
+            dump_ast_json(prog, df, 0);
+            fclose(df);
+            printf("AST dumped to debug_ast.json\n");
+        }
+    }
 
     if (output_name) {
         compile_to_bin(prog, output_name, keep_c);

@@ -59,6 +59,7 @@ make
 ```bash
 io --version    # prints 1.0.0
 io --help       # prints usage and vocabulary
+io --debug file.io # generates debug_ast.json
 ```
 
 ## Examples
@@ -110,7 +111,7 @@ nums at 0
 
 ### File I/O
 ```io
-put "test.txt" "Hello from IO!"
+"test.txt" put "Hello from IO!"
 content = "test.txt" ask
 content
 ```

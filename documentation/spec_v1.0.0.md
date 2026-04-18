@@ -49,7 +49,7 @@ IO uses exactly 21 reserved words/symbols. These cannot be used as variable name
   - `input = ask`: Pauses for keyboard input.
   - `content = "file.txt" ask`: Reads the entire contents of a file.
 - `put`: Writes data to a file (overwrites). 
-  - **Syntax**: `put "path.txt" "data"`.
+  - **Syntax**: `"path.txt" put "data"`.
 
 ### 3.8 Environment & Meta
 - `arg`: A built-in list containing CLI arguments.

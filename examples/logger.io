@@ -1,0 +1,23 @@
+# simple logger program written in io
+
+# functionality:
+
+# logger init (makes logfile.log)
+# logger log "message" writes to logfile
+
+do logger
+  cmd = arg at 0
+  if cmd == "init"
+    # testing "string" put "text"
+    "logfile.log" put ""
+    "Initialized logfile.log"
+  else if cmd == "log"
+    message = arg at 1
+    old = "logfile.log" ask
+    new = old + message + "\n"
+    "logfile.log" put new
+    "Logged: " + message
+  else
+    "unknown command"
+
+logger

@@ -2,7 +2,7 @@
 
 Welcome to **IO**, a minimalist programming language designed to strip away the "noise" of modern software engineering. IO isn't about how many characters you can type; it's about how many concepts you have to keep in your head. 
 
-In IO, there are exactly **21 words** to learn. No brackets, no semicolons, no boilerplate.
+In IO, there are exactly **26 words** to learn. No brackets, no semicolons, no boilerplate.
 
 ---
 
@@ -115,7 +115,7 @@ The `ask` keyword is smart. It pulls data into your program based on context:
 ### The `put` Keyword
 To write to a file, use `put`.
 ```io
-put "log.txt" "Standard Log Entry"
+"log.txt" put "Standard Log Entry"
 ```
 
 ---
@@ -139,7 +139,27 @@ Use `#` for single-line comments.
 
 ---
 
-## 8. A Complete Example: FizzBuzz
+## 8. Conversion & Utilities
+These keywords allow you to transform data types and inspect their properties.
+
+- `len`: Returns the length of a string or a list.
+- `ord`: Converts the first character of a string into its numeric ASCII/Unicode code.
+- `chr`: Converts a numeric code into a single-character string.
+- `tonum`: Parses a string into a number (useful for `ask` input).
+- `tostr`: Converts a number into its string representation.
+
+```io
+# Examples
+len "Hello"      # 5
+ord "A"          # 65
+chr 66           # "B"
+tonum "123"      # 123
+tostr 42         # "42"
+```
+
+---
+
+## 9. A Complete Example: FizzBuzz
 ```io
 x = 1
 while x < 101

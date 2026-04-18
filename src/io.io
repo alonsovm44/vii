@@ -12,20 +12,75 @@ do report_error filename line message
   color_rst
   0 # Return 0 for failure
 
+# Lexer: Transforms a raw string into a list of tokens
+do tokenize src
+  tokens = list
+  t_idx = 0
+  pos = 0
+  s_len = len src
+
+  while pos < s_len
+    char = src at pos
+    code = ord char
+
+    # 1. Skip whitespace (Space: 32, Newline: 10, Tab: 9)
+    if code == 32
+      pos = pos + 1
+    else if code == 10
+      pos = pos + 1
+    else if code == 9
+      pos = pos + 1
+
+    # 2. Skip comments starting with #
+    else if code == 35
+      while pos < s_len
+        if ord src at pos == 10
+          pos = s_len # break inner loop
+        else
+          pos = pos + 1
+
+    # 3. Capture Identifiers, Numbers, and Operators
+    else
+      token = ""
+      searching = 1
+      while searching
+        if pos == s_len
+          searching = 0
+        else
+          curr = src at pos
+          c_code = ord curr
+          # Stop at whitespace or comment
+          if c_code == 32
+            searching = 0
+          else if c_code == 10
+            searching = 0
+          else if c_code == 35
+            searching = 0
+          else
+            token = token + curr
+            pos = pos + 1
+      
+      tokens set t_idx token
+      t_idx = t_idx + 1
+
+  tokens
+
 # The core compiler/interpreter logic
 do run_compiler target_file
   source_code = target_file ask
   if source_code == 0
     report_error target_file 0 "Could not read file"
   else
-    "Compiling..." + target_file
-    # Here you would implement the lexer/parser logic
-    # iterating through source_code using 'at'
+    "Processing " + target_file + "..."
+    
+    tokens = tokenize source_code
+    "Tokens found: " + tostr len tokens
+
+    # Here we would add the Parser stage to process the tokens list
     1 # Return 1 for success
 
 # Entry Point
 target = arg at 0
-
 if target == 0
   color_yel
   "IO Compiler v1.0.0"
