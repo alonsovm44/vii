@@ -8,17 +8,20 @@ IO measures minimalism not by character count, but by concept count. No punctuat
 - **Implicit Output & Return**: If a line results in a value and isn't saved, it prints automatically. Inside a function, the final evaluated line is implicitly returned.
 - **Indentation Only**: Spaces are the only structural syntax used to group blocks of code.
 
-## The Complete Vocabulary (17 Words)
+## The Complete Vocabulary (21 Words)
 
-- **Data**: Numbers (`5`), Text (`"hello"`)
-- **Assignment**: `=`
-- **Math/Logic**: `+ - * / % < > ==`
-- **Control Flow**: `if`, `else`, `while`
-- **Abstraction**: `do` (define function)
-- **Memory**: `ask` (keyboard input), `list`, `at`
-- **Comments**: `#` (single line)
+1. **Data**: Numbers (`5`), Text (`"hello"`)
+2. **Assignment & Logic**: `=`, `==`
+3. **Math**: `+`, `-`, `*`, `/`, `%`
+4. **Comparison**: `<`, `>`
+5. **Control Flow**: `if`, `else`, `while`
+6. **Abstraction**: `do` (define function, implicit return)
+7. **Memory**: `list`, `at`, `set`
+8. **Universal I/O**: `ask` (keyboard OR file read), `put` (write to disk)
+9. **Environment**: `arg` (CLI arguments list), `paste` (inject file at compile time)
+10. **Comments**: `#` (single line)
 
-> The 8 keywords (`if`, `else`, `while`, `do`, `ask`, `list`, `at`, `set`) cannot be used as variable names.
+> The 11 keywords (`if`, `else`, `while`, `do`, `ask`, `list`, `at`, `set`, `put`, `arg`, `paste`) cannot be used as variable names.
 
 ## Build
 
@@ -37,6 +40,15 @@ make
 ./io examples/fizzbuzz.io
 ./io examples/guess.io
 ./io examples/lists.io
+./io examples/fileio.io
+./io examples/args.io hello world
+./io examples/paste.io
+```
+
+### CLI
+```bash
+io --version    # prints 1.0.0
+io --help       # prints usage and vocabulary
 ```
 
 ## Examples
@@ -78,10 +90,30 @@ while x == 0
     x = 1
 ```
 
-### Lists
+### Lists (with `set`)
 ```io
 nums = list
-nums at 0 = 42
-nums at 1 = 99
+nums set 0 42
+nums set 1 99
 nums at 0
+```
+
+### File I/O
+```io
+put "test.txt" "Hello from IO!"
+content = "test.txt" ask
+content
+```
+
+### CLI Arguments
+```io
+if arg at 0
+  "First arg:"
+  arg at 0
+```
+
+### Paste (Include)
+```io
+paste "helper.io"
+result = double 21
 ```

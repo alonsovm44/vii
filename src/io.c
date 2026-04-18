@@ -52,26 +52,30 @@ static bool val_truthy(Value *v) {
     }
 }
 
-static void val_print(Value *v) {
+static void val_print_to(Value *v, FILE *f) {
     if (!v) return;
     switch (v->kind) {
         case VAL_NUM:
             if (v->num == (long long)v->num)
-                printf("%lld", (long long)v->num);
+                fprintf(f, "%lld", (long long)v->num);
             else
-                printf("%g", v->num);
+                fprintf(f, "%g", v->num);
             break;
-        case VAL_STR:  printf("%s", v->str); break;
+        case VAL_STR:  fprintf(f, "%s", v->str); break;
         case VAL_LIST:
-            putchar('[');
+            fputc('[', f);
             for (int i = 0; i < v->item_count; i++) {
-                if (i) printf(", ");
-                val_print(v->items[i]);
+                if (i) fprintf(f, ", ");
+                val_print_to(v->items[i], f);
             }
-            putchar(']');
+            fputc(']', f);
             break;
         case VAL_NONE: break;
     }
+}
+
+static void val_print(Value *v) {
+    val_print_to(v, stdout);
 }
 
 /* ──────────────────────── Lexer ──────────────────────── */
@@ -79,17 +83,19 @@ static void val_print(Value *v) {
 typedef enum {
     TOK_NUM, TOK_STR, TOK_IDENT,
     TOK_IF, TOK_ELSE, TOK_WHILE, TOK_DO, TOK_ASK, TOK_LIST, TOK_AT, TOK_SET,
+    TOK_PUT, TOK_ARG, TOK_PASTE,
     TOK_EQ, TOK_EQEQ, TOK_PLUS, TOK_MINUS, TOK_STAR, TOK_SLASH, TOK_PCT,
     TOK_LT, TOK_GT,
     TOK_NEWLINE, TOK_INDENT, TOK_DEDENT, TOK_EOF
 } TokKind;
 
 static const char *tok_kw[] = {
-    "if","else","while","do","ask","list","at","set"
+    "if","else","while","do","ask","list","at","set","put","arg","paste"
 };
 static const TokKind kw_kind[] = {
-    TOK_IF,TOK_ELSE,TOK_WHILE,TOK_DO,TOK_ASK,TOK_LIST,TOK_AT,TOK_SET
+    TOK_IF,TOK_ELSE,TOK_WHILE,TOK_DO,TOK_ASK,TOK_LIST,TOK_AT,TOK_SET,TOK_PUT,TOK_ARG,TOK_PASTE
 };
+#define KW_COUNT 11
 
 typedef struct Token {
     TokKind kind;
@@ -252,7 +258,7 @@ static void lex(Lexer *l) {
             memcpy(text, l->src + start, len);
             text[len] = '\0';
             TokKind kind = TOK_IDENT;
-            for (int i = 0; i < 8; i++) {
+            for (int i = 0; i < KW_COUNT; i++) {
                 if (strcmp(text, tok_kw[i]) == 0) { kind = kw_kind[i]; break; }
             }
             lex_push(l, (Token){kind, text, 0, l->line});
@@ -278,7 +284,8 @@ typedef enum {
     ND_NUM, ND_STR, ND_VAR,
     ND_ASSIGN, ND_BINOP,
     ND_IF, ND_WHILE, ND_DO,
-    ND_ASK, ND_LIST, ND_AT,
+    ND_ASK, ND_ASKFILE, ND_LIST, ND_AT, ND_SET,
+    ND_PUT, ND_ARG,
     ND_CALL, ND_BLOCK,
     ND_PRINT  /* implicit print */
 } NdKind;
@@ -310,6 +317,9 @@ static void nd_push(Node *block, Node *child) {
     block->body[block->body_count++] = child;
 }
 
+/* forward decl for paste */
+static char *read_file(const char *path);
+
 /* ──────────────────────── Parser ──────────────────────── */
 
 typedef struct Parser {
@@ -336,6 +346,7 @@ static void skip_newlines(Parser *p) {
 /* forward declarations */
 static Node *parse_expr(Parser *p);
 static Node *parse_block(Parser *p);
+static Node *parse_program(Parser *p);
 
 static Node *parse_primary(Parser *p) {
     Token *t = peek(p);
@@ -344,6 +355,7 @@ static Node *parse_primary(Parser *p) {
         case TOK_STR:   advance(p); { Node *n = nd_new(ND_STR); n->str = strdup(t->text); return n; }
         case TOK_IDENT: advance(p); { Node *n = nd_new(ND_VAR); n->name = strdup(t->text); return n; }
         case TOK_ASK:   advance(p); return nd_new(ND_ASK);
+        case TOK_ARG:   advance(p); return nd_new(ND_ARG);
         case TOK_LIST:  advance(p); return nd_new(ND_LIST);
         case TOK_DO: {
             advance(p);
@@ -378,25 +390,36 @@ static Node *parse_postfix(Parser *p) {
             advance(p);
             Node *at = nd_new(ND_AT);
             at->left = expr;
-            at->right = parse_postfix(p);  /* index - only primary/postfix, not full expr */
+            at->right = parse_postfix(p);  /* index */
             expr = at;
+        } else if (peek(p)->kind == TOK_SET) {
+            /* list set index value */
+            advance(p);
+            Node *set = nd_new(ND_SET);
+            set->left = expr;  /* the list */
+            set->body_cap = 4;
+            set->body = calloc(set->body_cap, sizeof(Node*));
+            nd_push(set, parse_postfix(p));  /* index */
+            nd_push(set, parse_expr(p));     /* value */
+            expr = set;
+        } else if (peek(p)->kind == TOK_ASK && expr->kind != ND_ASK) {
+            /* "file.txt" ask — file read */
+            advance(p);
+            Node *af = nd_new(ND_ASKFILE);
+            af->left = expr;  /* path expression */
+            expr = af;
         } else if (peek(p)->kind == TOK_IDENT || peek(p)->kind == TOK_NUM ||
                    peek(p)->kind == TOK_STR || peek(p)->kind == TOK_ASK ||
-                   peek(p)->kind == TOK_LIST) {
+                   peek(p)->kind == TOK_LIST || peek(p)->kind == TOK_ARG) {
             /* function call: funcname arg1 arg2 ... */
-            /* only if expr is a variable (function name) */
             if (expr->kind != ND_VAR) break;
-            /* peek ahead: if next token could start an expression, it's a call */
-            /* but we need to stop at operators, newlines, etc. */
-            /* A call consumes arguments until we hit something that isn't a primary */
             Node *call = nd_new(ND_CALL);
-            call->left = expr;  /* function ref */
+            call->left = expr;
             call->body_cap = 8;
             call->body = calloc(call->body_cap, sizeof(Node*));
-            /* consume arguments */
             while (peek(p)->kind == TOK_IDENT || peek(p)->kind == TOK_NUM ||
                    peek(p)->kind == TOK_STR || peek(p)->kind == TOK_ASK ||
-                   peek(p)->kind == TOK_LIST) {
+                   peek(p)->kind == TOK_LIST || peek(p)->kind == TOK_ARG) {
                 nd_push(call, parse_primary(p));
             }
             expr = call;
@@ -439,6 +462,32 @@ static Node *parse_stmt(Parser *p) {
     skip_newlines(p);
     Token *t = peek(p);
 
+    if (t->kind == TOK_PUT) {
+        advance(p);
+        Node *put = nd_new(ND_PUT);
+        put->left = parse_expr(p);   /* path */
+        put->right = parse_expr(p);  /* data */
+        return put;
+    }
+
+    if (t->kind == TOK_PASTE) {
+        advance(p);
+        if (peek(p)->kind != TOK_STR) {
+            fprintf(stderr, "Parse error: paste requires a string filename on line %d\n", peek(p)->line);
+            exit(1);
+        }
+        char *filename = strdup(peek(p)->text);
+        advance(p);
+        char *src = read_file(filename);
+        Lexer sub_lex = { .src = src, .pos = 0 };
+        lex(&sub_lex);
+        Parser sub_p = { .tokens = sub_lex.tokens, .pos = 0 };
+        Node *included = parse_program(&sub_p);
+        free(filename);
+        free(src);
+        return included;
+    }
+
     if (t->kind == TOK_IF) {
         advance(p);
         Node *n = nd_new(ND_IF);
@@ -480,7 +529,7 @@ static Node *parse_stmt(Parser *p) {
     /* expression statement (with implicit print) */
     Node *expr = parse_expr(p);
     /* if it's not an assignment, wrap in implicit print */
-    if (expr->kind != ND_ASSIGN && expr->kind != ND_DO) {
+    if (expr->kind != ND_ASSIGN && expr->kind != ND_DO && expr->kind != ND_SET && expr->kind != ND_PUT) {
         Node *print = nd_new(ND_PRINT);
         print->left = expr;
         return print;
@@ -556,6 +605,9 @@ static void table_set(Table *t, const char *key, Value *val) {
     e->next = t->buckets[h];
     t->buckets[h] = e;
 }
+
+/* CLI arguments (set in main) */
+static Value *cli_args = NULL;
 
 /* function storage */
 typedef struct Func {
@@ -646,14 +698,14 @@ static Value *eval(Node *n, Table *env) {
                 case TOK_PLUS:  return val_num(a + b);
                 case TOK_MINUS: return val_num(a - b);
                 case TOK_STAR:  return val_num(a * b);
-                case TOK_SLASH: return val_num(b != 0 ? a / b : 0);
-                case TOK_PCT:   return val_num((int)a % (int)b);
-                case TOK_LT:    return val_num(a < b ? 1 : 0);
-                case TOK_GT:    return val_num(a > b ? 1 : 0);
+                case TOK_SLASH: return val_num(b != 0 ? (double)((long long)a / (long long)b) : 0);
+                case TOK_PCT:   return val_num((long long)a % (long long)b);
+                case TOK_LT:    return val_num(a < b ? -1 : 0);
+                case TOK_GT:    return val_num(a > b ? -1 : 0);
                 case TOK_EQEQ:  {
                     if (l->kind == VAL_STR && r->kind == VAL_STR)
-                        return val_num(strcmp(l->str, r->str) == 0 ? 1 : 0);
-                    return val_num(a == b ? 1 : 0);
+                        return val_num(strcmp(l->str, r->str) == 0 ? -1 : 0);
+                    return val_num(a == b ? -1 : 0);
                 }
                 default: return val_num(0);
             }
@@ -686,14 +738,31 @@ static Value *eval(Node *n, Table *env) {
             return val_none();
         }
         case ND_ASK: {
+            /* keyboard input */
             char buf[1024];
             if (!fgets(buf, sizeof(buf), stdin)) return val_str("");
             buf[strcspn(buf, "\n")] = '\0';
-            /* try to parse as number */
             char *end;
             double d = strtod(buf, &end);
             if (*end == '\0' && end != buf) return val_num(d);
             return val_str(buf);
+        }
+        case ND_ASKFILE: {
+            /* file read: "path.txt" ask */
+            Value *path = eval(n->left, env);
+            if (path->kind != VAL_STR) { fprintf(stderr, "Runtime error: ask requires a string path\n"); exit(1); }
+            FILE *f = fopen(path->str, "rb");
+            if (!f) { fprintf(stderr, "Runtime error: cannot open '%s'\n", path->str); exit(1); }
+            fseek(f, 0, SEEK_END);
+            long len = ftell(f);
+            fseek(f, 0, SEEK_SET);
+            char *buf = malloc(len + 1);
+            fread(buf, 1, len, f);
+            buf[len] = '\0';
+            fclose(f);
+            Value *v = val_str(buf);
+            free(buf);
+            return v;
         }
         case ND_LIST: {
             return val_list();
@@ -701,11 +770,55 @@ static Value *eval(Node *n, Table *env) {
         case ND_AT: {
             Value *list = eval(n->left, env);
             Value *idx  = eval(n->right, env);
+            if (list->kind == VAL_STR) {
+                /* string at index → single character */
+                int i = (int)idx->num;
+                if (i < 0) i += (int)strlen(list->str);
+                if (i < 0 || i >= (int)strlen(list->str)) { fprintf(stderr, "Runtime error: index %d out of range\n", i); exit(1); }
+                char buf[2] = { list->str[i], '\0' };
+                return val_str(buf);
+            }
             if (list->kind != VAL_LIST) { fprintf(stderr, "Runtime error: 'at' on non-list\n"); exit(1); }
             int i = (int)idx->num;
             if (i < 0) i += list->item_count;
             if (i < 0 || i >= list->item_count) { fprintf(stderr, "Runtime error: index %d out of range\n", i); exit(1); }
             return list->items[i];
+        }
+        case ND_SET: {
+            /* list set index value */
+            Value *list = eval(n->left, env);
+            if (list->kind != VAL_LIST) { fprintf(stderr, "Runtime error: 'set' on non-list\n"); exit(1); }
+            Value *idx  = eval(n->body[0], env);
+            Value *val  = eval(n->body[1], env);
+            int i = (int)idx->num;
+            if (i < 0) i += list->item_count;
+            /* allow append at index == item_count */
+            if (i == list->item_count) {
+                if (list->item_count >= list->item_cap) {
+                    list->item_cap = list->item_cap ? list->item_cap * 2 : 8;
+                    list->items = realloc(list->items, list->item_cap * sizeof(Value*));
+                }
+                list->items[list->item_count++] = val;
+            } else {
+                if (i < 0 || i >= list->item_count) { fprintf(stderr, "Runtime error: index %d out of range\n", i); exit(1); }
+                list->items[i] = val;
+            }
+            return val;
+        }
+        case ND_PUT: {
+            /* put "path" "data" */
+            Value *path = eval(n->left, env);
+            Value *data = eval(n->right, env);
+            if (path->kind != VAL_STR) { fprintf(stderr, "Runtime error: put requires a string path\n"); exit(1); }
+            FILE *f = fopen(path->str, "w");
+            if (!f) { fprintf(stderr, "Runtime error: cannot open '%s' for writing\n", path->str); exit(1); }
+            if (data->kind == VAL_STR) fprintf(f, "%s", data->str);
+            else val_print_to(data, f);
+            fclose(f);
+            return val_none();
+        }
+        case ND_ARG: {
+            return cli_args;
         }
         case ND_CALL: {
             const char *fname = n->left->name;
@@ -756,8 +869,42 @@ static char *read_file(const char *path) {
 
 int main(int argc, char **argv) {
     if (argc < 2) {
-        fprintf(stderr, "Usage: io <file.io>\n");
+        fprintf(stderr, "Usage: io <file.io> [args...]\n");
         return 1;
+    }
+
+    if (strcmp(argv[1], "--version") == 0) {
+        printf("io 1.0.0\n");
+        return 0;
+    }
+    if (strcmp(argv[1], "--help") == 0) {
+        printf("io - a minimalist programming language\n");
+        printf("Usage: io <file.io> [args...]\n");
+        printf("       io --version\n");
+        printf("       io --help\n\n");
+        printf("The 21-word vocabulary:\n");
+        printf("  Data:       Numbers, Text (\"...\")\n");
+        printf("  Assignment: =\n");
+        printf("  Logic:      ==\n");
+        printf("  Math:       + - * / %%\n");
+        printf("  Comparison: < >\n");
+        printf("  Control:    if else while\n");
+        printf("  Functions:  do\n");
+        printf("  Memory:     list at set\n");
+        printf("  I/O:        ask put\n");
+        printf("  Environ:    arg paste\n");
+        printf("  Comments:   #\n");
+        return 0;
+    }
+
+    /* build CLI arg list */
+    cli_args = val_list();
+    for (int i = 2; i < argc; i++) {
+        if (cli_args->item_count >= cli_args->item_cap) {
+            cli_args->item_cap = cli_args->item_cap ? cli_args->item_cap * 2 : 8;
+            cli_args->items = realloc(cli_args->items, cli_args->item_cap * sizeof(Value*));
+        }
+        cli_args->items[cli_args->item_count++] = val_str(argv[i]);
     }
 
     char *src = read_file(argv[1]);

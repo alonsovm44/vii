@@ -1,0 +1,9 @@
+# Test set keyword
+nums = list
+nums set 0 10
+nums set 1 20
+nums set 2 30
+"List:"
+nums
+"Item at 1:"
+nums at 1

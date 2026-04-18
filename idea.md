@@ -13,15 +13,15 @@ Io measures minimalism not by character count, but by concept count. Python requ
 IO has no keywords for class, return, import, true, false, try, catch, or variable types (0 is false, anything else is true).
 
 1. Data: Numbers (5), Text ("hello")
-2. Assignment & Logic: =, ==
-3. Math: + - * / %
-4. Comparison: < >
-5. Control Flow: if, else, while
-6. Abstraction: do (define function, implicit return)
-7. Memory: list, at, set
-8. Universal I/O: ask (input from keyboard OR read file), say (print to screen), put (write to disk)
-9. Environment: arg (CLI arguments list), paste (inject file at compile time)
-10. Comments: # (single line)
+2. Assignment & Logic: `=`, `==`
+3. Math: `+`, `-`, `*`, `/`, `%`
+4. Comparison: `<`, `>`
+5. Control Flow: `if`, `else`, `while`
+6. Abstraction: `do` (define function, implicit return)
+7. Memory: `list`, `at`, `set`
+8. Universal I/O: `ask` (input from keyboard OR read file), `put` (write to disk)
+9. Environment: `arg` (CLI arguments list), `paste` (inject file at compile time)
+10. Comments: `#` (single line)
 >(Note: The 21 keywords/operators cannot be used as variable names to keep the compiler infinitely simple. To read a file, pass its path to ask: data = "file.txt" ask. To append, read it, concatenate, and put it back)
 
 
