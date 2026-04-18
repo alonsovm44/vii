@@ -129,8 +129,8 @@ typedef enum {
     TOK_NUM, TOK_STR, TOK_IDENT,
     TOK_IF, TOK_ELSE, TOK_WHILE, TOK_DO, TOK_ASK, TOK_LIST, TOK_AT, TOK_SET,
     TOK_PUT, TOK_ARG, TOK_PASTE, TOK_LEN, TOK_ORD, TOK_CHR, TOK_TONUM, TOK_TOSTR,
-    TOK_EQ, TOK_EQEQ, TOK_PLUS, TOK_MINUS, TOK_STAR, TOK_SLASH, TOK_PCT,
-    TOK_LT, TOK_GT,
+    TOK_EQ, TOK_EQEQ, TOK_PLUS, TOK_MINUS, TOK_STAR, TOK_SLASH, TOK_PCT, TOK_ARROW,
+    TOK_LT, TOK_GT, 
     TOK_NEWLINE, TOK_INDENT, TOK_DEDENT, TOK_EOF
 } TokKind;
 
@@ -287,6 +287,10 @@ static void lex(Lexer *l, const char *filename) {
             lex_push(l, (Token){TOK_EQEQ, strdup("=="), 0, l->line, l->pos});
             l->pos += 2; continue;
         }
+        if (c == '-' && l->src[l->pos+1] == '>') {
+            lex_push(l, (Token){TOK_ARROW, strdup("->"), 0, l->line, l->pos});
+            l->pos += 2; continue;
+        }
         if (c == '=') { lex_push(l, (Token){TOK_EQ, strdup("="), 0, l->line, l->pos}); l->pos++; continue; }
         if (c == '+') { lex_push(l, (Token){TOK_PLUS, strdup("+"), 0, l->line, l->pos}); l->pos++; continue; }
         if (c == '-') { lex_push(l, (Token){TOK_MINUS, strdup("-"), 0, l->line, l->pos}); l->pos++; continue; }
@@ -339,6 +343,7 @@ typedef enum {
 typedef struct Node {
     NdKind kind;
     char  *name;        /* variable / function name */
+    char  *type_tag;    /* optional static type (num, str, etc) */
     double num;         /* number literal */
     char  *str;         /* string literal */
     TokKind op;         /* binary operator */
@@ -419,6 +424,11 @@ static Node *parse_primary(Parser *p) {
             while (peek(p)->kind == TOK_IDENT) {
                 Node *param = nd_new(ND_VAR);
                 param->name = strdup(advance(p)->text);
+                if (peek(p)->kind == TOK_ARROW) {
+                    advance(p); /* skip -> */
+                    if (peek(p)->kind == TOK_IDENT)
+                        param->type_tag = strdup(advance(p)->text);
+                }
                 nd_push(fn, param);
             }
             skip_newlines(p);
@@ -508,11 +518,21 @@ static Node *parse_expr(Parser *p) {
         left = bin;
     }
 
-    /* assignment: var = expr */
-    if (peek(p)->kind == TOK_EQ && (left->kind == ND_VAR || left->kind == ND_AT)) {
-        advance(p);
+    /* assignment: var = expr OR var type = expr */
+    bool is_typed = (left->kind == ND_VAR && peek(p)->kind == TOK_IDENT && p->tokens[p->pos+1].kind == TOK_EQ);
+    bool is_normal = (peek(p)->kind == TOK_EQ && (left->kind == ND_VAR || left->kind == ND_AT));
+
+    if (is_typed || is_normal) {
         Node *assign = nd_new(ND_ASSIGN);
         assign->left = left;
+        
+        if (is_typed) {
+            left->type_tag = strdup(advance(p)->text); /* consume type */
+            advance(p); /* consume = */
+        } else {
+            advance(p); /* consume = */
+        }
+
         assign->right = parse_expr(p);
         return assign;
     }
@@ -1030,6 +1050,7 @@ static void emit_c_expr(Node *n, FILE *f);
 static void emit_c_stmt(Node *n, int indent, FILE *f);
 
 static void emit_c_expr(Node *n, FILE *f) {
+    bool is_num_type = (n->type_tag && !strcmp(n->type_tag, "num"));
     switch (n->kind) {
         case ND_NUM:   fprintf(f, "val_num(%g)", n->num); break;
         case ND_STR: {
@@ -1045,14 +1066,25 @@ static void emit_c_expr(Node *n, FILE *f) {
             fprintf(f, "\")");
             break;
         }
-        case ND_VAR:   fprintf(f, "runtime_var_get(env, \"%s\")", n->name); break;
+        case ND_VAR:
+            if (is_num_type) fprintf(f, "%s", n->name);
+            else fprintf(f, "runtime_var_get(env, \"%s\")", n->name); 
+            break;
         case ND_ARG:   fprintf(f, "io_args"); break;
         case ND_BINOP:
-            fprintf(f, "runtime_binop(%d, ", n->op);
-            emit_c_expr(n->left, f);
-            fprintf(f, ", "); 
-            emit_c_expr(n->right, f);
-            fprintf(f, ")");
+            if (n->left->type_tag && !strcmp(n->left->type_tag, "num")) {
+                /* Direct C Math */
+                fprintf(f, "("); emit_c_expr(n->left, f);
+                if (n->op == TOK_PLUS) fprintf(f, " + ");
+                else if (n->op == TOK_MINUS) fprintf(f, " - ");
+                emit_c_expr(n->right, f); fprintf(f, ")");
+            } else {
+                fprintf(f, "runtime_binop(%d, ", n->op);
+                emit_c_expr(n->left, f);
+                fprintf(f, ", "); 
+                emit_c_expr(n->right, f);
+                fprintf(f, ")");
+            }
             break;
         case ND_CALL:
             fprintf(f, "runtime_call(table_get(env, \"%s\"), env, %d, (Value*[]){", n->left->name, n->body_count);
@@ -1064,9 +1096,14 @@ static void emit_c_expr(Node *n, FILE *f) {
             break;
         case ND_ASSIGN:
             if (n->left->kind == ND_VAR) {
-                fprintf(f, "table_set(env, \"%s\", ", n->left->name);
-                emit_c_expr(n->right, f);
-                fprintf(f, ")");
+                if (n->left->type_tag && !strcmp(n->left->type_tag, "num")) {
+                    fprintf(f, "%s = ", n->left->name);
+                    emit_c_expr(n->right, f);
+                } else {
+                    fprintf(f, "table_set(env, \"%s\", ", n->left->name);
+                    emit_c_expr(n->right, f);
+                    fprintf(f, ")");
+                }
             } else if (n->left->kind == ND_AT) {
                 fprintf(f, "runtime_set(");
                 emit_c_expr(n->left->left, f);
@@ -1139,6 +1176,12 @@ static void emit_c_expr(Node *n, FILE *f) {
 static void emit_c_stmt(Node *n, int indent, FILE *f) {
     for (int i = 0; i < indent; i++) fprintf(f, "  ");
     switch (n->kind) {
+        case ND_ASSIGN:
+            if (n->left->type_tag && !strcmp(n->left->type_tag, "num"))
+                fprintf(f, "double ");
+            emit_c_expr(n, f);
+            fprintf(f, ";\n");
+            break;
         case ND_BLOCK:
             for (int i = 0; i < n->body_count; i++) emit_c_stmt(n->body[i], 0, f);
             break;

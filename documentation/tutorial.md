@@ -157,7 +157,26 @@ tostr 42         # "42"
 
 ---
 
-## 9. A Complete Example: FizzBuzz
+## 9. Optional Static Typing (Advanced)
+For hiOptional Static Typing (Advanced)
+For high-performance sections of your code, you can hint types to the transpiler. This allows IO to generate native C variables instead of dynamic objects.
+
+### Typed Variables
+```io
+x num = 10
+y num = 20
+z num = x + y   # Compiles to native double z = x + y;
+```
+
+### Typed Functions
+```io
+do add a->num b->num
+  a + b
+```
+
+---
+
+## 10. A Complete Example: FizzBuzz
 ```io
 x = 1
 while x < 101
