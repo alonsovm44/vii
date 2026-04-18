@@ -129,18 +129,18 @@ typedef enum {
     TOK_NUM, TOK_STR, TOK_IDENT,
     TOK_IF, TOK_ELSE, TOK_WHILE, TOK_DO, TOK_ASK, TOK_LIST, TOK_AT, TOK_SET,
     TOK_PUT, TOK_ARG, TOK_PASTE, TOK_LEN, TOK_ORD, TOK_CHR, TOK_TONUM, TOK_TOSTR,
-    TOK_EQ, TOK_EQEQ, TOK_PLUS, TOK_MINUS, TOK_STAR, TOK_SLASH, TOK_PCT, TOK_ARROW,
+    TOK_SYS, TOK_ENV, TOK_EXIT, TOK_EQ, TOK_EQEQ, TOK_PLUS, TOK_MINUS, TOK_STAR, TOK_SLASH, TOK_PCT, TOK_ARROW,
     TOK_LT, TOK_GT, 
     TOK_NEWLINE, TOK_INDENT, TOK_DEDENT, TOK_EOF
 } TokKind;
 
 static const char *tok_kw[] = {
-    "if","else","while","do","ask","list","at","set","put","arg","paste","len","ord","chr","tonum","tostr"
+    "if","else","while","do","ask","list","at","set","put","arg","paste","len","ord","chr","tonum","tostr","sys","env","exit"
 };
 static const TokKind kw_kind[] = {
-    TOK_IF,TOK_ELSE,TOK_WHILE,TOK_DO,TOK_ASK,TOK_LIST,TOK_AT,TOK_SET,TOK_PUT,TOK_ARG,TOK_PASTE,TOK_LEN,TOK_ORD,TOK_CHR,TOK_TONUM,TOK_TOSTR
+    TOK_IF,TOK_ELSE,TOK_WHILE,TOK_DO,TOK_ASK,TOK_LIST,TOK_AT,TOK_SET,TOK_PUT,TOK_ARG,TOK_PASTE,TOK_LEN,TOK_ORD,TOK_CHR,TOK_TONUM,TOK_TOSTR,TOK_SYS,TOK_ENV,TOK_EXIT
 };
-#define KW_COUNT 16
+#define KW_COUNT 19
 
 typedef struct Token {
     TokKind kind;
@@ -336,6 +336,7 @@ typedef enum {
     ND_IF, ND_WHILE, ND_DO,
     ND_ASK, ND_ASKFILE, ND_LIST, ND_AT, ND_SET,
     ND_PUT, ND_ARG, ND_LEN, ND_ORD, ND_CHR, ND_TONUM, ND_TOSTR,
+    ND_SYS, ND_ENV, ND_EXIT,
     ND_CALL, ND_BLOCK,
     ND_PRINT  /* implicit print */
 } NdKind;
@@ -413,6 +414,9 @@ static Node *parse_primary(Parser *p) {
         case TOK_CHR:   advance(p); { Node *n = nd_new(ND_CHR);   n->left = parse_postfix(p); return n; }
         case TOK_TONUM: advance(p); { Node *n = nd_new(ND_TONUM); n->left = parse_postfix(p); return n; }
         case TOK_TOSTR: advance(p); { Node *n = nd_new(ND_TOSTR); n->left = parse_postfix(p); return n; }
+        case TOK_SYS:   advance(p); { Node *n = nd_new(ND_SYS);   n->left = parse_postfix(p); return n; }
+        case TOK_ENV:   advance(p); { Node *n = nd_new(ND_ENV);   n->left = parse_postfix(p); return n; }
+        case TOK_EXIT:  advance(p); { Node *n = nd_new(ND_EXIT);  n->left = parse_postfix(p); return n; }
         case TOK_LIST:  advance(p); return nd_new(ND_LIST);
         case TOK_DO: {
             advance(p);
@@ -480,7 +484,8 @@ static Node *parse_postfix(Parser *p) {
                    peek(p)->kind == TOK_LIST || peek(p)->kind == TOK_ARG ||
                    peek(p)->kind == TOK_LEN || peek(p)->kind == TOK_ORD ||
                    peek(p)->kind == TOK_CHR || peek(p)->kind == TOK_TONUM ||
-                   peek(p)->kind == TOK_TOSTR) {
+                   peek(p)->kind == TOK_TOSTR || peek(p)->kind == TOK_SYS ||
+                   peek(p)->kind == TOK_ENV || peek(p)->kind == TOK_EXIT) {
             /* function call: funcname arg1 arg2 ... */
             if (expr->kind != ND_VAR) break;
 
@@ -498,7 +503,8 @@ static Node *parse_postfix(Parser *p) {
                    peek(p)->kind == TOK_LIST || peek(p)->kind == TOK_ARG ||
                    peek(p)->kind == TOK_LEN || peek(p)->kind == TOK_ORD ||
                    peek(p)->kind == TOK_CHR || peek(p)->kind == TOK_TONUM ||
-                   peek(p)->kind == TOK_TOSTR) {
+                   peek(p)->kind == TOK_TOSTR || peek(p)->kind == TOK_SYS ||
+                   peek(p)->kind == TOK_ENV || peek(p)->kind == TOK_EXIT) {
                 nd_push(call, parse_primary(p));
             }
             expr = call;
@@ -986,6 +992,25 @@ static Value *eval(Node *n, Table *env) {
             if (v->kind == VAL_STR) return v;
             return val_str("");
         }
+        case ND_SYS: {
+            Value *v = eval(n->left, env);
+            if (v->kind != VAL_STR) return val_str("");
+            FILE *f = popen(v->str, "r");
+            if (!f) return val_str("");
+            char *out = malloc(8192);
+            int total = fread(out, 1, 8191, f);
+            out[total] = '\0';
+            pclose(f);
+            Value *res = val_str(out); free(out);
+            return res;
+        }
+        case ND_ENV: {
+            Value *v = eval(n->left, env);
+            if (v->kind != VAL_STR) return val_str("");
+            char *e = getenv(v->str);
+            return e ? val_str(e) : val_str("");
+        }
+        case ND_EXIT: exit((int)eval(n->left, env)->num); return val_none();
         case ND_CALL: {
             const char *fname = n->left->name;
             Func *fn = func_find(fname);
@@ -1065,6 +1090,8 @@ static void emit_c_header(FILE *f) {
     fprintf(f, "static Value* runtime_str_concat(const char* a, const char* b) { char buf[2048]; snprintf(buf, 2048, \"%%s%%s\", a, b); return val_str(buf); }\n");
     fprintf(f, "static Value* runtime_put(Value* p, Value* d) { if(p->kind!=VAL_STR) return val_none(); FILE* f=fopen(p->str,\"w\"); if(!f) return val_none(); if(d->kind==VAL_STR) fprintf(f,\"%%s\",d->str); else { if(d->kind==VAL_NUM) fprintf(f,d->num==(long long)d->num?\"%%lld\":\"%%g\",(long long)d->num); } fclose(f); return val_none(); }\n");
     fprintf(f, "static Value* runtime_tostr(Value* v) { char b[64]; if(v->kind==VAL_NUM){ if(v->num==(long long)v->num) snprintf(b,64,\"%%%%lld\",(long long)v->num); else snprintf(b,64,\"%%%%g\",v->num); return val_str(b); } if(v->kind==VAL_STR) return v; return val_str(\"\"); }\n");
+    fprintf(f, "static Value* runtime_sys(Value* v) { if(v->kind!=VAL_STR) return val_str(\"\"); FILE* f=popen(v->str,\"r\"); if(!f) return val_str(\"\"); char b[4096]; int n=fread(b,1,4095,f); b[n]=0; pclose(f); return val_str(b); }\n");
+    fprintf(f, "static Value* runtime_env(Value* v) { if(v->kind!=VAL_STR) return val_str(\"\"); char* e=getenv(v->str); return e?val_str(e):val_str(\"\"); }\n");
 }
 
 static void emit_c_expr(Node *n, FILE *f);
@@ -1212,6 +1239,19 @@ static void emit_c_expr(Node *n, FILE *f) {
             fprintf(f, "runtime_tostr(");
             emit_c_expr(n->left, f);
             fprintf(f, ")");
+            break;
+        case ND_SYS:
+            fprintf(f, "runtime_sys(");
+            emit_c_expr(n->left, f);
+            fprintf(f, ")");
+            break;
+        case ND_ENV:
+            fprintf(f, "runtime_env(");
+            emit_c_expr(n->left, f);
+            fprintf(f, ")");
+            break;
+        case ND_EXIT:
+            fprintf(f, "exit((int)("); emit_c_expr(n->left, f); fprintf(f, ")->num)");
             break;
         default: fprintf(f, "val_none()"); break;
     }

@@ -41,7 +41,7 @@
                     "name": "keyword.control.io"
                 },
                 {
-                    "match": "\\b(ask|put|paste|list|at|set|len|ord|chr|tonum|tostr)\\b",
+                    "match": "\\b(ask|put|paste|list|at|set|len|ord|chr|tonum|tostr|sys|env|exit)\\b",
                     "name": "support.function.io"
                 },
                 {

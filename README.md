@@ -17,7 +17,7 @@ IO measures minimalism not by character count, but by concept count. No punctuat
 - **Implicit Output & Return**: If a line results in a value and isn't saved, it prints automatically. Inside a function, the final evaluated line is implicitly returned.
 - **Indentation Only**: Spaces are the only structural syntax used to group blocks of code.
 
-## The Complete Vocabulary (26 Words)
+## The Complete Vocabulary (29 Words)
 
 1. **Data**: Numbers (`5`), Text (`"hello"`)
 2. **Assignment & Logic**: `=`, `==`
@@ -28,8 +28,9 @@ IO measures minimalism not by character count, but by concept count. No punctuat
 7. **Memory**: `list`, `at`, `set`
 8. **Universal I/O**: `ask` (keyboard OR file read), `put` (write to disk)
 9. **Environment**: `arg` (CLI arguments list), `paste` (inject file at compile time)
-10. **Conversion**: `len` (string/list length), `ord` (char → code), `chr` (code → char), `tonum` (string → number), `tostr` (number → string)
-11. **Comments**: `#` (single line)
+10. **DevOps**: `sys` (run shell command), `env` (get environment variable), `exit` (terminate process)
+11. **Conversion**: `len` (string/list length), `ord` (char → code), `chr` (code → char), `tonum` (string → number), `tostr` (number → string)
+12. **Comments**: `#` (single line)
 
 > The 16 keywords (`if`, `else`, `while`, `do`, `ask`, `list`, `at`, `set`, `put`, `arg`, `paste`, `len`, `ord`, `chr`, `tonum`, `tostr`) cannot be used as variable names.
 
