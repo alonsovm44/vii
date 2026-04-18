@@ -616,7 +616,7 @@ static Node *parse_stmt(Parser *p) {
     /* expression statement (with implicit print) */
     Node *expr = parse_expr(p);
     /* if it's not an assignment, wrap in implicit print */
-    if (expr->kind != ND_ASSIGN && expr->kind != ND_DO && expr->kind != ND_SET && expr->kind != ND_PUT) {
+    if (expr->kind != ND_ASSIGN && expr->kind != ND_DO && expr->kind != ND_SET && expr->kind != ND_PUT && expr->kind != ND_EXIT) {
         Node *print = nd_new(ND_PRINT);
         print->left = expr;
         return print;
@@ -994,15 +994,9 @@ static Value *eval(Node *n, Table *env) {
         }
         case ND_SYS: {
             Value *v = eval(n->left, env);
-            if (v->kind != VAL_STR) return val_str("");
-            FILE *f = popen(v->str, "r");
-            if (!f) return val_str("");
-            char *out = malloc(8192);
-            int total = fread(out, 1, 8191, f);
-            out[total] = '\0';
-            pclose(f);
-            Value *res = val_str(out); free(out);
-            return res;
+            if (v->kind != VAL_STR) return val_num(-1);
+            int result = system(v->str);
+            return val_num((double)result);
         }
         case ND_ENV: {
             Value *v = eval(n->left, env);
@@ -1090,7 +1084,7 @@ static void emit_c_header(FILE *f) {
     fprintf(f, "static Value* runtime_str_concat(const char* a, const char* b) { char buf[2048]; snprintf(buf, 2048, \"%%s%%s\", a, b); return val_str(buf); }\n");
     fprintf(f, "static Value* runtime_put(Value* p, Value* d) { if(p->kind!=VAL_STR) return val_none(); FILE* f=fopen(p->str,\"w\"); if(!f) return val_none(); if(d->kind==VAL_STR) fprintf(f,\"%%s\",d->str); else { if(d->kind==VAL_NUM) fprintf(f,d->num==(long long)d->num?\"%%lld\":\"%%g\",(long long)d->num); } fclose(f); return val_none(); }\n");
     fprintf(f, "static Value* runtime_tostr(Value* v) { char b[64]; if(v->kind==VAL_NUM){ if(v->num==(long long)v->num) snprintf(b,64,\"%%%%lld\",(long long)v->num); else snprintf(b,64,\"%%%%g\",v->num); return val_str(b); } if(v->kind==VAL_STR) return v; return val_str(\"\"); }\n");
-    fprintf(f, "static Value* runtime_sys(Value* v) { if(v->kind!=VAL_STR) return val_str(\"\"); FILE* f=popen(v->str,\"r\"); if(!f) return val_str(\"\"); char b[4096]; int n=fread(b,1,4095,f); b[n]=0; pclose(f); return val_str(b); }\n");
+    fprintf(f, "static Value* runtime_sys(Value* v) { if(v->kind!=VAL_STR) return val_num(-1); return val_num((double)system(v->str)); }\n");
     fprintf(f, "static Value* runtime_env(Value* v) { if(v->kind!=VAL_STR) return val_str(\"\"); char* e=getenv(v->str); return e?val_str(e):val_str(\"\"); }\n");
 }
 
@@ -1333,7 +1327,7 @@ static void emit_c_functions(Node *n, FILE *f) {
         /* Emit body statements */
         Node *block = n->left;
         for (int i = 0; i < block->body_count; i++) {
-            if (i == block->body_count - 1) {
+            if (i == block->body_count - 1 && block->body[i]->kind != ND_IF && block->body[i]->kind != ND_WHILE && block->body[i]->kind != ND_EXIT) {
                 fprintf(f, "  return "); emit_c_expr(block->body[i], f); fprintf(f, ";\n");
             } else {
                 emit_c_stmt(block->body[i], 1, f);
@@ -1421,7 +1415,7 @@ int main(int argc, char **argv) {
     if (!input_path && strcmp(argv[1], "--version") != 0 && strcmp(argv[1], "--help") != 0) goto usage;
 
     if (strcmp(argv[1], "--version") == 0) {
-        printf("io 1.1.0\n");
+        printf("io 1.1.3\n");
         return 0;
     }
     if (strcmp(argv[1], "--help") == 0) {

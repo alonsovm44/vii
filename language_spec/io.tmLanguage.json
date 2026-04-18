@@ -37,7 +37,7 @@
         "keywords": {
             "patterns": [
                 {
-                    "match": "\\b(if|else|while)\\b",
+                    "match": "\\b(if|else|while|do)\\b",
                     "name": "keyword.control.io"
                 },
                 {
