@@ -397,7 +397,7 @@ static void skip_newlines(Parser *p) {
 /* forward declarations */
 static Node *parse_postfix(Parser *p);
 static Node *parse_expr(Parser *p);
-static Node *parse_block(Parser *p);
+static Node *parse_block(Parser *p, bool is_function);
 static Node *parse_program(Parser *p);
 
 static Node *parse_primary(Parser *p) {
@@ -433,13 +433,14 @@ static Node *parse_primary(Parser *p) {
             }
             skip_newlines(p);
             expect(p, TOK_INDENT);
-            fn->left = parse_block(p);
+            fn->left = parse_block(p, true);
             expect(p, TOK_DEDENT);
             return fn;
         }
         default:
             report_error(p->filename, p->src, t->pos, t->line, "unexpected token '%s'", t->text ? t->text : "");
     }
+    return NULL;
 }
 
 static Node *parse_postfix(Parser *p) {
@@ -482,6 +483,12 @@ static Node *parse_postfix(Parser *p) {
                    peek(p)->kind == TOK_TOSTR) {
             /* function call: funcname arg1 arg2 ... */
             if (expr->kind != ND_VAR) break;
+
+            /* Lookahead: if this identifier is followed by '=' or '->', it's a type tag, not an argument */
+            if (peek(p)->kind == TOK_IDENT && (p->tokens[p->pos+1].kind == TOK_EQ || p->tokens[p->pos+1].kind == TOK_ARROW)) {
+                break;
+            }
+
             Node *call = nd_new(ND_CALL);
             call->left = expr;
             call->body_cap = 8;
@@ -519,7 +526,8 @@ static Node *parse_expr(Parser *p) {
     }
 
     /* assignment: var = expr OR var type = expr */
-    bool is_typed = (left->kind == ND_VAR && peek(p)->kind == TOK_IDENT && p->tokens[p->pos+1].kind == TOK_EQ);
+    bool is_typed = (left->kind == ND_VAR && peek(p)->kind == TOK_IDENT && 
+                    (p->tokens[p->pos+1].kind == TOK_EQ || p->tokens[p->pos+1].kind == TOK_ARROW));
     bool is_normal = (peek(p)->kind == TOK_EQ && (left->kind == ND_VAR || left->kind == ND_AT));
 
     if (is_typed || is_normal) {
@@ -568,7 +576,7 @@ static Node *parse_stmt(Parser *p) {
         skip_newlines(p);
         expect(p, TOK_INDENT);
         n->body = NULL; n->body_count = 0; n->body_cap = 0;
-        nd_push(n, parse_block(p));
+        nd_push(n, parse_block(p, false));
         expect(p, TOK_DEDENT);
         /* else */
         skip_newlines(p);
@@ -580,7 +588,7 @@ static Node *parse_stmt(Parser *p) {
                 n->right = parse_stmt(p);
             } else {
                 expect(p, TOK_INDENT);
-                n->right = parse_block(p);
+                n->right = parse_block(p, false);
                 expect(p, TOK_DEDENT);
             }
         }
@@ -594,7 +602,7 @@ static Node *parse_stmt(Parser *p) {
         skip_newlines(p);
         expect(p, TOK_INDENT);
         n->body = NULL; n->body_count = 0; n->body_cap = 0;
-        nd_push(n, parse_block(p));
+        nd_push(n, parse_block(p, false));
         expect(p, TOK_DEDENT);
         return n;
     }
@@ -610,11 +618,23 @@ static Node *parse_stmt(Parser *p) {
     return expr;
 }
 
-static Node *parse_block(Parser *p) {
+static Node *parse_block(Parser *p, bool is_function) {
     Node *block = nd_new(ND_BLOCK);
     while (peek(p)->kind != TOK_DEDENT && peek(p)->kind != TOK_EOF) {
         if (peek(p)->kind == TOK_NEWLINE) { advance(p); continue; }
-        nd_push(block, parse_stmt(p));
+        
+        Node *stmt = parse_stmt(p);
+        skip_newlines(p);
+        
+        /* If this is the last line of a function, it's a return value: don't print it! */
+        if (is_function && (peek(p)->kind == TOK_DEDENT || peek(p)->kind == TOK_EOF)) {
+            if (stmt->kind == ND_PRINT) {
+                Node *expr = stmt->left;
+                free(stmt);
+                stmt = expr;
+            }
+        }
+        nd_push(block, stmt);
         skip_newlines(p);
     }
     return block;
@@ -1042,6 +1062,7 @@ static void emit_c_header(FILE *f) {
     fprintf(f, "static Value* runtime_ord(Value* v) { if(v->kind==VAL_STR&&v->str[0]) return val_num((unsigned char)v->str[0]); return val_num(0); }\n");
     fprintf(f, "static Value* runtime_chr(Value* v) { char b[2]={v->num,0}; return val_str(b); }\n");
     fprintf(f, "static Value* runtime_tonum(Value* v) { if(v->kind==VAL_STR){ char*e; double d=strtod(v->str,&e); return val_num(*e==0&&e!=v->str?d:0); } if(v->kind==VAL_NUM) return v; return val_num(0); }\n");
+    fprintf(f, "static Value* runtime_str_concat(const char* a, const char* b) { char buf[2048]; snprintf(buf, 2048, \"%%s%%s\", a, b); return val_str(buf); }\n");
     fprintf(f, "static Value* runtime_put(Value* p, Value* d) { if(p->kind!=VAL_STR) return val_none(); FILE* f=fopen(p->str,\"w\"); if(!f) return val_none(); if(d->kind==VAL_STR) fprintf(f,\"%%s\",d->str); else { if(d->kind==VAL_NUM) fprintf(f,d->num==(long long)d->num?\"%%lld\":\"%%g\",(long long)d->num); } fclose(f); return val_none(); }\n");
     fprintf(f, "static Value* runtime_tostr(Value* v) { char b[64]; if(v->kind==VAL_NUM){ if(v->num==(long long)v->num) snprintf(b,64,\"%%%%lld\",(long long)v->num); else snprintf(b,64,\"%%%%g\",v->num); return val_str(b); } if(v->kind==VAL_STR) return v; return val_str(\"\"); }\n");
 }
@@ -1051,6 +1072,7 @@ static void emit_c_stmt(Node *n, int indent, FILE *f);
 
 static void emit_c_expr(Node *n, FILE *f) {
     bool is_num_type = (n->type_tag && !strcmp(n->type_tag, "num"));
+    bool is_str_type = (n->type_tag && !strcmp(n->type_tag, "str"));
     switch (n->kind) {
         case ND_NUM:   fprintf(f, "val_num(%g)", n->num); break;
         case ND_STR: {
@@ -1067,17 +1089,35 @@ static void emit_c_expr(Node *n, FILE *f) {
             break;
         }
         case ND_VAR:
-            if (is_num_type) fprintf(f, "%s", n->name);
+            if (is_num_type || is_str_type) fprintf(f, "%s", n->name);
             else fprintf(f, "runtime_var_get(env, \"%s\")", n->name); 
             break;
         case ND_ARG:   fprintf(f, "io_args"); break;
         case ND_BINOP:
-            if (n->left->type_tag && !strcmp(n->left->type_tag, "num")) {
+            if ((n->left->type_tag && !strcmp(n->left->type_tag, "num")) || n->left->kind == ND_NUM) {
                 /* Direct C Math */
-                fprintf(f, "("); emit_c_expr(n->left, f);
+                fprintf(f, "val_num(");
+                if (n->left->kind == ND_NUM) fprintf(f, "%g", n->left->num);
+                else emit_c_expr(n->left, f);
+
                 if (n->op == TOK_PLUS) fprintf(f, " + ");
                 else if (n->op == TOK_MINUS) fprintf(f, " - ");
-                emit_c_expr(n->right, f); fprintf(f, ")");
+                else if (n->op == TOK_STAR) fprintf(f, " * ");
+                else if (n->op == TOK_SLASH) fprintf(f, " / ");
+
+                if (n->right->kind == ND_NUM) fprintf(f, "%g", n->right->num);
+                else emit_c_expr(n->right, f);
+                fprintf(f, ")");
+            } else if (n->op == TOK_PLUS && ((n->left->type_tag && !strcmp(n->left->type_tag, "str")) || n->left->kind == ND_STR)) {
+                /* Optimized String Concatenation */
+                fprintf(f, "runtime_str_concat(");
+                if (n->left->kind == ND_STR) fprintf(f, "\"%s\"", n->left->str);
+                else emit_c_expr(n->left, f);
+                fprintf(f, ", ");
+                if (n->right->kind == ND_STR) fprintf(f, "\"%s\"", n->right->str);
+                else if (n->right->type_tag && !strcmp(n->right->type_tag, "str")) emit_c_expr(n->right, f);
+                else { fprintf(f, "("); emit_c_expr(n->right, f); fprintf(f, ")->str"); }
+                fprintf(f, ")");
             } else {
                 fprintf(f, "runtime_binop(%d, ", n->op);
                 emit_c_expr(n->left, f);
@@ -1099,6 +1139,10 @@ static void emit_c_expr(Node *n, FILE *f) {
                 if (n->left->type_tag && !strcmp(n->left->type_tag, "num")) {
                     fprintf(f, "%s = ", n->left->name);
                     emit_c_expr(n->right, f);
+                } else if (n->left->type_tag && !strcmp(n->left->type_tag, "str")) {
+                    fprintf(f, "%s = (", n->left->name);
+                    emit_c_expr(n->right, f);
+                    fprintf(f, ")->str");
                 } else {
                     fprintf(f, "table_set(env, \"%s\", ", n->left->name);
                     emit_c_expr(n->right, f);
@@ -1179,6 +1223,8 @@ static void emit_c_stmt(Node *n, int indent, FILE *f) {
         case ND_ASSIGN:
             if (n->left->type_tag && !strcmp(n->left->type_tag, "num"))
                 fprintf(f, "double ");
+            else if (n->left->type_tag && !strcmp(n->left->type_tag, "str"))
+                fprintf(f, "char* ");
             emit_c_expr(n, f);
             fprintf(f, ";\n");
             break;
@@ -1232,12 +1278,27 @@ static void emit_c_functions(Node *n, FILE *f) {
         fprintf(f, "  Table* env = table_new(parent);\n");
         /* Bind parameters */
         for (int i = 0; i < n->body_count; i++) {
-            fprintf(f, "  if(argc > %d) table_set(env, \"%s\", argv[%d]);\n", i, n->body[i]->name, i);
+            if (n->body[i]->type_tag && !strcmp(n->body[i]->type_tag, "num")) {
+                fprintf(f, "  double %s = (argc > %d && argv[%d]->kind == VAL_NUM) ? argv[%d]->num : 0;\n", 
+                        n->body[i]->name, i, i, i);
+            } else if (n->body[i]->type_tag && !strcmp(n->body[i]->type_tag, "str")) {
+                fprintf(f, "  char* %s = (argc > %d && argv[%d]->kind == VAL_STR) ? argv[%d]->str : \"\";\n",
+                        n->body[i]->name, i, i, i);
+            } else {
+                fprintf(f, "  if(argc > %d) table_set(env, \"%s\", argv[%d]);\n", i, n->body[i]->name, i);
+            }
         }
         /* Define internal functions if any */
         emit_c_functions(n->left, f);
         /* Emit body statements */
-        emit_c_stmt(n->left, 1, f);
+        Node *block = n->left;
+        for (int i = 0; i < block->body_count; i++) {
+            if (i == block->body_count - 1) {
+                fprintf(f, "  return "); emit_c_expr(block->body[i], f); fprintf(f, ";\n");
+            } else {
+                emit_c_stmt(block->body[i], 1, f);
+            }
+        }
         fprintf(f, "  return val_none();\n}\n\n");
     }
 }
@@ -1320,7 +1381,7 @@ int main(int argc, char **argv) {
     if (!input_path && strcmp(argv[1], "--version") != 0 && strcmp(argv[1], "--help") != 0) goto usage;
 
     if (strcmp(argv[1], "--version") == 0) {
-        printf("io 1.0.0\n");
+        printf("io 1.1.0\n");
         return 0;
     }
     if (strcmp(argv[1], "--help") == 0) {

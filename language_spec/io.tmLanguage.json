@@ -41,12 +41,16 @@
                     "name": "keyword.control.io"
                 },
                 {
-                    "match": "\\b(ask|put|paste|list|at|set)\\b",
+                    "match": "\\b(ask|put|paste|list|at|set|len|ord|chr|tonum|tostr)\\b",
                     "name": "support.function.io"
                 },
                 {
                     "match": "\\b(arg)\\b",
                     "name": "variable.language.io"
+                },
+                {
+                    "match": "\\b(num|str)\\b",
+                    "name": "storage.type.io"
                 }
             ]
         },
@@ -59,6 +63,10 @@
                 {
                     "match": "==",
                     "name": "keyword.operator.comparison.io"
+                },
+                {
+                    "match": "->",
+                    "name": "keyword.operator.type.io"
                 },
                 {
                     "match": "=",
