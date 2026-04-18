@@ -17,7 +17,7 @@ IO measures minimalism not by character count, but by concept count. No punctuat
 - **Implicit Output & Return**: If a line results in a value and isn't saved, it prints automatically. Inside a function, the final evaluated line is implicitly returned.
 - **Indentation Only**: Spaces are the only structural syntax used to group blocks of code.
 
-## The Complete Vocabulary (21 Words)
+## The Complete Vocabulary (26 Words)
 
 1. **Data**: Numbers (`5`), Text (`"hello"`)
 2. **Assignment & Logic**: `=`, `==`
@@ -28,9 +28,10 @@ IO measures minimalism not by character count, but by concept count. No punctuat
 7. **Memory**: `list`, `at`, `set`
 8. **Universal I/O**: `ask` (keyboard OR file read), `put` (write to disk)
 9. **Environment**: `arg` (CLI arguments list), `paste` (inject file at compile time)
-10. **Comments**: `#` (single line)
+10. **Conversion**: `len` (string/list length), `ord` (char → code), `chr` (code → char), `tonum` (string → number), `tostr` (number → string)
+11. **Comments**: `#` (single line)
 
-> The 11 keywords (`if`, `else`, `while`, `do`, `ask`, `list`, `at`, `set`, `put`, `arg`, `paste`) cannot be used as variable names.
+> The 16 keywords (`if`, `else`, `while`, `do`, `ask`, `list`, `at`, `set`, `put`, `arg`, `paste`, `len`, `ord`, `chr`, `tonum`, `tostr`) cannot be used as variable names.
 
 ## Build
 
@@ -125,4 +126,27 @@ if arg at 0
 ```io
 paste "helper.io"
 result = double 21
+```
+
+### Conversion Built-ins
+```io
+# len — length of string or list
+len "hello"        # 5
+nums = list
+nums set 0 10
+nums set 1 20
+len nums           # 2
+
+# ord — first character to numeric code
+ord "A"            # 65
+
+# chr — numeric code to single character
+chr 65             # "A"
+
+# tonum — parse string to number
+tonum "42"         # 42
+tonum "3.14"       # 3.14
+
+# tostr — convert number to string
+tostr 42           # "42"
 ```

@@ -128,19 +128,19 @@ static void val_print(Value *v) {
 typedef enum {
     TOK_NUM, TOK_STR, TOK_IDENT,
     TOK_IF, TOK_ELSE, TOK_WHILE, TOK_DO, TOK_ASK, TOK_LIST, TOK_AT, TOK_SET,
-    TOK_PUT, TOK_ARG, TOK_PASTE,
+    TOK_PUT, TOK_ARG, TOK_PASTE, TOK_LEN, TOK_ORD, TOK_CHR, TOK_TONUM, TOK_TOSTR,
     TOK_EQ, TOK_EQEQ, TOK_PLUS, TOK_MINUS, TOK_STAR, TOK_SLASH, TOK_PCT,
     TOK_LT, TOK_GT,
     TOK_NEWLINE, TOK_INDENT, TOK_DEDENT, TOK_EOF
 } TokKind;
 
 static const char *tok_kw[] = {
-    "if","else","while","do","ask","list","at","set","put","arg","paste"
+    "if","else","while","do","ask","list","at","set","put","arg","paste","len","ord","chr","tonum","tostr"
 };
 static const TokKind kw_kind[] = {
-    TOK_IF,TOK_ELSE,TOK_WHILE,TOK_DO,TOK_ASK,TOK_LIST,TOK_AT,TOK_SET,TOK_PUT,TOK_ARG,TOK_PASTE
+    TOK_IF,TOK_ELSE,TOK_WHILE,TOK_DO,TOK_ASK,TOK_LIST,TOK_AT,TOK_SET,TOK_PUT,TOK_ARG,TOK_PASTE,TOK_LEN,TOK_ORD,TOK_CHR,TOK_TONUM,TOK_TOSTR
 };
-#define KW_COUNT 11
+#define KW_COUNT 16
 
 typedef struct Token {
     TokKind kind;
@@ -336,7 +336,7 @@ typedef enum {
     ND_ASSIGN, ND_BINOP,
     ND_IF, ND_WHILE, ND_DO,
     ND_ASK, ND_ASKFILE, ND_LIST, ND_AT, ND_SET,
-    ND_PUT, ND_ARG,
+    ND_PUT, ND_ARG, ND_LEN, ND_ORD, ND_CHR, ND_TONUM, ND_TOSTR,
     ND_CALL, ND_BLOCK,
     ND_PRINT  /* implicit print */
 } NdKind;
@@ -395,6 +395,7 @@ static void skip_newlines(Parser *p) {
 }
 
 /* forward declarations */
+static Node *parse_postfix(Parser *p);
 static Node *parse_expr(Parser *p);
 static Node *parse_block(Parser *p);
 static Node *parse_program(Parser *p);
@@ -407,6 +408,11 @@ static Node *parse_primary(Parser *p) {
         case TOK_IDENT: advance(p); { Node *n = nd_new(ND_VAR); n->name = strdup(t->text); return n; }
         case TOK_ASK:   advance(p); return nd_new(ND_ASK);
         case TOK_ARG:   advance(p); return nd_new(ND_ARG);
+        case TOK_LEN:   advance(p); { Node *n = nd_new(ND_LEN);   n->left = parse_postfix(p); return n; }
+        case TOK_ORD:   advance(p); { Node *n = nd_new(ND_ORD);   n->left = parse_postfix(p); return n; }
+        case TOK_CHR:   advance(p); { Node *n = nd_new(ND_CHR);   n->left = parse_postfix(p); return n; }
+        case TOK_TONUM: advance(p); { Node *n = nd_new(ND_TONUM); n->left = parse_postfix(p); return n; }
+        case TOK_TOSTR: advance(p); { Node *n = nd_new(ND_TOSTR); n->left = parse_postfix(p); return n; }
         case TOK_LIST:  advance(p); return nd_new(ND_LIST);
         case TOK_DO: {
             advance(p);
@@ -459,7 +465,10 @@ static Node *parse_postfix(Parser *p) {
             expr = af;
         } else if (peek(p)->kind == TOK_IDENT || peek(p)->kind == TOK_NUM ||
                    peek(p)->kind == TOK_STR || peek(p)->kind == TOK_ASK ||
-                   peek(p)->kind == TOK_LIST || peek(p)->kind == TOK_ARG) {
+                   peek(p)->kind == TOK_LIST || peek(p)->kind == TOK_ARG ||
+                   peek(p)->kind == TOK_LEN || peek(p)->kind == TOK_ORD ||
+                   peek(p)->kind == TOK_CHR || peek(p)->kind == TOK_TONUM ||
+                   peek(p)->kind == TOK_TOSTR) {
             /* function call: funcname arg1 arg2 ... */
             if (expr->kind != ND_VAR) break;
             Node *call = nd_new(ND_CALL);
@@ -468,7 +477,10 @@ static Node *parse_postfix(Parser *p) {
             call->body = calloc(call->body_cap, sizeof(Node*));
             while (peek(p)->kind == TOK_IDENT || peek(p)->kind == TOK_NUM ||
                    peek(p)->kind == TOK_STR || peek(p)->kind == TOK_ASK ||
-                   peek(p)->kind == TOK_LIST || peek(p)->kind == TOK_ARG) {
+                   peek(p)->kind == TOK_LIST || peek(p)->kind == TOK_ARG ||
+                   peek(p)->kind == TOK_LEN || peek(p)->kind == TOK_ORD ||
+                   peek(p)->kind == TOK_CHR || peek(p)->kind == TOK_TONUM ||
+                   peek(p)->kind == TOK_TOSTR) {
                 nd_push(call, parse_primary(p));
             }
             expr = call;
@@ -868,6 +880,46 @@ static Value *eval(Node *n, Table *env) {
         case ND_ARG: {
             return cli_args;
         }
+        case ND_LEN: {
+            Value *v = eval(n->left, env);
+            if (v->kind == VAL_STR) return val_num((double)strlen(v->str));
+            if (v->kind == VAL_LIST) return val_num(v->item_count);
+            return val_num(0);
+        }
+        case ND_ORD: {
+            Value *v = eval(n->left, env);
+            if (v->kind == VAL_STR && v->str[0]) return val_num((unsigned char)v->str[0]);
+            return val_num(0);
+        }
+        case ND_CHR: {
+            Value *v = eval(n->left, env);
+            char buf[2] = { (char)(int)v->num, '\0' };
+            return val_str(buf);
+        }
+        case ND_TONUM: {
+            Value *v = eval(n->left, env);
+            if (v->kind == VAL_STR) {
+                char *end;
+                double d = strtod(v->str, &end);
+                if (*end == '\0' && end != v->str) return val_num(d);
+                return val_num(0);
+            }
+            if (v->kind == VAL_NUM) return v;
+            return val_num(0);
+        }
+        case ND_TOSTR: {
+            Value *v = eval(n->left, env);
+            if (v->kind == VAL_NUM) {
+                char buf[64];
+                if (v->num == (long long)v->num)
+                    snprintf(buf, sizeof(buf), "%lld", (long long)v->num);
+                else
+                    snprintf(buf, sizeof(buf), "%g", v->num);
+                return val_str(buf);
+            }
+            if (v->kind == VAL_STR) return v;
+            return val_str("");
+        }
         case ND_CALL: {
             const char *fname = n->left->name;
             Func *fn = func_find(fname);
@@ -938,6 +990,11 @@ static void emit_c_header(FILE *f) {
     fprintf(f, "static Value* runtime_at(Value* l, Value* r) { int i=(int)r->num; if(l->kind==VAL_STR){ if(i<0||i>=strlen(l->str)) return val_none(); char b[2]={l->str[i],0}; return val_str(b); } if(l->kind==VAL_LIST){ if(i<0||i>=l->item_count) return val_none(); return l->items[i]; } return val_none(); }\n");
     fprintf(f, "static void runtime_set(Value* l, Value* i, Value* v) { if(l->kind!=VAL_LIST) return; int idx=(int)i->num; if(idx==l->item_count){ if(l->item_count>=l->item_cap){ l->item_cap*=2; l->items=realloc(l->items,l->item_cap*sizeof(Value*)); } l->items[l->item_count++]=v; } else if(idx>=0 && idx<l->item_count) l->items[idx]=v; }\n");
     fprintf(f, "static Value* runtime_ask(Value* p) { if(p&&p->kind==VAL_STR){ FILE* f=fopen(p->str,\"rb\"); if(!f) return val_str(\"\"); fseek(f,0,SEEK_END); long l=ftell(f); fseek(f,0,SEEK_SET); char* b=malloc(l+1); fread(b,1,l,f); b[l]=0; fclose(f); Value* v=val_str(b); free(b); return v; } char buf[1024]; if(!fgets(buf,1024,stdin)) return val_str(\"\"); buf[strcspn(buf,\"\\n\")]=0; return val_str(buf); }\n");
+    fprintf(f, "static Value* runtime_len(Value* v) { if(v->kind==VAL_STR) return val_num(strlen(v->str)); if(v->kind==VAL_LIST) return val_num(v->item_count); return val_num(0); }\n");
+    fprintf(f, "static Value* runtime_ord(Value* v) { if(v->kind==VAL_STR&&v->str[0]) return val_num((unsigned char)v->str[0]); return val_num(0); }\n");
+    fprintf(f, "static Value* runtime_chr(Value* v) { char b[2]={v->num,0}; return val_str(b); }\n");
+    fprintf(f, "static Value* runtime_tonum(Value* v) { if(v->kind==VAL_STR){ char*e; double d=strtod(v->str,&e); return val_num(*e==0&&e!=v->str?d:0); } if(v->kind==VAL_NUM) return v; return val_num(0); }\n");
+    fprintf(f, "static Value* runtime_tostr(Value* v) { char b[64]; if(v->kind==VAL_NUM){ if(v->num==(long long)v->num) snprintf(b,64,\"%%%%lld\",(long long)v->num); else snprintf(b,64,\"%%%%g\",v->num); return val_str(b); } if(v->kind==VAL_STR) return v; return val_str(\"\"); }\n");
 }
 
 static void emit_c_expr(Node *n, FILE *f);
@@ -1000,6 +1057,31 @@ static void emit_c_expr(Node *n, FILE *f) {
             emit_c_expr(n->body[0], f);
             fprintf(f, ", ");
             emit_c_expr(n->body[1], f);
+            fprintf(f, ")");
+            break;
+        case ND_LEN:
+            fprintf(f, "runtime_len(");
+            emit_c_expr(n->left, f);
+            fprintf(f, ")");
+            break;
+        case ND_ORD:
+            fprintf(f, "runtime_ord(");
+            emit_c_expr(n->left, f);
+            fprintf(f, ")");
+            break;
+        case ND_CHR:
+            fprintf(f, "runtime_chr(");
+            emit_c_expr(n->left, f);
+            fprintf(f, ")");
+            break;
+        case ND_TONUM:
+            fprintf(f, "runtime_tonum(");
+            emit_c_expr(n->left, f);
+            fprintf(f, ")");
+            break;
+        case ND_TOSTR:
+            fprintf(f, "runtime_tostr(");
+            emit_c_expr(n->left, f);
             fprintf(f, ")");
             break;
         default: fprintf(f, "val_none()"); break;
@@ -1173,6 +1255,7 @@ int main(int argc, char **argv) {
         printf("  Memory:     list at set\n");
         printf("  I/O:        ask put\n");
         printf("  Environ:    arg paste\n");
+        printf("  Conversion: len ord chr tonum tostr\n");
         printf("  Comments:   #\n");
         return 0;
     }
