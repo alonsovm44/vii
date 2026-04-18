@@ -26,10 +26,10 @@ static void enable_ansi_colors(void) {
 #endif
 }
 
-static void report_error(const char *src, int pos, int line, const char *fmt, ...) {
+static void report_error(const char *filename, const char *src, int pos, int line, const char *fmt, ...) {
     va_list ap;
     va_start(ap, fmt);
-    fprintf(stderr, COL_RED "Error on line %d: " COL_RST, line);
+    fprintf(stderr, COL_RED "Error in %s on line %d: " COL_RST, filename, line);
     vfprintf(stderr, fmt, ap);
     va_end(ap);
     fprintf(stderr, "\n");
@@ -154,6 +154,7 @@ typedef struct Lexer {
     const char *src;
     int         pos;
     int         line;
+    const char *filename;
     int         indent;         /* current indent level */
     int         indents[256];   /* indent stack */
     int         indent_top;
@@ -171,7 +172,7 @@ static void lex_push(Lexer *l, Token t) {
     l->tokens[l->tok_count++] = t;
 }
 
-static void lex_indent(Lexer *l) {
+static void lex_indent(Lexer *l) { // No filename needed here, as it's internal to lexing
     int spaces = 0;
     while (l->src[l->pos] == ' ') { spaces++; l->pos++; }
     if (l->src[l->pos] == '\r') l->pos++;  /* skip \r in CRLF */
@@ -189,13 +190,14 @@ static void lex_indent(Lexer *l) {
     }
 }
 
-static void lex(Lexer *l) {
+static void lex(Lexer *l, const char *filename) {
     l->tok_count = 0;
     l->indent = 0;
     l->indent_top = 0;
     l->indents[0] = 0;
     l->at_line_start = true;
     l->line = 1;
+    l->filename = filename;
 
     while (l->src[l->pos]) {
         char c = l->src[l->pos];
@@ -315,7 +317,7 @@ static void lex(Lexer *l) {
             continue;
         }
 
-        report_error(l->src, l->pos, l->line, "unexpected character '%c'", c);
+        report_error(l->filename, l->src, l->pos, l->line, "unexpected character '%c'", c);
     }
 
     /* emit remaining dedents */
@@ -374,6 +376,7 @@ static char *read_file(const char *path);
 typedef struct Parser {
     Token *tokens;
     int    pos;
+    const char *filename;
     const char *src;
 } Parser;
 
@@ -382,7 +385,7 @@ static Token *advance(Parser *p) { return &p->tokens[p->pos++]; }
 
 static void expect(Parser *p, TokKind k) {
     if (peek(p)->kind != k) {
-        report_error(p->src, peek(p)->pos, peek(p)->line, "expected token kind %d, got %d", k, peek(p)->kind);
+        report_error(p->filename, p->src, peek(p)->pos, peek(p)->line, "expected token kind %d, got %d", k, peek(p)->kind);
     }
     advance(p);
 }
@@ -424,7 +427,7 @@ static Node *parse_primary(Parser *p) {
             return fn;
         }
         default:
-            report_error(p->src, t->pos, t->line, "unexpected token '%s'", t->text ? t->text : "");
+            report_error(p->filename, p->src, t->pos, t->line, "unexpected token '%s'", t->text ? t->text : "");
     }
 }
 
@@ -519,14 +522,14 @@ static Node *parse_stmt(Parser *p) {
     if (t->kind == TOK_PASTE) {
         advance(p);
         if (peek(p)->kind != TOK_STR) {
-            report_error(p->src, peek(p)->pos, peek(p)->line, "paste requires a string filename");
+            report_error(p->filename, p->src, peek(p)->pos, peek(p)->line, "paste requires a string filename");
         }
         char *filename = strdup(peek(p)->text);
         advance(p);
         char *src = read_file(filename);
-        Lexer sub_lex = { .src = src, .pos = 0 };
-        lex(&sub_lex);
-        Parser sub_p = { .tokens = sub_lex.tokens, .pos = 0, .src = src };
+        Lexer sub_lex = { .src = src, .pos = 0, .filename = filename };
+        lex(&sub_lex, filename);
+        Parser sub_p = { .tokens = sub_lex.tokens, .pos = 0, .src = src, .filename = filename };
         Node *included = parse_program(&sub_p);
         free(filename);
         free(src);
@@ -705,7 +708,7 @@ static Value *eval(Node *n, Table *env) {
                 table_set(env, n->left->name, val);
             } else if (n->left->kind == ND_AT) {
                 /* list at index = value */
-                Value *list = eval(n->left->left, env);
+                Value *list = eval(n->left->left, env); // This is the list itself
                 Value *idx  = eval(n->left->right, env);
                 if (list->kind != VAL_LIST) { fprintf(stderr, "Runtime error: 'at' on non-list\n"); exit(1); }
                 int i = (int)idx->num;
@@ -1198,10 +1201,10 @@ int main(int argc, char **argv) {
     }
 
     char *src = read_file(input_path);
-    Lexer lexer = { .src = src, .pos = 0 };
-    lex(&lexer);
+    Lexer lexer = { .src = src, .pos = 0, .filename = input_path };
+    lex(&lexer, input_path);
 
-    Parser parser = { .tokens = lexer.tokens, .pos = 0, .src = src };
+    Parser parser = { .tokens = lexer.tokens, .pos = 0, .src = src, .filename = input_path };
     Node *prog = parse_program(&parser);
 
     if (output_name) {

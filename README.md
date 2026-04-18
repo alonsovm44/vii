@@ -1,11 +1,13 @@
 # IO — A Minimalist Programming Language
 
+ [Language extension for Windsurf / VS Code:](https://github.com/alonsovm44/io-lang-extension/releases/tag/v0.0.2)
+
 ![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)
 ![Language](https://img.shields.io/badge/language-C-orange.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 
 # The one liner
->IO is a Turing-complete compiled and interpreted programming language that replaces types and boilerplate with just 20 words, relying entirely on indentation, implicit output, and space-separated logic to achieve maximum conceptual density.
+>IO is a Turing-complete compiled and interpreted programming language that replaces types and boilerplate with just 20 words.
 
 IO measures minimalism not by character count, but by concept count. No punctuation, no boilerplate — just logic.
 
