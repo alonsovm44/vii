@@ -62,6 +62,14 @@ io --help       # prints usage and vocabulary
 io --debug file.io # generates debug_ast.json
 ```
 
+## Compile
+
+```bash
+./io examples/fizzbuzz.io -o fizzbuzz 
+```
+This produces a C executable
+
+
 ## Examples
 
 ### FizzBuzz
