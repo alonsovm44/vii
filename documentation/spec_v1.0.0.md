@@ -19,7 +19,7 @@ IO uses exactly 21 reserved words/symbols. These cannot be used as variable name
 
 ### 3.2 Assignment & Logic
 - `=`: Assigns the right side to the left side (suppresses implicit output).
-- `==`: Equality check (Yields `-1` for true, `0` for false).
+ - `==`: Equality check (Yields `1` for true, `0` for false).
 
 ### 3.3 Math & Comparison
 - `+`: Addition or string concatenation.
@@ -27,8 +27,8 @@ IO uses exactly 21 reserved words/symbols. These cannot be used as variable name
 - `*`: Multiplication.
 - `/`: Integer Division.
 - `%`: Modulo (Remainder).
-- `<`: Less than (Yields `-1` for true, `0` for false).
-- `>`: Greater than (Yields `-1` for true, `0` for false).
+ - `<`: Less than (Yields `1` for true, `0` for false).
+ - `>`: Greater than (Yields `1` for true, `0` for false).
 
 ### 3.4 Control Flow
 - `if`: Begins a conditional block based on a logic evaluation.

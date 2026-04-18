@@ -786,12 +786,12 @@ static Value *eval(Node *n, Table *env) {
                 case TOK_STAR:  return val_num(a * b);
                 case TOK_SLASH: return val_num(b != 0 ? (double)((long long)a / (long long)b) : 0);
                 case TOK_PCT:   return val_num((long long)a % (long long)b);
-                case TOK_LT:    return val_num(a < b ? -1 : 0);
-                case TOK_GT:    return val_num(a > b ? -1 : 0);
+                case TOK_LT:    return val_num(a < b ? 1 : 0);
+                case TOK_GT:    return val_num(a > b ? 1 : 0);
                 case TOK_EQEQ:  {
                     if (l->kind == VAL_STR && r->kind == VAL_STR)
-                        return val_num(strcmp(l->str, r->str) == 0 ? -1 : 0);
-                    return val_num(a == b ? -1 : 0);
+                        return val_num(strcmp(l->str, r->str) == 0 ? 1 : 0);
+                    return val_num(a == b ? 1 : 0);
                 }
                 default: return val_num(0);
             }
@@ -1007,10 +1007,10 @@ static void emit_c_header(FILE *f) {
     fprintf(f, "static void val_print(Value *v) { if(!v) return; if(v->kind==VAL_NUM) printf(v->num==(long long)v->num?\"%%lld\":\"%%g\",(long long)v->num); else if(v->kind==VAL_STR) printf(\"%%s\",v->str); else if(v->kind==VAL_LIST){ printf(\"[\"); for(int i=0;i<v->item_count;i++){ if(i)printf(\", \"); val_print(v->items[i]); } printf(\"]\"); } }\n");
     fprintf(f, "static Value* runtime_binop(int op, Value* l, Value* r) {\n");
     fprintf(f, "  if(op==%d && (l->kind==VAL_STR||r->kind==VAL_STR)){ char b[1024]; sprintf(b, \"%%s%%s\", l->kind==VAL_STR?l->str:\"\", r->kind==VAL_STR?r->str:\"\"); return val_str(b); }\n", TOK_PLUS);
-    fprintf(f, "  if(op==%d){ if(l->kind==VAL_STR&&r->kind==VAL_STR) return val_num(strcmp(l->str,r->str)==0?-1:0); }\n", TOK_EQEQ);
+    fprintf(f, "  if(op==%d){ if(l->kind==VAL_STR&&r->kind==VAL_STR) return val_num(strcmp(l->str,r->str)==0?1:0); }\n", TOK_EQEQ);
     fprintf(f, "  double a=l->num, b=r->num; switch(op){\n");
     fprintf(f, "    case %d: return val_num(a+b); case %d: return val_num(a-b); case %d: return val_num(a*b); case %d: return val_num(b?(int)a/(int)b:0); case %d: return val_num(b?(int)a%%(int)b:0);\n", TOK_PLUS, TOK_MINUS, TOK_STAR, TOK_SLASH, TOK_PCT);
-    fprintf(f, "    case %d: return val_num(a<b?-1:0); case %d: return val_num(a>b?-1:0); case %d: return val_num(a==b?-1:0); default: return val_none();\n", TOK_LT, TOK_GT, TOK_EQEQ);
+    fprintf(f, "    case %d: return val_num(a<b?1:0); case %d: return val_num(a>b?1:0); case %d: return val_num(a==b?1:0); default: return val_none();\n", TOK_LT, TOK_GT, TOK_EQEQ);
     fprintf(f, "  }\n}\n");
     fprintf(f, "static Value* runtime_call(Value* f, Table* e, int c, Value** v) { if(f->kind==VAL_FUNC) return f->func(e, c, v); return val_none(); }\n");
     fprintf(f, "static Value* io_args;\n");

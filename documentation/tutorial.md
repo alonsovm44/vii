@@ -49,10 +49,8 @@ result = 2 + temp
 
 ### Logic & Comparison
 - `==` (Equals)
-- `<` (Less than)
-- `>` (Greater than)
 
-*Note: True is represented by `-1` (or any non-zero value), and False is `0`.*
+*Note: True is represented by `1` (though any non-zero value is considered "truthy"), and False is `0`.*
 
 ### If/Else
 ```io
