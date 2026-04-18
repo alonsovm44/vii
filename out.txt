@@ -1,4 +1,0 @@
-First item:
-0
-Last item:
-8

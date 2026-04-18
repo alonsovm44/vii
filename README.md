@@ -1,5 +1,12 @@
 # IO — A Minimalist Programming Language
 
+![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)
+![Language](https://img.shields.io/badge/language-C-orange.svg)
+![License](https://img.shields.io/badge/license-MIT-green.svg)
+
+# The one liner
+>IO is a Turing-complete compiled and interpreted programming language that replaces types and boilerplate with just 20 words, relying entirely on indentation, implicit output, and space-separated logic to achieve maximum conceptual density.
+
 IO measures minimalism not by character count, but by concept count. No punctuation, no boilerplate — just logic.
 
 ## The 3 Rules
@@ -26,7 +33,7 @@ IO measures minimalism not by character count, but by concept count. No punctuat
 ## Build
 
 ```bash
-gcc -Wall -O2 -std=c99 -o io src/io.c
+gcc -Wall -O3 -std=c99 -o io src/io.c
 ```
 
 Or with Make:
