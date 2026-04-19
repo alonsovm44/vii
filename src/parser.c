@@ -1,4 +1,5 @@
 #include "vii.h"
+#include <ctype.h>
 
 Node *nd_new(NdKind kind) {
     Node *n = calloc(1, sizeof(Node));
@@ -12,6 +13,27 @@ void nd_push(Node *block, Node *child) {
         block->body = realloc(block->body, block->body_cap * sizeof(Node*));
     }
     block->body[block->body_count++] = child;
+}
+
+/* ──────────────────────── Constant Tracking ──────────────────────── */
+
+static char **parsed_constants = NULL;
+static int parsed_const_count = 0;
+static int parsed_const_cap = 0;
+
+static void track_constant(Parser *p, const char *name, int pos, int line) {
+    for (int i = 0; i < parsed_const_count; i++) {
+        if (strcmp(parsed_constants[i], name) == 0) {
+            report_error(p->filename, p->src, pos, line, "cannot reassign constant '%s'", name);
+            fflush(stderr);
+            exit(1);
+        }
+    }
+    if (parsed_const_count >= parsed_const_cap) {
+        parsed_const_cap = parsed_const_cap ? parsed_const_cap * 2 : 8;
+        parsed_constants = realloc(parsed_constants, parsed_const_cap * sizeof(char*));
+    }
+    parsed_constants[parsed_const_count++] = strdup(name);
 }
 
 /* ──────────────────────── Parser helpers ──────────────────────── */
@@ -61,6 +83,10 @@ static Node *parse_primary(Parser *p) {
             while (peek(p)->kind == TOK_IDENT) {
                 Node *param = nd_new(ND_VAR);
                 param->name = strdup(advance(p)->text);
+                if (is_all_caps(param->name)) {
+                    /* Parameters in ALL_CAPS are immutable within the function scope */
+                    track_constant(p, param->name, p->tokens[p->pos-1].pos, p->tokens[p->pos-1].line);
+                }
                 if (peek(p)->kind == TOK_ARROW) {
                     advance(p);
                     if (peek(p)->kind == TOK_IDENT)
@@ -175,11 +201,16 @@ static Node *parse_expr(Parser *p) {
     if (is_typed || is_normal) {
         Node *assign = nd_new(ND_ASSIGN);
         assign->left = left;
+        Token *op = peek(p);
 
         if (is_typed) {
+            if (left->kind == ND_VAR && is_all_caps(left->name))
+                track_constant(p, left->name, op->pos, op->line);
             left->type_tag = strdup(advance(p)->text);
             advance(p);
         } else {
+            if (left->kind == ND_VAR && is_all_caps(left->name))
+                track_constant(p, left->name, op->pos, op->line);
             advance(p);
         }
 
@@ -190,9 +221,116 @@ static Node *parse_expr(Parser *p) {
     return left;
 }
 
+/* ──────────────────────── Compile-time IF macros ──────────────────────── */
+
+static void skip_block_body(Parser *p) {
+    int depth = 0;
+    while (peek(p)->kind != TOK_EOF) {
+        if (peek(p)->kind == TOK_INDENT) {
+            depth++;
+            advance(p);
+        } else if (peek(p)->kind == TOK_DEDENT) {
+            if (depth == 0) break;
+            depth--;
+            advance(p);
+        } else {
+            advance(p);
+        }
+    }
+}
+
+static bool resolve_condition(const char *name) {
+    if (strcmp(name, "WIN") == 0) {
+#ifdef _WIN32
+        return true;
+#else
+        return false;
+#endif
+    }
+    if (strcmp(name, "UNIX") == 0) {
+#ifdef _WIN32
+        return false;
+#else
+        return true;
+#endif
+    }
+    for (int i = 0; i < cli_define_count; i++) {
+        if (strcmp(cli_defines[i], name) == 0) return true;
+    }
+    return false;
+}
+
+static Node *parse_when_stmt(Parser *p) {
+    Node *result = nd_new(ND_BLOCK);
+    bool found = false;
+
+    advance(p); /* consume "IF" */
+
+    while (true) {
+        /* read condition identifier */
+        Token *cond = peek(p);
+        if (cond->kind != TOK_IDENT || !is_all_caps(cond->text)) {
+            report_error(p->filename, p->src, cond->pos, cond->line,
+                "IF requires an ALL_CAPS condition, got '%s'", cond->text ? cond->text : "");
+            exit(1);
+        }
+        advance(p);
+
+        bool taken = resolve_condition(cond->text) && !found;
+        skip_newlines(p);
+
+        if (taken) {
+            found = true;
+            expect(p, TOK_INDENT);
+            Node *body = parse_block(p, p->in_func > 0);
+            expect(p, TOK_DEDENT);
+            for (int i = 0; i < body->body_count; i++)
+                nd_push(result, body->body[i]);
+        } else {
+            expect(p, TOK_INDENT);
+            skip_block_body(p);
+            expect(p, TOK_DEDENT);
+        }
+
+        /* check for ELSE / ELSE IF chain */
+        skip_newlines(p);
+        if (peek(p)->kind != TOK_IDENT || strcmp(peek(p)->text, "ELSE") != 0)
+            break;
+
+        advance(p); /* consume "ELSE" */
+        skip_newlines(p);
+
+        if (peek(p)->kind == TOK_IDENT && strcmp(peek(p)->text, "IF") == 0) {
+            advance(p); /* consume "IF", loop to read condition */
+            continue;
+        }
+
+        /* plain ELSE — final fallback */
+        if (!found) {
+            expect(p, TOK_INDENT);
+            Node *body = parse_block(p, p->in_func > 0);
+            expect(p, TOK_DEDENT);
+            for (int i = 0; i < body->body_count; i++)
+                nd_push(result, body->body[i]);
+        } else {
+            expect(p, TOK_INDENT);
+            skip_block_body(p);
+            expect(p, TOK_DEDENT);
+        }
+        break;
+    }
+
+    return result;
+}
+
 static Node *parse_stmt(Parser *p) {
     skip_newlines(p);
     Token *t = peek(p);
+
+    /* compile-time IF macro */
+    if (t->kind == TOK_IDENT && strcmp(t->text, "IF") == 0) {
+        return parse_when_stmt(p);
+    }
 
     if (t->kind == TOK_PASTE) {
         advance(p);
@@ -249,7 +387,7 @@ static Node *parse_stmt(Parser *p) {
 
     /* expression statement (with implicit print outside function bodies) */
     Node *expr = parse_expr(p);
-    if (!p->in_func && expr->kind != ND_ASSIGN && expr->kind != ND_DO && expr->kind != ND_SET && expr->kind != ND_PUT && expr->kind != ND_EXIT) {
+    if (!p->in_func && expr->kind != ND_ASSIGN && expr->kind != ND_DO && expr->kind != ND_SET && expr->kind != ND_PUT && expr->kind != ND_EXIT && expr->kind != ND_BLOCK) {
         Node *print = nd_new(ND_PRINT);
         print->left = expr;
         return print;

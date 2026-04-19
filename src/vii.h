@@ -44,6 +44,18 @@ bool   val_truthy(Value *v);
 void   val_print_to(Value *v, FILE *f);
 void   val_print(Value *v);
 
+/* ──────────────────────── ALL_CAPS helper ──────────────────────── */
+
+static inline bool is_all_caps(const char *s) {
+    if (!s || !*s) return false;
+    bool has_upper = false;
+    for (const char *c = s; *c; c++) {
+        if (*c >= 'a' && *c <= 'z') return false;
+        if (*c >= 'A' && *c <= 'Z') has_upper = true;
+    }
+    return has_upper;
+}
+
 /* ──────────────────────── Lexer ──────────────────────── */
 
 typedef enum {
@@ -126,6 +138,7 @@ Node *parse_program(Parser *p);
 typedef struct Entry {
     char       *key;
     Value      *val;
+    bool        is_constant;
     struct Entry *next;
 } Entry;
 
@@ -151,6 +164,10 @@ Value *eval_block(Node *block, Table *env);
 
 /* global CLI args (set in main) */
 extern Value *cli_args;
+
+/* global CLI defines for IF macros (set in main) */
+extern char **cli_defines;
+extern int    cli_define_count;
 
 /* ──────────────────────── Codegen ──────────────────────── */
 

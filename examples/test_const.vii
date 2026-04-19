@@ -1,0 +1,7 @@
+# Simple constant test
+PI = 3
+r = 5
+area = PI * r * r
+area
+PI = 2 # intentionally done this to check if compiler throws error
+

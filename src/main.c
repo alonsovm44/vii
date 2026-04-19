@@ -1,5 +1,18 @@
 #include "vii.h"
 
+/* global CLI defines for IF macros */
+char **cli_defines = NULL;
+int    cli_define_count = 0;
+static int cli_define_cap = 0;
+
+static void add_define(const char *name) {
+    if (cli_define_count >= cli_define_cap) {
+        cli_define_cap = cli_define_cap ? cli_define_cap * 2 : 8;
+        cli_defines = realloc(cli_defines, cli_define_cap * sizeof(char*));
+    }
+    cli_defines[cli_define_count++] = strdup(name);
+}
+
 int main(int argc, char **argv) {
     enable_ansi_colors();
     const char *input_path = NULL;
@@ -18,6 +31,9 @@ int main(int argc, char **argv) {
             else { fprintf(stderr, "Error: -o requires a filename\n"); return 1; }
         } else if (strcmp(argv[i], "-k") == 0 || strcmp(argv[i], "--keep") == 0) {
             keep_c = true;
+        } else if (strcmp(argv[i], "-D") == 0 || strcmp(argv[i], "--define") == 0) {
+            if (i + 1 < argc) add_define(argv[++i]);
+            else { fprintf(stderr, "Error: -D requires a name\n"); return 1; }
         } else if (argv[i][0] != '-') {
             if (!input_path) input_path = argv[i];
         }
@@ -36,8 +52,9 @@ int main(int argc, char **argv) {
         printf("       vii --help\n");
         printf("       vii --debug <file.vii>\n\n");
         printf("Options:\n");
-        printf("  -o <name>   Compile to executable\n");
-        printf("  -k, --keep  Keep transpiled .c source\n\n");
+        printf("  -o <name>      Compile to executable\n");
+        printf("  -k, --keep     Keep transpiled .c source\n");
+        printf("  -D <name>      Define compile-time flag for IF macros\n\n");
         
         return 0;
     }
@@ -57,6 +74,7 @@ int main(int argc, char **argv) {
         if (strcmp(argv[i], "--debug") == 0) continue;
         if (strcmp(argv[i], "-o") == 0) { i++; continue; }
         if (strcmp(argv[i], "-k") == 0 || strcmp(argv[i], "--keep") == 0) continue;
+        if (strcmp(argv[i], "-D") == 0 || strcmp(argv[i], "--define") == 0) { i++; continue; }
         if (argv[i] == input_path) continue;
 
         if (cli_args->item_count >= cli_args->item_cap) {

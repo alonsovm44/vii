@@ -28,11 +28,20 @@ Value *table_get(Table *t, const char *key) {
 void table_set(Table *t, const char *key, Value *val) {
     unsigned h = hash(key);
     for (Entry *e = t->buckets[h]; e; e = e->next) {
-        if (strcmp(e->key, key) == 0) { e->val = val; return; }
+        if (strcmp(e->key, key) == 0) {
+            if (e->is_constant) {
+                fprintf(stderr, COL_RED "Runtime error:" COL_RST " cannot reassign constant '%s'\n", key);
+                fflush(stderr);
+                exit(1);
+            }
+            e->val = val;
+            return;
+        }
     }
     Entry *e = malloc(sizeof(Entry));
     e->key = strdup(key);
     e->val = val;
+    e->is_constant = is_all_caps(key);
     e->next = t->buckets[h];
     t->buckets[h] = e;
 }

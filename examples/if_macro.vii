@@ -1,0 +1,31 @@
+# Test compile-time IF macros and ALL_CAPS constants
+
+# Constants (immutable)
+PI = 3.14159
+GREETING = "hello"
+
+# Platform-specific code
+IF WIN
+  "Running on Windows"
+ELSE IF UNIX
+  "Running on Unix"
+ELSE
+  "Running on unknown platform"
+
+# Constant usage
+"PI is:"
+PI
+GREETING
+
+# Function with IF macro inside
+do clear
+  IF WIN
+    sys "cls"
+  ELSE IF UNIX
+    sys "clear"
+
+# Test that constants work in expressions
+r = 5
+area = PI * r * r
+"Area of circle with radius 5:"
+area

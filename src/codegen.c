@@ -33,7 +33,7 @@ static void emit_c_header(FILE *f) {
     fprintf(f, "struct Table;\nstruct Value;\n");
     fprintf(f, "typedef struct Value* (*IoFunc)(struct Table*, int, struct Value**);\n");
     fprintf(f, "typedef struct Value { ValKind kind; double num; char *str; struct Value **items; int item_count; int item_cap; IoFunc func; } Value;\n");
-    fprintf(f, "typedef struct Entry { char *key; Value *val; struct Entry *next; } Entry;\n");
+    fprintf(f, "typedef struct Entry { char *key; Value *val; bool is_constant; struct Entry *next; } Entry;\n");
     fprintf(f, "typedef struct Table { Entry *buckets[256]; struct Table *parent; } Table;\n\n");
 
     /* Allocation Helpers */
@@ -47,7 +47,8 @@ static void emit_c_header(FILE *f) {
     fprintf(f, "static unsigned hash(const char *s) { unsigned h = 0; while(*s) h = h * 31 + (unsigned char)*s++; return h %% 256; }\n");
     fprintf(f, "static Table* table_new(Table *p) { Table *t = calloc(1, sizeof(Table)); t->parent = p; return t; }\n");
     fprintf(f, "static Value* table_get(Table *t, const char *k) { for(Table *cur=t;cur;cur=cur->parent){ unsigned h=hash(k); for(Entry *e=cur->buckets[h];e;e=e->next) if(!strcmp(e->key,k)) return e->val; } return val_none(); }\n");
-    fprintf(f, "static void table_set(Table *t, const char *k, Value *v) { unsigned h = hash(k); for(Entry *e=t->buckets[h];e;e=e->next) if(!strcmp(e->key,k)){e->val=v;return;} Entry *e=malloc(sizeof(Entry)); e->key=strdup(k); e->val=v; e->next=t->buckets[h]; t->buckets[h]=e; }\n\n");
+    fprintf(f, "static bool is_all_caps(const char *s) { if(!s||!*s)return false; bool h=false; for(const char *c=s;*c;c++){ if(*c>='a'&&*c<='z') return false; if(*c>='A'&&*c<='Z') h=true; } return h; }\n");
+    fprintf(f, "static void table_set(Table *t, const char *k, Value *v) { unsigned h = hash(k); for(Entry *e=t->buckets[h];e;e=e->next) if(!strcmp(e->key,k)){ if(e->is_constant){fprintf(stderr,\"Runtime error: cannot reassign constant '%%s'\\n\",k);exit(1);} e->val=v;return;} Entry *e=malloc(sizeof(Entry)); e->key=strdup(k); e->val=v; e->is_constant=is_all_caps(k); e->next=t->buckets[h]; t->buckets[h]=e; }\n\n");
 
     /* Builtin Operations */
     fprintf(f, "static bool val_truthy(Value *v) { if(!v) return false; if(v->kind==VAL_NUM) return v->num != 0; if(v->kind==VAL_STR) return v->str[0]!='\\0'; return v->item_count > 0; }\n");
@@ -310,7 +311,7 @@ static void emit_c_functions(Node *n, FILE *f) {
         emit_c_functions(n->left, f);
         Node *block = n->left;
         for (int i = 0; i < block->body_count; i++) {
-            if (i == block->body_count - 1 && block->body[i]->kind != ND_IF && block->body[i]->kind != ND_WHILE && block->body[i]->kind != ND_EXIT) {
+            if (i == block->body_count - 1 && block->body[i]->kind != ND_IF && block->body[i]->kind != ND_WHILE && block->body[i]->kind != ND_EXIT && block->body[i]->kind != ND_BLOCK) {
                 fprintf(f, "  return "); emit_c_expr(block->body[i], f); fprintf(f, ";\n");
             } else {
                 emit_c_stmt(block->body[i], 1, f);
