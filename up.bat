@@ -1,2 +1,2 @@
 @echo off
-cp io.exe C:\tools\
+cp vii.exe C:\tools\

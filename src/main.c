@@ -38,19 +38,7 @@ int main(int argc, char **argv) {
         printf("Options:\n");
         printf("  -o <name>   Compile to executable\n");
         printf("  -k, --keep  Keep transpiled .c source\n\n");
-        printf("The 21-word vocabulary:\n");
-        printf("  Data:       Numbers, Text (\"...\")\n");
-        printf("  Assignment: =\n");
-        printf("  Logic:      ==\n");
-        printf("  Math:       + - * / %%\n");
-        printf("  Comparison: < >\n");
-        printf("  Control:    if else while\n");
-        printf("  Functions:  do\n");
-        printf("  Memory:     list at set\n");
-        printf("  I/O:        ask put\n");
-        printf("  Environ:    arg paste\n");
-        printf("  Conversion: len ord chr tonum tostr\n");
-        printf("  Comments:   #\n");
+        
         return 0;
     }
 
