@@ -1,4 +1,4 @@
-#include "io.h"
+#include "vii.h"
 
 int main(int argc, char **argv) {
     enable_ansi_colors();
@@ -26,15 +26,15 @@ int main(int argc, char **argv) {
     if (!input_path && strcmp(argv[1], "--version") != 0 && strcmp(argv[1], "--help") != 0) goto usage;
 
     if (strcmp(argv[1], "--version") == 0) {
-        printf("io 1.1.3\n");
+        printf("vii 1.1.3\n");
         return 0;
     }
     if (strcmp(argv[1], "--help") == 0) {
-        printf("io - a minimalist programming language\n");
-        printf("Usage: io <file.io> [-o program] [-k] [args...]\n");
-        printf("       io --version\n");
-        printf("       io --help\n");
-        printf("       io --debug <file.io>\n\n");
+        printf("vii - a minimalist programming language\n");
+        printf("Usage: vii <file.vii> [-o program] [-k] [args...]\n");
+        printf("       vii --version\n");
+        printf("       vii --help\n");
+        printf("       vii --debug <file.vii>\n\n");
         printf("Options:\n");
         printf("  -o <name>   Compile to executable\n");
         printf("  -k, --keep  Keep transpiled .c source\n\n");
@@ -108,6 +108,6 @@ int main(int argc, char **argv) {
     return 0;
 
 usage:
-    fprintf(stderr, "Usage: io <file.io> [-o program] [args...]\n");
+    fprintf(stderr, "Usage: vii <file.vii> [-o program] [args...]\n");
     return 1;
 }

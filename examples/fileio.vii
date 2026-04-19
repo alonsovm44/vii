@@ -1,5 +1,5 @@
 # Test put and ask (file read)
-put "test.txt" "Hello from IO!"
+put "test.txt" "Hello from Vii!"
 content = "test.txt" ask
 "File contains:"
 content

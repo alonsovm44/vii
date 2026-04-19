@@ -1,9 +1,9 @@
-# IO Language Specification v1.0.0
+# Vii Language Specification v1.0.0
 
-IO is a concatenative, indentation-based, Turing-complete language designed for absolute concept minimalism. It aims to strip away "OS-level engineering artifacts" to expose pure, readable logic.
+Vii is a concatenative, indentation-based, Turing-complete language designed for absolute concept minimalism. It aims to strip away "OS-level engineering artifacts" to expose pure, readable logic.
 
 ## 1. The Core Philosophy
-IO measures minimalism by **concept count**, not character count. While many modern languages require learning dozens of concepts to start, IO requires exactly 8-10.
+Vii measures minimalism by **concept count**, not character count. While many modern languages require learning dozens of concepts to start, Vii requires exactly 8-10.
 
 ## 2. The 3 Inviolable Rules
 1. **No Punctuation**: There are no `{ }`, `[ ]`, `( )`, `;`, `,`, or `:`. 
@@ -11,7 +11,7 @@ IO measures minimalism by **concept count**, not character count. While many mod
 3. **Indentation Only**: Spaces are the only structural syntax used to group blocks of code.
 
 ## 3. The 21-Word Vocabulary
-IO uses exactly 21 reserved words/symbols. These cannot be used as variable names.
+Vii uses exactly 21 reserved words/symbols. These cannot be used as variable names.
 
 ### 3.1 Data
 - **Numbers**: Integers or Decimals (e.g., `5`, `3.14`).
@@ -63,7 +63,7 @@ IO uses exactly 21 reserved words/symbols. These cannot be used as variable name
 - Anything else (numbers, non-empty strings, non-empty lists) is **True**.
 
 ### 4.2 Operator Precedence
-**IO has no operator precedence.** Expressions are evaluated strictly **left-to-right**.
+**Vii has no operator precedence.** Expressions are evaluated strictly **left-to-right**.
 Example: `2 + 3 * 4` evaluates to `20`, not `14`. 
 To control evaluation order, use intermediate variables.
 
@@ -74,7 +74,7 @@ Example: `result = my_function 10 20`
 ## 5. Formal Examples
 
 ### FizzBuzz
-```io
+```vii
 x = 1
 while x < 101
   if x % 15 == 0
@@ -89,7 +89,7 @@ while x < 101
 ```
 
 ### Fibonacci Function
-```io
+```vii
 do fib n
   if n < 2
     n
@@ -100,7 +100,7 @@ fib 10
 ```
 
 ### File Handling
-```io
+```vii
 put "data.txt" "Line 1" + "\n" + "Line 2"
 content = "data.txt" ask
 content

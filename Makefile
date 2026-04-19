@@ -4,18 +4,18 @@ CFLAGS = -Wall -Wextra -O3 -std=c99
 SRCS = src/main.c src/ui.c src/value.c src/lexer.c src/parser.c src/interp.c src/codegen.c
 OBJS = $(SRCS:.c=.o)
 
-all: io
+all: vii
 
-io: $(OBJS)
-	$(CC) $(CFLAGS) -o io $(OBJS)
+vii: $(OBJS)
+	$(CC) $(CFLAGS) -o vii $(OBJS)
 
-src/%.o: src/%.c src/io.h
+src/%.o: src/%.c src/vii.h
 	$(CC) $(CFLAGS) -c -o $@ $<
 
 clean:
-	rm -f io src/*.o
+	rm -f vii src/*.o
 
-run: io
-	./io examples/fizzbuzz.io
+run: vii
+	./vii examples/fizzbuzz.vii
 
 .PHONY: all clean run

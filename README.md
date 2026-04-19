@@ -1,15 +1,15 @@
-# IO — A Minimalist Programming Language
+# Vii — A Minimalist Programming Language
 
- [Language extension for Windsurf / VS Code:](https://github.com/alonsovm44/io-lang-extension/releases/tag/v0.0.2)
+ [Language extension for Windsurf / VS Code:](https://github.com/alonsovm44/vii-lang-extension/releases/tag/v0.0.2)
 
 ![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)
 ![Language](https://img.shields.io/badge/language-C-orange.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 
 # The one liner
->IO is a Turing-complete compiled and interpreted programming language that replaces types and boilerplate with just 20 words.
+>Vii is a Turing-complete compiled and interpreted programming language that replaces types and boilerplate with just 20 words.
 
-IO measures minimalism not by character count, but by concept count. No punctuation, no boilerplate — just logic.
+Vii measures minimalism not by character count, but by concept count. No punctuation, no boilerplate — just logic.
 
 ## The 3 Rules
 
@@ -37,7 +37,7 @@ IO measures minimalism not by character count, but by concept count. No punctuat
 ## Build
 
 ```bash
-gcc -Wall -O3 -std=c99 -o io src/io.c
+gcc -Wall -O3 -std=c99 -o vii src/main.c src/ui.c src/value.c src/lexer.c src/parser.c src/interp.c src/codegen.c
 ```
 
 Or with Make:
@@ -48,25 +48,25 @@ make
 ## Run
 
 ```bash
-./io examples/fizzbuzz.io
-./io examples/guess.io
-./io examples/lists.io
-./io examples/fileio.io
-./io examples/args.io hello world
-./io examples/paste.io
+./vii examples/fizzbuzz.vii
+./vii examples/guess.vii
+./vii examples/lists.vii
+./vii examples/fileio.vii
+./vii examples/args.vii hello world
+./vii examples/paste.vii
 ```
 
 ### CLI
 ```bash
-io --version    # prints 1.0.0
-io --help       # prints usage and vocabulary
-io --debug file.io # generates debug_ast.json
+vii --version    # prints 1.1.3
+vii --help       # prints usage and vocabulary
+vii --debug file.vii # generates debug_ast.json
 ```
 
 ## Compile
 
 ```bash
-./io examples/fizzbuzz.io -o fizzbuzz 
+./vii examples/fizzbuzz.vii -o fizzbuzz 
 ```
 This produces a C executable
 
@@ -74,7 +74,7 @@ This produces a C executable
 ## Examples
 
 ### FizzBuzz
-```io
+```vii
 x = 1
 while x < 101
   if x % 15 == 0
@@ -89,7 +89,7 @@ while x < 101
 ```
 
 ### Number Guessing Game
-```io
+```vii
 do get_hint guess target
   if guess > target
     "Lower"
@@ -111,7 +111,7 @@ while x == 0
 ```
 
 ### Lists (with `set`)
-```io
+```vii
 nums = list
 nums set 0 42
 nums set 1 99
@@ -119,27 +119,27 @@ nums at 0
 ```
 
 ### File I/O
-```io
-"test.txt" put "Hello from IO!"
+```vii
+"test.txt" put "Hello from Vii!"
 content = "test.txt" ask
 content
 ```
 
 ### CLI Arguments
-```io
+```vii
 if arg at 0
   "First arg:"
   arg at 0
 ```
 
 ### Paste (Include)
-```io
-paste "helper.io"
+```vii
+paste "helper.vii"
 result = double 21
 ```
 
 ### Conversion Built-ins
-```io
+```vii
 # len — length of string or list
 len "hello"        # 5
 nums = list

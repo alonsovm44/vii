@@ -1,0 +1,5 @@
+# Test paste - inject helper.vii
+paste "examples/helper.vii"
+result = double 21
+"Doubled 21 is:"
+result

@@ -1,9 +1,9 @@
 # NOTE
-io.c works fine, i am working to migrate io source code into io so we can bootstrap it
+vii works fine, i am working to migrate vii source code into vii so we can bootstrap it
 
 ## Bootstrapping Prerequisites — Done
 
-5 new built-in keywords added to io.c for self-hosting support:
+5 new built-in keywords added to vii for self-hosting support:
 
 - `len x` — returns length of string or list (needed to iterate source code)
 - `ord s` — returns char code of first character (needed to classify chars in lexer)
@@ -13,4 +13,4 @@ io.c works fine, i am working to migrate io source code into io so we can bootst
 
 These are implemented in: lexer, parser, interpreter, and codegen (compile-to-C).
 
-Next step: write the self-hosted interpreter/compiler in io.io.
+Next step: write the self-hosted interpreter/compiler in vii.vii.

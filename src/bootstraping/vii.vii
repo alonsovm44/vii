@@ -83,8 +83,8 @@ do run_compiler target_file
 target = arg at 0
 if target == 0
   color_yel
-  "IO Compiler v1.0.0"
-  "Usage: io io.io <file.io>"
+  "Vii Compiler v1.0.0"
+  "Usage: vii vii.vii <file.vii>"
   color_rst
 else
   run_compiler target

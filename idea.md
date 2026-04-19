@@ -1,16 +1,16 @@
-# IO: The Core Philosophy: Concept Minimalism
-Io measures minimalism not by character count, but by concept count. Python requires learning ~30 core concepts to build a basic program. Io requires exactly 8.
+# Vii: The Core Philosophy: Concept Minimalism
+Vii measures minimalism not by character count, but by concept count. Python requires learning ~30 core concepts to build a basic program. Vii requires exactly 8.
 
 # Lang spec 1.1
 
-## The 3 Rules of IO
+## The 3 Rules of Vii
 
 - No Punctuation: No { }, [ ], ( ), ;, ,, or :. Punctuation is the #1 cause of beginner syntax errors.
 - Implicit Output & Return: If a line results in a value and isn't saved, it prints to the screen automatically. Inside a function, the final evaluated line is implicitly returned. No print() or return functions.
 - Indentation Only: Spaces are the only structural syntax used to group blocks of code.
 
 ## The Complete Vocabulary (21 Words)
-IO has no keywords for class, return, import, true, false, try, catch, or variable types (0 is false, anything else is true).
+Vii has no keywords for class, return, import, true, false, try, catch, or variable types (0 is false, anything else is true).
 
 1. Data: Numbers (5), Text ("hello")
 2. Assignment & Logic: `=`, `==`
@@ -27,8 +27,8 @@ IO has no keywords for class, return, import, true, false, try, catch, or variab
 
 ## Turing Completeness Proof
 
-To be Turing complete, a language only needs conditional branching (if), dynamic memory allocation (list, set), and infinite repetition (while). Here is FizzBuzz in io to demonstrate density vs. readability:
-```io
+To be Turing complete, a language only needs conditional branching (if), dynamic memory allocation (list, set), and infinite repetition (while). Here is FizzBuzz in vii to demonstrate density vs. readability:
+```vii
 # this is a comment
 x = 1
 while x < 101 
@@ -45,4 +45,4 @@ while x < 101
 ## Why This Works
 Beginners don't struggle with logic; they struggle with typing. They don't understand why they need public static void main(String[] args) just to say "Hello".
 
-Glow strips the OS-level engineering artifacts away from the syntax. You start typing logic on line 1, character 1. It proves that a language can be rigorously defined, completely capable of universal computation, and still feel like writing a to-do list.
+Vii strips the OS-level engineering artifacts away from the syntax. You start typing logic on line 1, character 1. It proves that a language can be rigorously defined, completely capable of universal computation, and still feel like writing a to-do list.

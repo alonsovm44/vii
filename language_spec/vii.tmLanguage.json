@@ -1,7 +1,7 @@
 {
     "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
-    "name": "IO",
-    "scopeName": "source.io",
+    "name": "Vii",
+    "scopeName": "source.vii",
     "patterns": [
         { "include": "#comments" },
         { "include": "#strings" },
@@ -14,15 +14,15 @@
     "repository": {
         "comments": {
             "match": "#.*$",
-            "name": "comment.line.number-sign.io"
+            "name": "comment.line.number-sign.vii"
         },
         "strings": {
-            "name": "string.quoted.double.io",
+            "name": "string.quoted.double.vii",
             "begin": "\"",
             "end": "\"",
             "patterns": [
                 {
-                    "name": "constant.character.escape.io",
+                    "name": "constant.character.escape.vii",
                     "match": "\\\\."
                 }
             ]
@@ -30,61 +30,61 @@
         "function-definitions": {
             "match": "\\b(do)\\s+([a-zA-Z_][a-zA-Z0-9_]*)",
             "captures": {
-                "1": { "name": "keyword.control.io" },
-                "2": { "name": "entity.name.function.io" }
+                "1": { "name": "keyword.control.vii" },
+                "2": { "name": "entity.name.function.vii" }
             }
         },
         "keywords": {
             "patterns": [
                 {
                     "match": "\\b(if|else|while|do)\\b",
-                    "name": "keyword.control.io"
+                    "name": "keyword.control.vii"
                 },
                 {
                     "match": "\\b(ask|put|paste|list|at|set|len|ord|chr|tonum|tostr|sys|env|exit)\\b",
-                    "name": "support.function.io"
+                    "name": "support.function.vii"
                 },
                 {
                     "match": "\\b(arg)\\b",
-                    "name": "variable.language.io"
+                    "name": "variable.language.vii"
                 },
                 {
                     "match": "\\b(num|str)\\b",
-                    "name": "storage.type.io"
+                    "name": "storage.type.vii"
                 }
             ]
         },
         "numbers": {
             "match": "\\b([0-9]+(\\.[0-9]+)?)\\b",
-            "name": "constant.numeric.io"
+            "name": "constant.numeric.vii"
         },
         "operators": {
             "patterns": [
                 {
                     "match": "==",
-                    "name": "keyword.operator.comparison.io"
+                    "name": "keyword.operator.comparison.vii"
                 },
                 {
                     "match": "->",
-                    "name": "keyword.operator.type.io"
+                    "name": "keyword.operator.type.vii"
                 },
                 {
                     "match": "=",
-                    "name": "keyword.operator.assignment.io"
+                    "name": "keyword.operator.assignment.vii"
                 },
                 {
                     "match": "\\+|-|\\*|/|%",
-                    "name": "keyword.operator.arithmetic.io"
+                    "name": "keyword.operator.arithmetic.vii"
                 },
                 {
                     "match": "<|>",
-                    "name": "keyword.operator.comparison.io"
+                    "name": "keyword.operator.comparison.vii"
                 }
             ]
         },
         "identifiers": {
             "match": "\\b[a-zA-Z_][a-zA-Z0-9_]*\\b",
-            "name": "variable.other.io"
+            "name": "variable.other.vii"
         }
     }
 }

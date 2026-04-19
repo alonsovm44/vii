@@ -1,5 +1,5 @@
-#ifndef IO_H
-#define IO_H
+#ifndef VII_H
+#define VII_H
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -159,4 +159,4 @@ void compile_to_bin(Node *prog, const char *out_name, bool keep_c);
 
 void dump_ast_json(Node *n, FILE *f, int indent);
 
-#endif /* IO_H */
+#endif /* VII_H */

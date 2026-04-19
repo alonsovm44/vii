@@ -1,4 +1,4 @@
-#include "io.h"
+#include "vii.h"
 
 static const char *tok_kw[] = {
     "if","else","while","do","ask","list","at","set","put","arg","paste","len","ord","chr","tonum","tostr","sys","env","exit"
