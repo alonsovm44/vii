@@ -1,5 +1,5 @@
 # Test put and ask (file read)
-put "test.txt" "Hello from Vii!"
-content = "test.txt" ask
-"File contains:"
-content
+"test.txt" put "Hello from Vii!" # imagine it says (in "test.txt" put "hello from Vii!")
+content = "test.txt" ask # this tells vii to read test.txt and store the data in content
+"File contains:" 
+content # prints the content

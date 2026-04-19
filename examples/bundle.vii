@@ -1,0 +1,53 @@
+# bundle.vii — Merge all .c files in a directory into one monolithic file
+# Usage: vii examples/bundle.vii
+
+paste "lib/str.vii"
+
+# Strip carriage returns (Windows line endings)
+do strip_cr s
+  result = ""
+  i = 0
+  while i < len s
+    c = s at i
+    if ord c != 13
+      result = result + c
+    i = i + 1
+  result
+
+# Configuration
+src = "src"
+out = "monolithic.c"
+tmp = "_files.txt"
+
+# List .c files into a temp file
+# Windows: dir /b   |   Unix/Mac: ls -1 src/*.c > _files.txt
+cmd = "dir /b " + src + "/*.c > " + tmp
+sys cmd
+
+# Read the file list and clean carriage returns
+raw = tmp ask
+raw = strip_cr raw
+
+# Split into individual filenames
+nl = chr 10
+files = split raw nl
+
+# Read each .c file and merge
+merged = ""
+i = 0
+while i < len files
+  fname = files at i
+  fname = trim fname
+  if len fname > 0
+    path = src + "/" + fname
+    content = path ask
+    merged = merged + content + nl + nl
+  i = i + 1
+
+# Write the monolithic output
+out put merged
+
+# Clean up temp file
+sys "del " + tmp
+
+"Created " + out + " from " + tostr len files + " source files"
