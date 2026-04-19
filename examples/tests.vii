@@ -1,0 +1,13 @@
+letter = "A"
+code = ord letter
+back_to_text = chr code
+
+"Original: " + letter
+"Code: " + tostr code
+"Rebuilt: " + back_to_text
+
+"Are they equal? "
+if letter == back_to_text
+  "Yes!"
+else
+  "Bug in ord/chr!"

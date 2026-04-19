@@ -51,6 +51,7 @@ void lex(Lexer *l, const char *filename) {
             if (next == '\n' || next == '\r' || next == '#' || next == '\0') {
                 l->pos = p;
                 l->at_line_start = false;
+                continue;
             } else {
                 if (spaces > l->indent) {
                     l->indents[++l->indent_top] = spaces;

@@ -200,14 +200,14 @@ Value *eval(Node *n, Table *env) {
             if (list->kind == VAL_STR) {
                 int i = (int)idx->num;
                 if (i < 0) i += (int)strlen(list->str);
-                if (i < 0 || i >= (int)strlen(list->str)) { fprintf(stderr, "Runtime error: index %d out of range\n", i); exit(1); }
+                if (i < 0 || i >= (int)strlen(list->str)) return val_none();
                 char buf[2] = { list->str[i], '\0' };
                 return val_str(buf);
             }
             if (list->kind != VAL_LIST) { fprintf(stderr, "Runtime error: 'at' on non-list\n"); exit(1); }
             int i = (int)idx->num;
             if (i < 0) i += list->item_count;
-            if (i < 0 || i >= list->item_count) { fprintf(stderr, "Runtime error: index %d out of range\n", i); exit(1); }
+            if (i < 0 || i >= list->item_count) return val_none();
             return list->items[i];
         }
         case ND_SET: {
