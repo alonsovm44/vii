@@ -1,4 +1,5 @@
 #include "vii.h"
+#include <math.h>
 
 /* ──────────────────────── Table ──────────────────────── */
 
@@ -110,6 +111,19 @@ Value *eval(Node *n, Table *env) {
             return val;
         }
         case ND_BINOP: {
+            /* short-circuit for and/or */
+            if (n->op == TOK_AND) {
+                Value *l = eval(n->left, env);
+                if (!val_truthy(l)) return val_num(0);
+                Value *r = eval(n->right, env);
+                return val_num(val_truthy(r) ? 1 : 0);
+            }
+            if (n->op == TOK_OR) {
+                Value *l = eval(n->left, env);
+                if (val_truthy(l)) return val_num(1);
+                Value *r = eval(n->right, env);
+                return val_num(val_truthy(r) ? 1 : 0);
+            }
             Value *l = eval(n->left, env);
             Value *r = eval(n->right, env);
             double a = l->num, b = r->num;
@@ -127,10 +141,17 @@ Value *eval(Node *n, Table *env) {
                 case TOK_PLUS:  return val_num(a + b);
                 case TOK_MINUS: return val_num(a - b);
                 case TOK_STAR:  return val_num(a * b);
-                case TOK_SLASH: return val_num(b != 0 ? (double)((long long)a / (long long)b) : 0);
-                case TOK_PCT:   return val_num((long long)a % (long long)b);
+                case TOK_SLASH: return val_num(b != 0 ? a / b : 0);
+                case TOK_PCT:   return val_num(b != 0 ? fmod(a, b) : 0);
                 case TOK_LT:    return val_num(a < b ? 1 : 0);
                 case TOK_GT:    return val_num(a > b ? 1 : 0);
+                case TOK_LTE:   return val_num(a <= b ? 1 : 0);
+                case TOK_GTE:   return val_num(a >= b ? 1 : 0);
+                case TOK_NE:    {
+                    if (l->kind == VAL_STR && r->kind == VAL_STR)
+                        return val_num(strcmp(l->str, r->str) != 0 ? 1 : 0);
+                    return val_num(a != b ? 1 : 0);
+                }
                 case TOK_EQEQ:  {
                     if (l->kind == VAL_STR && r->kind == VAL_STR)
                         return val_num(strcmp(l->str, r->str) == 0 ? 1 : 0);
@@ -141,19 +162,20 @@ Value *eval(Node *n, Table *env) {
         }
         case ND_IF: {
             Value *cond = eval(n->left, env);
+            Value *result = val_none();
             if (val_truthy(cond)) {
                 if (n->body_count > 0) {
                     for (int i = 0; i < n->body_count; i++)
-                        eval(n->body[i], env);
+                        result = eval(n->body[i], env);
                 }
             } else if (n->right) {
                 if (n->right->kind == ND_BLOCK) {
-                    eval_block(n->right, env);
+                    result = eval_block(n->right, env);
                 } else {
-                    eval(n->right, env);
+                    result = eval(n->right, env);
                 }
             }
-            return val_none();
+            return result;
         }
         case ND_WHILE: {
             while (val_truthy(eval(n->left, env))) {
@@ -179,7 +201,7 @@ Value *eval(Node *n, Table *env) {
             Value *path = eval(n->left, env);
             if (path->kind != VAL_STR) { fprintf(stderr, "Runtime error: ask requires a string path\n"); exit(1); }
             FILE *f = fopen(path->str, "rb");
-            if (!f) { fprintf(stderr, "Runtime error: cannot open '%s'\n", path->str); exit(1); }
+            if (!f) return val_str("");
             fseek(f, 0, SEEK_END);
             long len = ftell(f);
             fseek(f, 0, SEEK_SET);

@@ -1,0 +1,161 @@
+# Vii Standard Library — List Utilities
+# Usage: paste "lib/list.vii"
+
+# Append item to end of list
+do push lst val
+  idx = len lst
+  lst set idx val
+  lst
+
+# Remove and return last item
+do pop lst
+  n = len lst
+  if n == 0
+    0
+  else
+    idx = n - 1
+    lst at idx
+
+# Get first element
+do first lst
+  lst at 0
+
+# Get last element
+do last lst
+  n = len lst
+  idx = n - 1
+  lst at idx
+
+# Check if list contains a value
+do contains lst val
+  found = 0
+  i = 0
+  while i < len lst
+    if lst at i == val
+      found = 1
+      i = len lst
+    i = i + 1
+  found
+
+# Reverse a list (returns new list)
+do reverse lst
+  result = list
+  n = len lst
+  i = n - 1
+  while i >= 0
+    item = lst at i
+    idx = len result
+    result set idx item
+    i = i - 1
+  result
+
+# Join list elements with separator string
+do join lst sep
+  if len lst == 0
+    ""
+  else
+    result = lst at 0
+    i = 1
+    while i < len lst
+      result = result + sep + tostr lst at i
+      i = i + 1
+    result
+
+# Create a range list from start to end (exclusive)
+do range start end
+  result = list
+  i = start
+  while i < end
+    idx = len result
+    result set idx i
+    i = i + 1
+  result
+
+# Fill a list with n copies of a value
+do fill val n
+  result = list
+  i = 0
+  while i < n
+    idx = len result
+    result set idx val
+    i = i + 1
+  result
+
+# Sum all numeric elements in a list
+do sum lst
+  total = 0
+  i = 0
+  while i < len lst
+    total = total + lst at i
+    i = i + 1
+  total
+
+# Get slice of list from start to end (exclusive)
+do slice lst start end
+  result = list
+  i = start
+  while i < end
+    if i < len lst
+      item = lst at i
+      idx = len result
+      result set idx item
+    i = i + 1
+  result
+
+# Count occurrences of a value in a list
+do count lst val
+  total = 0
+  i = 0
+  while i < len lst
+    if lst at i == val
+      total = total + 1
+    i = i + 1
+  total
+
+# Find index of first occurrence, or -1
+do index_of lst val
+  result = 0 - 1
+  i = 0
+  while i < len lst
+    if lst at i == val
+      result = i
+      i = len lst
+    i = i + 1
+  result
+
+# Remove element at index (returns new list)
+do remove_at lst idx
+  result = list
+  i = 0
+  while i < len lst
+    if i == idx
+      i = i + 1
+    else
+      item = lst at i
+      ridx = len result
+      result set ridx item
+      i = i + 1
+  result
+
+# Map a 1-argument function over a list
+do map lst fn
+  result = list
+  i = 0
+  while i < len lst
+    val = fn lst at i
+    idx = len result
+    result set idx val
+    i = i + 1
+  result
+
+# Filter a list by a predicate function
+do filter lst fn
+  result = list
+  i = 0
+  while i < len lst
+    val = lst at i
+    if fn val
+      idx = len result
+      result set idx val
+    i = i + 1
+  result

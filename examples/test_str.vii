@@ -1,0 +1,22 @@
+# Test lib/str.vii
+paste "lib/str.vii"
+
+"--- str ---"
+v = upper "hello"
+"upper(hello): " + v
+v = lower "WORLD"
+"lower(WORLD): " + v
+v = str_reverse "abc"
+"reverse(abc): " + v
+v = repeat "ha" 3
+"repeat(ha,3): " + v
+v = starts_with "hello" "he"
+"starts_with(hello,he): " + tostr v
+v = ends_with "hello" "lo"
+"ends_with(hello,lo): " + tostr v
+v = contains "hello" "ell"
+"contains(hello,ell): " + tostr v
+v = contains "hello" "xyz"
+"contains(hello,xyz): " + tostr v
+v = trim "  hi  "
+"trim(  hi  ): [" + v + "]"

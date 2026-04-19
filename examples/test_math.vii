@@ -1,0 +1,22 @@
+# Test lib/math.vii
+paste "lib/math.vii"
+
+"--- math ---"
+v = pow 2 10
+"pow(2,10): " + tostr v
+v = even 4
+"even(4): " + tostr v
+v = odd 3
+"odd(3): " + tostr v
+v = factorial 5
+"factorial(5): " + tostr v
+v = fib 10
+"fib(10): " + tostr v
+v = gcd 12 8
+"gcd(12,8): " + tostr v
+v = lcm 4 6
+"lcm(4,6): " + tostr v
+v = avg 10 20
+"avg(10,20): " + tostr v
+v = lerp 0 100 0.5
+"lerp(0,100,0.5): " + tostr v

@@ -1,12 +1,12 @@
 #include "vii.h"
 
 static const char *tok_kw[] = {
-    "if","else","while","do","ask","list","at","set","put","arg","paste","len","ord","chr","tonum","tostr","sys","env","exit"
+    "if","else","while","do","ask","list","at","set","put","arg","paste","len","ord","chr","tonum","tostr","sys","env","exit","and","or"
 };
 static const TokKind kw_kind[] = {
-    TOK_IF,TOK_ELSE,TOK_WHILE,TOK_DO,TOK_ASK,TOK_LIST,TOK_AT,TOK_SET,TOK_PUT,TOK_ARG,TOK_PASTE,TOK_LEN,TOK_ORD,TOK_CHR,TOK_TONUM,TOK_TOSTR,TOK_SYS,TOK_ENV,TOK_EXIT
+    TOK_IF,TOK_ELSE,TOK_WHILE,TOK_DO,TOK_ASK,TOK_LIST,TOK_AT,TOK_SET,TOK_PUT,TOK_ARG,TOK_PASTE,TOK_LEN,TOK_ORD,TOK_CHR,TOK_TONUM,TOK_TOSTR,TOK_SYS,TOK_ENV,TOK_EXIT,TOK_AND,TOK_OR
 };
-#define KW_COUNT 19
+#define KW_COUNT 21
 
 static void lex_push(Lexer *l, Token t) {
     if (l->tok_count >= l->tok_cap) {
@@ -132,6 +132,18 @@ void lex(Lexer *l, const char *filename) {
         }
         if (c == '-' && l->src[l->pos+1] == '>') {
             lex_push(l, (Token){TOK_ARROW, strdup("->"), 0, l->line, l->pos});
+            l->pos += 2; continue;
+        }
+        if (c == '<' && l->src[l->pos+1] == '=') {
+            lex_push(l, (Token){TOK_LTE, strdup("<="), 0, l->line, l->pos});
+            l->pos += 2; continue;
+        }
+        if (c == '>' && l->src[l->pos+1] == '=') {
+            lex_push(l, (Token){TOK_GTE, strdup(">="), 0, l->line, l->pos});
+            l->pos += 2; continue;
+        }
+        if (c == '!' && l->src[l->pos+1] == '=') {
+            lex_push(l, (Token){TOK_NE, strdup("!="), 0, l->line, l->pos});
             l->pos += 2; continue;
         }
         if (c == '=') { lex_push(l, (Token){TOK_EQ, strdup("="), 0, l->line, l->pos}); l->pos++; continue; }

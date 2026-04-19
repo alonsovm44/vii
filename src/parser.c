@@ -70,7 +70,9 @@ static Node *parse_primary(Parser *p) {
             }
             skip_newlines(p);
             expect(p, TOK_INDENT);
+            p->in_func++;
             fn->left = parse_block(p, true);
+            p->in_func--;
             expect(p, TOK_DEDENT);
             return fn;
         }
@@ -96,8 +98,8 @@ static Node *parse_postfix(Parser *p) {
             set->left = expr;
             set->body_cap = 4;
             set->body = calloc(set->body_cap, sizeof(Node*));
-            nd_push(set, parse_postfix(p));
-            nd_push(set, parse_expr(p));
+            nd_push(set, parse_primary(p));
+            nd_push(set, parse_primary(p));
             expr = set;
         } else if (peek(p)->kind == TOK_PUT) {
             advance(p);
@@ -110,13 +112,14 @@ static Node *parse_postfix(Parser *p) {
             Node *af = nd_new(ND_ASKFILE);
             af->left = expr;
             expr = af;
-        } else if (peek(p)->kind == TOK_IDENT || peek(p)->kind == TOK_NUM ||
+        } else if (peek(p)->kind != TOK_NEWLINE && peek(p)->kind != TOK_DEDENT && peek(p)->kind != TOK_EOF &&
+                   (peek(p)->kind == TOK_IDENT || peek(p)->kind == TOK_NUM ||
                    peek(p)->kind == TOK_STR || peek(p)->kind == TOK_ASK ||
                    peek(p)->kind == TOK_LIST || peek(p)->kind == TOK_ARG ||
                    peek(p)->kind == TOK_LEN || peek(p)->kind == TOK_ORD ||
                    peek(p)->kind == TOK_CHR || peek(p)->kind == TOK_TONUM ||
                    peek(p)->kind == TOK_TOSTR || peek(p)->kind == TOK_SYS ||
-                   peek(p)->kind == TOK_ENV || peek(p)->kind == TOK_EXIT) {
+                   peek(p)->kind == TOK_ENV || peek(p)->kind == TOK_EXIT)) {
             if (expr->kind != ND_VAR) break;
 
             if (peek(p)->kind == TOK_IDENT && (p->tokens[p->pos+1].kind == TOK_EQ || p->tokens[p->pos+1].kind == TOK_ARROW)) {
@@ -127,13 +130,14 @@ static Node *parse_postfix(Parser *p) {
             call->left = expr;
             call->body_cap = 8;
             call->body = calloc(call->body_cap, sizeof(Node*));
-            while (peek(p)->kind == TOK_IDENT || peek(p)->kind == TOK_NUM ||
+            while (peek(p)->kind != TOK_NEWLINE && peek(p)->kind != TOK_DEDENT && peek(p)->kind != TOK_EOF &&
+                   (peek(p)->kind == TOK_IDENT || peek(p)->kind == TOK_NUM ||
                    peek(p)->kind == TOK_STR || peek(p)->kind == TOK_ASK ||
                    peek(p)->kind == TOK_LIST || peek(p)->kind == TOK_ARG ||
                    peek(p)->kind == TOK_LEN || peek(p)->kind == TOK_ORD ||
                    peek(p)->kind == TOK_CHR || peek(p)->kind == TOK_TONUM ||
                    peek(p)->kind == TOK_TOSTR || peek(p)->kind == TOK_SYS ||
-                   peek(p)->kind == TOK_ENV || peek(p)->kind == TOK_EXIT) {
+                   peek(p)->kind == TOK_ENV || peek(p)->kind == TOK_EXIT)) {
                 nd_push(call, parse_primary(p));
             }
             expr = call;
@@ -150,7 +154,10 @@ static Node *parse_expr(Parser *p) {
     while (peek(p)->kind == TOK_PLUS  || peek(p)->kind == TOK_MINUS ||
            peek(p)->kind == TOK_STAR  || peek(p)->kind == TOK_SLASH ||
            peek(p)->kind == TOK_PCT   || peek(p)->kind == TOK_LT    ||
-           peek(p)->kind == TOK_GT    || peek(p)->kind == TOK_EQEQ) {
+           peek(p)->kind == TOK_GT    || peek(p)->kind == TOK_EQEQ  ||
+           peek(p)->kind == TOK_LTE   || peek(p)->kind == TOK_GTE   ||
+           peek(p)->kind == TOK_NE    || peek(p)->kind == TOK_AND   ||
+           peek(p)->kind == TOK_OR) {
         TokKind op = advance(p)->kind;
         Node *right = parse_postfix(p);
         Node *bin = nd_new(ND_BINOP);
@@ -240,9 +247,9 @@ static Node *parse_stmt(Parser *p) {
         return n;
     }
 
-    /* expression statement (with implicit print) */
+    /* expression statement (with implicit print outside function bodies) */
     Node *expr = parse_expr(p);
-    if (expr->kind != ND_ASSIGN && expr->kind != ND_DO && expr->kind != ND_SET && expr->kind != ND_PUT && expr->kind != ND_EXIT) {
+    if (!p->in_func && expr->kind != ND_ASSIGN && expr->kind != ND_DO && expr->kind != ND_SET && expr->kind != ND_PUT && expr->kind != ND_EXIT) {
         Node *print = nd_new(ND_PRINT);
         print->left = expr;
         return print;
@@ -258,7 +265,7 @@ static Node *parse_block(Parser *p, bool is_function) {
         Node *stmt = parse_stmt(p);
         skip_newlines(p);
 
-        if (is_function && (peek(p)->kind == TOK_DEDENT || peek(p)->kind == TOK_EOF)) {
+        if (is_function) {
             if (stmt->kind == ND_PRINT) {
                 Node *expr = stmt->left;
                 free(stmt);

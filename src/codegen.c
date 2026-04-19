@@ -28,7 +28,7 @@ void dump_ast_json(Node *n, FILE *f, int indent) {
 /* ──────────────────────── Codegen (IO -> C) ──────────────────────── */
 
 static void emit_c_header(FILE *f) {
-    fprintf(f, "#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n#include <stdbool.h>\n\n");
+    fprintf(f, "#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n#include <stdbool.h>\n#include <math.h>\n\n");
     fprintf(f, "typedef enum { VAL_NUM, VAL_STR, VAL_LIST, VAL_FUNC, VAL_NONE } ValKind;\n");
     fprintf(f, "struct Table;\nstruct Value;\n");
     fprintf(f, "typedef struct Value* (*IoFunc)(struct Table*, int, struct Value**);\n");
@@ -56,8 +56,8 @@ static void emit_c_header(FILE *f) {
     fprintf(f, "  if(op==%d && (l->kind==VAL_STR||r->kind==VAL_STR)){ char b[1024]; sprintf(b, \"%%s%%s\", l->kind==VAL_STR?l->str:\"\", r->kind==VAL_STR?r->str:\"\"); return val_str(b); }\n", TOK_PLUS);
     fprintf(f, "  if(op==%d){ if(l->kind==VAL_STR&&r->kind==VAL_STR) return val_num(strcmp(l->str,r->str)==0?1:0); }\n", TOK_EQEQ);
     fprintf(f, "  double a=l->num, b=r->num; switch(op){\n");
-    fprintf(f, "    case %d: return val_num(a+b); case %d: return val_num(a-b); case %d: return val_num(a*b); case %d: return val_num(b?(int)a/(int)b:0); case %d: return val_num(b?(int)a%%(int)b:0);\n", TOK_PLUS, TOK_MINUS, TOK_STAR, TOK_SLASH, TOK_PCT);
-    fprintf(f, "    case %d: return val_num(a<b?1:0); case %d: return val_num(a>b?1:0); case %d: return val_num(a==b?1:0); default: return val_none();\n", TOK_LT, TOK_GT, TOK_EQEQ);
+    fprintf(f, "    case %d: return val_num(a+b); case %d: return val_num(a-b); case %d: return val_num(a*b); case %d: return val_num(b?a/b:0); case %d: return val_num(b?fmod(a,b):0);\n", TOK_PLUS, TOK_MINUS, TOK_STAR, TOK_SLASH, TOK_PCT);
+    fprintf(f, "    case %d: return val_num(a<b?1:0); case %d: return val_num(a>b?1:0); case %d: return val_num(a<=b?1:0); case %d: return val_num(a>=b?1:0); case %d: return val_num(a!=b?1:0); case %d: return val_num(a==b?1:0); case %d: return val_num(val_truthy(l)&&val_truthy(r)?1:0); case %d: return val_num(val_truthy(l)||val_truthy(r)?1:0); default: return val_none();\n", TOK_LT, TOK_GT, TOK_LTE, TOK_GTE, TOK_NE, TOK_EQEQ, TOK_AND, TOK_OR);
     fprintf(f, "  }\n}\n");
     fprintf(f, "static Value* runtime_call(Value* f, Table* e, int c, Value** v) { if(f->kind==VAL_FUNC) return f->func(e, c, v); return val_none(); }\n");
     fprintf(f, "static Value* io_args;\n");
