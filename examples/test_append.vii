@@ -1,9 +1,0 @@
-# Test for put append mode
-path = "temp_log.txt"
-
-path put "Line 1\n"
-path put "Line 2\n" append
-path put "Line 3\n" append
-
-content = path ask
-content          # Should show all three lines

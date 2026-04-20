@@ -1,5 +1,5 @@
 # Test for dict and key (Key-Value Maps)
-d = dict
+d = dict # this declares a new dictionary called 'd'
 d key "name" "Vii"
 d key "version" 1.2
 
