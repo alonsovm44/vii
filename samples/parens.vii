@@ -1,0 +1,10 @@
+text str = "abc"
+x = len(text) # testing parens in function calls
+"length: " + x
+
+do func y->num
+  y*y
+
+f = "2"
+"testing function parenthesis: "
+func f

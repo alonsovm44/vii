@@ -1,0 +1,37 @@
+# Word frequency counter in Vii
+
+# Read file path from command line
+path = arg at 0
+text = path ask
+
+# Split text into words (naive split by spaces)
+words = list
+i = 0
+while i < len text
+  ch = text at i
+  if ch == " "
+    # slice word and append
+    if i > 0
+      w = slice text 0 i
+      words set (len words) w
+    text = slice text (i+1) len text
+    i = 0
+  else
+    i = i + 1
+
+# Dictionary for counts
+counts = dict
+j = 0
+while j < len words
+  w = words at j
+  if counts at w == 0
+    counts key w 1
+  else
+    old = counts at w
+    
+  j = j + 1
+
+# Output results to file
+"Word frequencies: " + tostr len counts
+"output.txt" put tostr len counts append # optional version using parens
+#"output.txt" put tostr( len (counts)) append

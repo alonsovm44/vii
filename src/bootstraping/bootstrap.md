@@ -13,7 +13,7 @@ As of v1.2, we have the "Lexer Essentials":
 ## 2. Missing "Must-Have" Features
 To fully implement the compiler without the overhead of C, we need the following from the v1.3/v1.4 candidate lists:
 
-### A. Pass-by-Reference (`ptr` / `ref`)
+### A. Pass-by-Reference (`ref`)
 **Reasoning**: Compilers pass around large structures (like the AST or the global scope table). Currently, Vii copies values when passed to functions. Passing a 1,000-node dictionary AST by value would crash performance and make in-place modification (like constant folding or optimization passes) impossible.
 
 ### B. String Utilities (`split`, `trim`, `replace`)
@@ -35,7 +35,7 @@ To fully implement the compiler without the overhead of C, we need the following
 
 ### Phase 2: The Parser (`parser.vii`)
 - **Goal**: Convert the token list into a recursive `dict` structure (The AST).
-- **Needs**: `at`, `dict`, and pointers (`ptr`) to link parent/child nodes without duplication.
+- **Needs**: `at`, `dict`, and references (`ref`) to link parent/child nodes without duplication.
 
 ### Phase 2.5: The Semantic Analyzer (`checker.vii`)
 - **Goal**: Walk the AST to validate logic before code generation.
@@ -51,7 +51,7 @@ To fully implement the compiler without the overhead of C, we need the following
 |---------|--------|----------|
 | `dict`  | Done   | Critical |
 | `slice` | Done   | Critical |
-| `ptr`   | Todo   | High     |
+| `ref`   | Done         | High |
 | `checker`| Todo  | High     |
 | `split` | Todo   | Medium   |
 | `for`   | Todo   | Medium   |

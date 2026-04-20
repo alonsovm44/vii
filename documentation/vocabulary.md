@@ -1,6 +1,6 @@
 # Vii Vocabulary Reference (v1.2.0)
 
-Vii measures minimalism by concept count. There are exactly 36 words/symbols to learn.
+Vii measures minimalism by concept count. There are exactly 37 words/symbols to learn.
 
 ## 1. Control Flow
 
@@ -22,13 +22,14 @@ Vii measures minimalism by concept count. There are exactly 36 words/symbols to 
 | Word | Use | Description |
 | :--- | :--- | :--- |
 | `do` | `do func x y` | Defines a function. Supports return type hints: `do func->num`. |
-| `->` | `x->num` | Type hint operator. Used in function params and return types. |
+| `->` | `x->num`, `x->ref` | Type hint operator. Used in function params and return types. |
 
 ## 3. Memory & Data Structures
 | Word | Use | Description |
 | :--- | :--- | :--- |
 | `list` | `l = list` | Creates a new dynamic array. |
 | `dict` | `d = dict` | Creates a new key-value map. |
+| `ref` | `y = ref x` | Creates a reference (alias) to a variable instead of a copy. |
 | `at` | `l at 0` | Retrieves value at index (list) or key (dict). |
 | `set` | `l set 0 v` | Updates value at numeric index in a list. |
 | `key` | `d key "k" v` | Updates value at string key in a dictionary. |

@@ -8,4 +8,4 @@ do enable_ansi_colors
     
 
 
-do report_error filename->ptr src->ptr pos->num line->num fmt->ptr 
+do report_error filename->ref src->ref pos->num line->num fmt->ref 
