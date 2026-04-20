@@ -1,0 +1,33 @@
+# checker.vii — Semantic Analysis Pass
+
+# Validates that the function's body matches its declared return type
+do validate_function_return node
+  expected_type = node at "return_type"
+  
+  # If return_type is "none", it's a dynamic function (v1.1 style)
+  if expected_type == "none"
+    1
+  else
+    body = node at "body"
+    last_expr = body at (len body - 1)
+    
+    # Infers the type of the last expression in the block
+    actual_type = infer_type last_expr
+    
+    if actual_type != expected_type
+      "Compile Error: return type mismatch in function '" + (node at "name") + "'"
+      "  Expected: " + expected_type
+      "  Found:    " + actual_type
+      exit 1
+
+do infer_type expr
+  # Logic to determine type of AST node
+  # If it's a variable, look up in symbol table
+  # If it's a literal, use built-in 'type'
+  t = type expr
+  if t == "num"
+    "num"
+  else if t == "str"
+    "str"
+  else
+    "unknown"

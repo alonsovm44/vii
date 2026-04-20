@@ -37,6 +37,10 @@ To fully implement the compiler without the overhead of C, we need the following
 - **Goal**: Convert the token list into a recursive `dict` structure (The AST).
 - **Needs**: `at`, `dict`, and pointers (`ptr`) to link parent/child nodes without duplication.
 
+### Phase 2.5: The Semantic Analyzer (`checker.vii`)
+- **Goal**: Walk the AST to validate logic before code generation.
+- **Tasks**: Check for return type mismatches and undefined variables.
+
 ### Phase 3: The Codegen (`codegen.vii`)
 - **Goal**: Iterate the AST and emit C code.
 - **Needs**: Heavy string concatenation or a `list` of strings that gets `join`ed at the end.
@@ -48,6 +52,7 @@ To fully implement the compiler without the overhead of C, we need the following
 | `dict`  | Done   | Critical |
 | `slice` | Done   | Critical |
 | `ptr`   | Todo   | High     |
+| `checker`| Todo  | High     |
 | `split` | Todo   | Medium   |
 | `for`   | Todo   | Medium   |
 | `safe`  | Todo   | Low      |

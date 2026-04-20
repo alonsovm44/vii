@@ -1,5 +1,5 @@
 
-do function x->num
-  x+1
-
-function "number"
+do function->str x->num
+  x 
+  
+function 5
