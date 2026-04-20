@@ -70,27 +70,6 @@ static Node *parse_primary(Parser *p) {
         case TOK_STR:   advance(p); { Node *n = nd_new(ND_STR); n->str = strdup(t->text); return n; }
         case TOK_DICT:  advance(p); return nd_new(ND_DICT);
         case TOK_IDENT: 
-            if (strcmp(t->text, "slice") == 0) {
-            handle_slice:
-                advance(p);
-                Node *n = nd_new(ND_SLICE);
-                n->left = parse_postfix(p);
-                n->body_cap = 2;
-                n->body = calloc(2, sizeof(Node*));
-                nd_push(n, parse_primary(p));
-                nd_push(n, parse_primary(p));
-                return n;
-            }
-            if (strcmp(t->text, "type") == 0) {
-                advance(p);
-                Node *n = nd_new(ND_TYPE);
-                n->left = parse_primary(p);
-                return n;
-            }
-            if (strcmp(t->text, "time") == 0) {
-                advance(p);
-                return nd_new(ND_TIME);
-            }
             advance(p); { Node *n = nd_new(ND_VAR); n->name = strdup(t->text); return n; }
         case TOK_ASK:   advance(p); return nd_new(ND_ASK);
         case TOK_ARG:   advance(p); return nd_new(ND_ARG);
@@ -99,7 +78,16 @@ static Node *parse_primary(Parser *p) {
         case TOK_CHR:   advance(p); { Node *n = nd_new(ND_CHR);   n->left = parse_postfix(p); return n; }
         case TOK_TONUM: advance(p); { Node *n = nd_new(ND_TONUM); n->left = parse_postfix(p); return n; }
         case TOK_TOSTR: advance(p); { Node *n = nd_new(ND_TOSTR); n->left = parse_postfix(p); return n; }
-        case TOK_SLICE: goto handle_slice;
+        case TOK_SLICE: {
+            advance(p);
+            Node *n = nd_new(ND_SLICE);
+            n->left = parse_primary(p);
+            n->body_cap = 2;
+            n->body = calloc(2, sizeof(Node*));
+            nd_push(n, parse_primary(p));
+            nd_push(n, parse_primary(p));
+            return n;
+        }
         case TOK_TYPE:  advance(p); { Node *n = nd_new(ND_TYPE);  n->left = parse_primary(p); return n; }
         case TOK_TIME:  advance(p); return nd_new(ND_TIME);
         case TOK_SYS:   advance(p); { Node *n = nd_new(ND_SYS);   n->left = parse_postfix(p); return n; }
@@ -191,7 +179,7 @@ static Node *parse_postfix(Parser *p) {
             Node *put = nd_new(ND_PUT);
             put->left = expr;
             put->right = parse_expr(p);
-            if (peek(p)->kind == TOK_APPEND || (peek(p)->kind == TOK_IDENT && strcmp(peek(p)->text, "append") == 0)) {
+            if (peek(p)->kind == TOK_APPEND) {
                 advance(p);
                 put->op = TOK_APPEND;
             }

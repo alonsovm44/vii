@@ -27,16 +27,6 @@ do something y
 do func x->num y->str#-> for parameter tells the variable type
 do func->num x #-> for func name tells the return type
 
-# -> for functions what could it do?
-
-do->something func x # what could these mean?
-
-# ideas
-do->raw # this tells Vii to not box the function in Value but to use raw C function, making it faster
-do->async
-do->raw->async function->num param->num #composition, kinda verbose
-do->
-
 # idea 4
 # we already have
 num str 
@@ -50,7 +40,19 @@ do fx state->bit # this is basically bool
     #other logic
 # but this could be don with num 
 
-# idea 5
-# a special data type called pro for probability, it is strictly between 0 and 1 
-  p pro = 0.44 # it could be redundant 
+# pointers
+# the idea is adding C like pointers to pass variables by reference to functions to save memory
+#the goal is to avoid copying large objects
+# this would be useful for large objects
+#we could use ref keyword
+x = 10
+y ref x        # y is now an alias for x — reads and writes go to x
 
+y               # 10 (transparent read)
+y = 20          # x is now 20 too (transparent write)
+
+do func y->ref  # y is passed by reference (alias to caller's variable)
+  y = 20        # modifies the original
+
+# Explicit type
+y num ref x     # y is a ref to x, and x must be num

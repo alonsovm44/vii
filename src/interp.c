@@ -389,6 +389,56 @@ Value *eval(Node *n, Table *env) {
             if (v->kind == VAL_STR) return v;
             return val_str("");
         }
+        case ND_SLICE: {
+            Value *v = eval(n->left, env);
+            Value *sv = eval(n->body[0], env);
+            Value *ev = eval(n->body[1], env);
+            int s = (int)sv->num, e = (int)ev->num;
+            if (v->kind == VAL_STR) {
+                int l = strlen(v->str);
+                if (s < 0) s += l;
+                if (e < 0) e += l;
+                if (s < 0) s = 0;
+                if (e > l) e = l;
+                if (s >= e) return val_str("");
+                int len = e - s;
+                char *b = malloc(len + 1);
+                memcpy(b, v->str + s, len);
+                b[len] = 0;
+                Value *res = val_str(b);
+                free(b);
+                return res;
+            }
+            if (v->kind == VAL_LIST) {
+                int l = v->item_count;
+                if (s < 0) s += l;
+                if (e < 0) e += l;
+                if (s < 0) s = 0;
+                if (e > l) e = l;
+                Value *res = val_list();
+                if (s >= e) return res;
+                for (int i = s; i < e; i++) {
+                    if (res->item_count >= res->item_cap) {
+                        res->item_cap *= 2;
+                        res->items = realloc(res->items, res->item_cap * sizeof(Value*));
+                    }
+                    res->items[res->item_count++] = v->items[i];
+                }
+                return res;
+            }
+            return val_none();
+        }
+        case ND_TYPE: {
+            Value *v = eval(n->left, env);
+            switch (v->kind) {
+                case VAL_NUM:  return val_str("num");
+                case VAL_STR:  return val_str("str");
+                case VAL_LIST: return val_str("list");
+                case VAL_DICT: return val_str("dict");
+                default:       return val_str("none");
+            }
+        }
+        case ND_TIME: return val_num((double)time(NULL));
         case ND_SYS: {
             Value *v = eval(n->left, env);
             if (v->kind != VAL_STR) return val_num(-1);

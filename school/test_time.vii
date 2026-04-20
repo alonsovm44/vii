@@ -2,4 +2,4 @@
 now = time
 "Current timestamp: " + tostr now
 type now         # should be "num"
-"Timestamp is positive: " + tostr (now > 0)
+"Timestamp is positive: " + tostr now > 0
