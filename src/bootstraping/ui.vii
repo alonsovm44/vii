@@ -1,0 +1,11 @@
+paste "vii.vii"
+
+do enable_ansi_colors 
+  IF WIN
+    handle h getStdHandle STD_error_handler
+    dword mode = 0
+    if (getConsoleMode h mode)
+    
+
+
+do report_error filename->ptr src->ptr pos->num line->num fmt->ptr 
