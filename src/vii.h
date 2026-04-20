@@ -95,7 +95,7 @@ void lex(Lexer *l, const char *filename);
 
 typedef enum {
     ND_NUM, ND_STR, ND_VAR,
-    ND_ASSIGN, ND_BINOP,
+    ND_ASSIGN, ND_BINOP, ND_UMINUS,
     ND_IF, ND_WHILE, ND_DO,
     ND_ASK, ND_ASKFILE, ND_LIST, ND_AT, ND_SET,
     ND_PUT, ND_ARG, ND_LEN, ND_ORD, ND_CHR, ND_TONUM, ND_TOSTR,

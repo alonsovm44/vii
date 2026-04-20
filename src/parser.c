@@ -60,6 +60,12 @@ static Node *parse_block(Parser *p, bool is_function);
 static Node *parse_primary(Parser *p) {
     Token *t = peek(p);
     switch (t->kind) {
+        case TOK_MINUS: {
+            advance(p);
+            Node *n = nd_new(ND_UMINUS);
+            n->left = parse_primary(p);
+            return n;
+        }
         case TOK_NUM:   advance(p); { Node *n = nd_new(ND_NUM); n->num = t->num; return n; }
         case TOK_STR:   advance(p); { Node *n = nd_new(ND_STR); n->str = strdup(t->text); return n; }
         case TOK_IDENT: advance(p); { Node *n = nd_new(ND_VAR); n->name = strdup(t->text); return n; }

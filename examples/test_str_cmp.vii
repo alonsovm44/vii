@@ -1,0 +1,8 @@
+# Test for String Comparison (strcmp integration)
+"apple" < "banana"    # 1 (true)
+"zebra" > "apple"     # 1 (true)
+"apple" == "apple"    # 1 (true)
+"apple" != "banana"   # 1 (true)
+"apple" <= "apple"    # 1 (true)
+"apple" >= "banana"   # 0 (false)
+"10" < "2"            # 1 (true - lexicographical comparison)

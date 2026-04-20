@@ -1,0 +1,11 @@
+# Test for break keyword (Early Loop Exit)
+"Counting to 5 then breaking..."
+i = 1
+while i < 10
+  i
+  if i == 5
+    "Breaking now!"
+    break
+  i = i + 1
+
+"Loop finished"

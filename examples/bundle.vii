@@ -19,9 +19,16 @@ src = "src"
 out = "monolithic.c"
 tmp = "_files.txt"
 
+PI = 3.14159
 # List .c files into a temp file
 # Windows: dir /b   |   Unix/Mac: ls -1 src/*.c > _files.txt
-cmd = "dir /b " + src + "/*.c > " + tmp
+IF WIN
+  cmd = "dir /b " + src + "/*.c > " + tmp
+ELSE IF UNIX
+  cmd = "ls -1 " + src + "/*.c > " + tmp
+ELSE IF MAC
+  cmd = "ls -1 " + src + "/*.c > " + tmp
+ENDIF
 sys cmd
 
 # Read the file list and clean carriage returns

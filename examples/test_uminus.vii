@@ -1,0 +1,11 @@
+# Test for Unary Minus (ND_UMINUS)
+x = 5
+-x            # Should print -5
+y = -10
+y             # Should print -10
+z = --x + 5   # no parenthesis, use double negation to turn x into positive, math is read strictly left to right
+z             # Should print -10
+--20          # Double negation: should print 20
+
+r2 = r*r
+Fg num = m1*m2*G/r2

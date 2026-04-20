@@ -54,8 +54,12 @@ static void emit_c_header(FILE *f) {
     fprintf(f, "static bool val_truthy(Value *v) { if(!v) return false; if(v->kind==VAL_NUM) return v->num != 0; if(v->kind==VAL_STR) return v->str[0]!='\\0'; return v->item_count > 0; }\n");
     fprintf(f, "static void val_print(Value *v) { if(!v) return; if(v->kind==VAL_NUM) printf(v->num==(long long)v->num?\"%%lld\":\"%%g\",(long long)v->num); else if(v->kind==VAL_STR) printf(\"%%s\",v->str); else if(v->kind==VAL_LIST){ printf(\"[\"); for(int i=0;i<v->item_count;i++){ if(i)printf(\", \"); val_print(v->items[i]); } printf(\"]\"); } }\n");
     fprintf(f, "static Value* runtime_binop(int op, Value* l, Value* r) {\n");
-    fprintf(f, "  if(op==%d && (l->kind==VAL_STR||r->kind==VAL_STR)){ char b[1024]; sprintf(b, \"%%s%%s\", l->kind==VAL_STR?l->str:\"\", r->kind==VAL_STR?r->str:\"\"); return val_str(b); }\n", TOK_PLUS);
-    fprintf(f, "  if(op==%d){ if(l->kind==VAL_STR&&r->kind==VAL_STR) return val_num(strcmp(l->str,r->str)==0?1:0); }\n", TOK_EQEQ);
+    fprintf(f, "  if(op==%d && (l->kind==VAL_STR||r->kind==VAL_STR)){ char b[2048]; sprintf(b, \"%%s%%s\", l->kind==VAL_STR?l->str:\"\", r->kind==VAL_STR?r->str:\"\"); return val_str(b); }\n", TOK_PLUS);
+    fprintf(f, "  if(l->kind==VAL_STR && r->kind==VAL_STR) {\n");
+    fprintf(f, "    int c=strcmp(l->str,r->str); switch(op){\n");
+    fprintf(f, "      case %d: return val_num(c==0?1:0); case %d: return val_num(c!=0?1:0);\n", TOK_EQEQ, TOK_NE);
+    fprintf(f, "      case %d: return val_num(c<0?1:0); case %d: return val_num(c>0?1:0); case %d: return val_num(c<=0?1:0); case %d: return val_num(c>=0?1:0);\n", TOK_LT, TOK_GT, TOK_LTE, TOK_GTE);
+    fprintf(f, "    }\n  }\n");
     fprintf(f, "  double a=l->num, b=r->num; switch(op){\n");
     fprintf(f, "    case %d: return val_num(a+b); case %d: return val_num(a-b); case %d: return val_num(a*b); case %d: return val_num(b?a/b:0); case %d: return val_num(b?fmod(a,b):0);\n", TOK_PLUS, TOK_MINUS, TOK_STAR, TOK_SLASH, TOK_PCT);
     fprintf(f, "    case %d: return val_num(a<b?1:0); case %d: return val_num(a>b?1:0); case %d: return val_num(a<=b?1:0); case %d: return val_num(a>=b?1:0); case %d: return val_num(a!=b?1:0); case %d: return val_num(a==b?1:0); case %d: return val_num(val_truthy(l)&&val_truthy(r)?1:0); case %d: return val_num(val_truthy(l)||val_truthy(r)?1:0); default: return val_none();\n", TOK_LT, TOK_GT, TOK_LTE, TOK_GTE, TOK_NE, TOK_EQEQ, TOK_AND, TOK_OR);
@@ -85,6 +89,7 @@ static void emit_c_expr(Node *n, FILE *f) {
     bool is_str_type = (n->type_tag && !strcmp(n->type_tag, "str"));
     switch (n->kind) {
         case ND_NUM:   fprintf(f, "val_num(%g)", n->num); break;
+        case ND_UMINUS: fprintf(f, "val_num(0 - ("); emit_c_expr(n->left, f); fprintf(f, ")->num)"); break;
         case ND_STR: {
             fprintf(f, "val_str(\"");
             for (char *p = n->str; *p; p++) {

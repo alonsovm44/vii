@@ -1,4 +1,4 @@
-# Test put and ask (file read)
+# Test put and ask file read
 "test.txt" put "Hello from Vii!" # imagine it says (in "test.txt" put "hello from Vii!")
 content = "test.txt" ask # this tells vii to read test.txt and store the data in content
 "File contains:" 

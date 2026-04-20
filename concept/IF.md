@@ -221,30 +221,30 @@ ELSE IF UNIX
 ## Implementation Checklist
 
 ### Lexer (`lexer.c`)
-- [ ] **No changes needed** — `IF`/`ELSE` already lex as `TOK_IDENT`
+- [x] **No changes needed** — `IF`/`ELSE` already lex as `TOK_IDENT`
 
 ### Parser (`parser.c`)
-- [ ] Add `parse_when_stmt()` — handles `IF`/`ELSE IF`/`ELSE` compile-time blocks
-- [ ] Add `is_all_caps()` helper — checks if identifier text is all uppercase
-- [ ] Add `resolve_condition()` — checks built-in platforms + CLI defines
-- [ ] Add `skip_block()` — consume tokens until matching DEDENT without building AST
-- [ ] In `parse_stmt()`, check for `TOK_IDENT("IF")` before falling through
-- [ ] In assignment handling, enforce immutability for ALL_CAPS names
+- [x] Add `parse_when_stmt()` — handles `IF`/`ELSE IF`/`ELSE` compile-time blocks
+- [x] Add `is_all_caps()` helper — checks if identifier text is all uppercase
+- [x] Add `resolve_condition()` — checks built-in platforms + CLI defines
+- [x] Add `skip_block()` — consume tokens until matching DEDENT without building AST
+- [x] In `parse_stmt()`, check for `TOK_IDENT("IF")` before falling through
+- [x] In assignment handling, enforce immutability for ALL_CAPS names
 
 ### Main (`main.c`)
-- [ ] Add `-D` / `--define` CLI flag parsing
-- [ ] Pass defines list to parser (global or via Parser struct)
+- [x] Add `-D` / `--define` CLI flag parsing
+- [x] Pass defines list to parser (global or via Parser struct)
 
 ### Interpreter (`interp.c`)
-- [ ] In `ND_ASSIGN`, check if target is ALL_CAPS and already defined → runtime error
+- [x] In `ND_ASSIGN`, check if target is ALL_CAPS and already defined → runtime error
 
 ### Codegen (`codegen.c`)
-- [ ] **No changes** — `IF` blocks are resolved before AST exists
-- [ ] Constants: emit as `const` in generated C? Optional optimization.
+- [x] **No changes** — `IF` blocks are resolved before AST exists
+- [x] Constants: runtime protection added to emitted C header.
 
 ### Header (`vii.h`)
-- [ ] Add `char **cli_defines` and `int cli_define_count` globals
-- [ ] Add `bool is_constant` to `Entry` struct (optional, for runtime enforcement)
+- [x] Add `char **cli_defines` and `int cli_define_count` globals
+- [x] Add `bool is_constant` to `Entry` struct
 
 ---
 

@@ -84,6 +84,10 @@ Value *eval(Node *n, Table *env) {
     switch (n->kind) {
         case ND_NUM:   return val_num(n->num);
         case ND_STR:   return val_str(n->str);
+        case ND_UMINUS: {
+            Value *v = eval(n->left, env);
+            return val_num(0 - v->num);
+        }
         case ND_VAR:   {
             Value *v = table_get(env, n->name);
             if (!v) {
@@ -135,6 +139,16 @@ Value *eval(Node *n, Table *env) {
             }
             Value *l = eval(n->left, env);
             Value *r = eval(n->right, env);
+            if (l->kind == VAL_STR && r->kind == VAL_STR) {
+                int cmp = strcmp(l->str, r->str);
+                switch (n->op) {
+                    case TOK_LT:  return val_num(cmp < 0 ? 1 : 0);
+                    case TOK_GT:  return val_num(cmp > 0 ? 1 : 0);
+                    case TOK_LTE: return val_num(cmp <= 0 ? 1 : 0);
+                    case TOK_GTE: return val_num(cmp >= 0 ? 1 : 0);
+                    default: break;
+                }
+            }
             double a = l->num, b = r->num;
             if (n->op == TOK_PLUS && (l->kind == VAL_STR || r->kind == VAL_STR)) {
                 char buf[1024];

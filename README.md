@@ -1,13 +1,13 @@
 # Vii — A Minimalist Programming Language
 
- [Language extension for Windsurf / VS Code:](https://github.com/alonsovm44/vii-lang-extension/releases/tag/v0.0.2)
+ [Language extension for Windsurf / VS Code:](https://github.com/alonsovm44/vii-lang-extension/releases)
 
 ![Version](https://img.shields.io/badge/version-1.1.4-blue.svg)
 ![Language](https://img.shields.io/badge/language-C-orange.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 
 # The one liner
->Vii is a Turing-complete compiled and interpreted programming language that replaces types and boilerplate with just 29 words.
+>Vii is a simple minimalist programming language designed for those just getting into coding and as an alternative to DevOps bash scripting. 
 
 Vii measures minimalism not by character count, but by concept count. No punctuation, no boilerplate — just logic.
 

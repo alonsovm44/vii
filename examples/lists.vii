@@ -1,4 +1,4 @@
-# List example in IO
+# List example in VII
 nums = list
 x = 0
 while x < 5

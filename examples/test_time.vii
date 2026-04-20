@@ -1,0 +1,5 @@
+# Test for time (Epoch Timestamps)
+now = time
+"Current timestamp: " + tostr now
+type now         # should be "num"
+"Timestamp is positive: " + tostr (now > 0)

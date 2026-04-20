@@ -1,0 +1,6 @@
+# Test for type (Type Introspection)
+type 42          # "num"
+type "hello"     # "str"
+type list        # "list"
+type dict        # "dict"
+type (1 == 1)    # "num"

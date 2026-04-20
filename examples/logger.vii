@@ -8,7 +8,6 @@
 do logger
   cmd = arg at 0
   if cmd == "init"
-    # testing "string" put "text"
     "logfile.log" put ""
     "Initialized logfile.log"
   else if cmd == "log"

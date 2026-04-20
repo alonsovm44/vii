@@ -1,0 +1,13 @@
+# Test for slice (Substrings and Sublists)
+s = "Vii Programming Language"
+slice s 0 3      # "Vii"
+slice s 4 15     # "Programming"
+
+l = list
+l set 0 "A"
+l set 1 "B"
+l set 2 "C"
+l set 3 "D"
+
+sub = slice l 1 3
+sub              # ["B", "C"]
