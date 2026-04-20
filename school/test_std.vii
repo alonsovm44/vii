@@ -2,7 +2,7 @@
 paste "lib/std.vii"
 
 "--- std ---"
-x = 0 - 5
+x = -5
 v = abs x
 "abs(-5): " + tostr v
 v = abs 3
@@ -13,10 +13,10 @@ v = max 3 7
 "max(3,7): " + tostr v
 v = clamp 15 0 10
 "clamp(15,0,10): " + tostr v
-y = 0 - 3
+y = - 3
 v = clamp y 0 10
 "clamp(-3,0,10): " + tostr v
-z = 0 - 7
+z = - 7
 v = sign z
 "sign(-7): " + tostr v
 v = sign 0

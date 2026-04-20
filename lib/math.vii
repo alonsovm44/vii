@@ -61,7 +61,8 @@ do gcd a b
   if b == 0
     a
   else
-    gcd b a % b
+    mod = a % b
+    gcd b mod
 
 # Least Common Multiple
 do lcm a b

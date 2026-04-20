@@ -7,5 +7,4 @@ z = --x + 5   # no parenthesis, use double negation to turn x into positive, mat
 z             # Should print -10
 --20          # Double negation: should print 20
 
-r2 = r*r
-Fg num = m1*m2*G/r2
+

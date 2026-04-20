@@ -20,3 +20,4 @@ v = avg 10 20
 "avg(10,20): " + tostr v
 v = lerp 0 100 0.5
 "lerp(0,100,0.5): " + tostr v
+

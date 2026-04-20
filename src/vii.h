@@ -25,7 +25,7 @@ char *read_file(const char *path);
 
 /* ──────────────────────── Value ──────────────────────── */
 
-typedef enum { VAL_NUM, VAL_STR, VAL_LIST, VAL_NONE } ValKind;
+typedef enum { VAL_NUM, VAL_STR, VAL_LIST, VAL_DICT, VAL_BREAK, VAL_NONE } ValKind;
 
 typedef struct Value {
     ValKind kind;
@@ -34,11 +34,14 @@ typedef struct Value {
     struct Value **items;
     int    item_count;
     int    item_cap;
+    struct Table *fields;
 } Value;
 
 Value *val_num(double n);
 Value *val_str(const char *s);
 Value *val_list(void);
+Value *val_dict(void);
+Value *val_break(void);
 Value *val_none(void);
 bool   val_truthy(Value *v);
 void   val_print_to(Value *v, FILE *f);
@@ -60,8 +63,8 @@ static inline bool is_all_caps(const char *s) {
 
 typedef enum {
     TOK_NUM, TOK_STR, TOK_IDENT,
-    TOK_IF, TOK_ELSE, TOK_WHILE, TOK_DO, TOK_ASK, TOK_LIST, TOK_AT, TOK_SET,
-    TOK_PUT, TOK_ARG, TOK_PASTE, TOK_LEN, TOK_ORD, TOK_CHR, TOK_TONUM, TOK_TOSTR,
+    TOK_IF, TOK_ELSE, TOK_WHILE, TOK_BREAK, TOK_DO, TOK_ASK, TOK_LIST, TOK_DICT, TOK_KEY, TOK_AT, TOK_SET,
+    TOK_PUT, TOK_ARG, TOK_PASTE, TOK_LEN, TOK_ORD, TOK_CHR, TOK_TONUM, TOK_TOSTR, TOK_SLICE, TOK_TYPE, TOK_TIME, TOK_APPEND,
     TOK_SYS, TOK_ENV, TOK_EXIT, TOK_EQ, TOK_EQEQ, TOK_PLUS, TOK_MINUS, TOK_STAR, TOK_SLASH, TOK_PCT, TOK_ARROW,
     TOK_LT, TOK_GT, TOK_LTE, TOK_GTE, TOK_NE, TOK_AND, TOK_OR,
     TOK_NEWLINE, TOK_INDENT, TOK_DEDENT, TOK_EOF
@@ -96,9 +99,9 @@ void lex(Lexer *l, const char *filename);
 typedef enum {
     ND_NUM, ND_STR, ND_VAR,
     ND_ASSIGN, ND_BINOP, ND_UMINUS,
-    ND_IF, ND_WHILE, ND_DO,
-    ND_ASK, ND_ASKFILE, ND_LIST, ND_AT, ND_SET,
-    ND_PUT, ND_ARG, ND_LEN, ND_ORD, ND_CHR, ND_TONUM, ND_TOSTR,
+    ND_IF, ND_WHILE, ND_BREAK, ND_DO,
+    ND_ASK, ND_ASKFILE, ND_LIST, ND_DICT, ND_KEY, ND_AT, ND_SET,
+    ND_PUT, ND_ARG, ND_LEN, ND_ORD, ND_CHR, ND_TONUM, ND_TOSTR, ND_SLICE, ND_TYPE, ND_TIME,
     ND_SYS, ND_ENV, ND_EXIT,
     ND_CALL, ND_BLOCK,
     ND_PRINT
@@ -108,6 +111,7 @@ typedef struct Node {
     NdKind kind;
     char  *name;
     char  *type_tag;
+    char  *mod_tag;
     double num;
     char  *str;
     TokKind op;

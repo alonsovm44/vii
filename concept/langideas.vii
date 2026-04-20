@@ -1,0 +1,56 @@
+
+# NOTE: AS A RULE FOR MYSELF: If I don't understand a feature or what use could it have, it won't be implemented
+
+# idea 0, multiline comments
+#{ comments }# this makes a multiline comment
+
+# idea 1
+do func->num x->num # return types for functions [DONE]
+  x * x
+
+do func->str x y
+  tostr x+y
+
+# idea 2
+# the hability to assign/expose global objects from inside functions
+# it so happened to me in other languages that i would have a quantity i wanted to use on another scope and i just couldn't use it
+# so we could do something like this
+
+do func x 
+  expose var = x # this makes this variable usable anywhere on the code
+
+do something y 
+  var + y # var can be used here too
+
+
+# idea 3 
+do func x->num y->str#-> for parameter tells the variable type
+do func->num x #-> for func name tells the return type
+
+# -> for functions what could it do?
+
+do->something func x # what could these mean?
+
+# ideas
+do->raw # this tells Vii to not box the function in Value but to use raw C function, making it faster
+do->async
+do->raw->async function->num param->num #composition, kinda verbose
+do->
+
+# idea 4
+# we already have
+num str 
+# we could add
+bin / bit # which is either 0 or 1 or is it already covered by num? instead of having bool we have bit / bin
+#we could do
+do fx state->bit # this is basically bool
+  if state == 1 # true
+    #logic
+  else # false
+    #other logic
+# but this could be don with num 
+
+# idea 5
+# a special data type called pro for probability, it is strictly between 0 and 1 
+  p pro = 0.44 # it could be redundant 
+

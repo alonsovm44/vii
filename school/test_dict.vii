@@ -1,13 +1,41 @@
-# Test for dict and key (Key-Value Maps)
-d = dict # this declares a new dictionary called 'd'
+# Comprehensive Dictionary Test
+"--- Creation & Basic Set/Get ---"
+d = dict
 d key "name" "Vii"
 d key "version" 1.2
-
+d key "author" "Diego"
 "Name: " + d at "name"
 "Version: " + tostr d at "version"
 
-# Dict length check
+"--- Reassignment (Update) ---"
+d key "version" 1.3
+"Updated Version: " + tostr d at "version"
+
+"--- Dictionary Size ---"
 "Keys count: " + tostr len d
 
-# Nested check
+"--- Dynamic Keys ---"
+status_key = "online"
+d key status_key 1
+"Dynamic status: " + tostr d at status_key
+
+"--- Nested Dictionaries & Lists ---"
 d key "meta" dict
+d at "meta" key "tags" list
+d at "meta" at "tags" set 0 "minimalist"
+d at "meta" at "tags" set 1 "fast"
+
+"First tag in nested dict: " + d at "meta" at "tags" at 0
+
+"--- Dictionaries as List Items ---"
+db = list
+user = dict
+user key "id" 101 
+user key "handle" "@diego"
+db set 0 user
+
+"Handle from list: " + db at 0 at "handle"
+
+"--- Missing Keys ---"
+# Accessing a non-existent key should return 'none'
+"Missing key: " + tostr d at "nonexistent"

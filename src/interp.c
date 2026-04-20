@@ -1,5 +1,6 @@
 #include "vii.h"
 #include <math.h>
+#include <time.h>
 
 /* ──────────────────────── Table ──────────────────────── */
 
@@ -46,6 +47,21 @@ void table_set(Table *t, const char *key, Value *val) {
     t->buckets[h] = e;
 }
 
+void table_free(Table *t) {
+    if (!t) return;
+    for (int i = 0; i < TABLE_SIZE; i++) {
+        Entry *e = t->buckets[i];
+        while (e) {
+            Entry *next = e->next;
+            free(e->key);
+            /* Note: we don't free e->val as Values are shared and lack GC for now */
+            free(e);
+            e = next;
+        }
+    }
+    free(t);
+}
+
 /* ──────────────────────── Function registry ──────────────────────── */
 
 static Func *funcs = NULL;
@@ -64,6 +80,19 @@ static Func *func_find(const char *name) {
     return NULL;
 }
 
+Value *val_dict(void) {
+    Value *v = calloc(1, sizeof(Value));
+    v->kind = VAL_DICT;
+    v->fields = table_new(NULL);
+    return v;
+}
+
+Value *val_break(void) {
+    Value *v = calloc(1, sizeof(Value));
+    v->kind = VAL_BREAK;
+    return v;
+}
+
 /* ──────────────────────── CLI args ──────────────────────── */
 
 Value *cli_args = NULL;
@@ -74,6 +103,7 @@ Value *eval_block(Node *block, Table *env) {
     Value *last = val_none();
     for (int i = 0; i < block->body_count; i++) {
         last = eval(block->body[i], env);
+        if (last->kind == VAL_BREAK) break;
     }
     return last;
 }
@@ -94,7 +124,9 @@ Value *eval(Node *n, Table *env) {
                 Func *fn = func_find(n->name);
                 if (fn) {
                     Table *scope = table_new(env);
-                    return eval_block(fn->def->left, scope);
+                    Value *res = eval_block(fn->def->left, scope);
+                    table_free(scope);
+                    return res;
                 }
                 fprintf(stderr, "Runtime error: undefined variable '%s'\n", n->name); exit(1);
             }
@@ -202,10 +234,13 @@ Value *eval(Node *n, Table *env) {
         }
         case ND_WHILE: {
             while (val_truthy(eval(n->left, env))) {
-                for (int i = 0; i < n->body_count; i++)
-                    eval(n->body[i], env);
+                Value *res = eval_block(n->body[0], env);
+                if (res->kind == VAL_BREAK) break;
             }
             return val_none();
+        }
+        case ND_BREAK: {
+            return val_break();
         }
         case ND_DO: {
             func_register(n->name, n);
@@ -239,9 +274,26 @@ Value *eval(Node *n, Table *env) {
         case ND_LIST: {
             return val_list();
         }
+        case ND_DICT: {
+            return val_dict();
+        }
+        case ND_KEY: {
+            Value *dict = eval(n->left, env);
+            Value *key = eval(n->body[0], env);
+            Value *val = eval(n->body[1], env);
+            if (dict->kind != VAL_DICT) { fprintf(stderr, "Runtime error: 'key' on non-dict\n"); exit(1); }
+            if (key->kind != VAL_STR) { fprintf(stderr, "Runtime error: dict key must be string\n"); exit(1); }
+            table_set(dict->fields, key->str, val);
+            return val;
+        }
         case ND_AT: {
             Value *list = eval(n->left, env);
             Value *idx  = eval(n->right, env);
+            if (list->kind == VAL_DICT) {
+                if (idx->kind != VAL_STR) { fprintf(stderr, "Runtime error: dict index must be string\n"); exit(1); }
+                Value *v = table_get(list->fields, idx->str);
+                return v ? v : val_none();
+            }
             if (list->kind == VAL_STR) {
                 int i = (int)idx->num;
                 if (i < 0) i += (int)strlen(list->str);
@@ -278,7 +330,7 @@ Value *eval(Node *n, Table *env) {
             Value *path = eval(n->left, env);
             Value *data = eval(n->right, env);
             if (path->kind != VAL_STR) { fprintf(stderr, "Runtime error: put requires a string path\n"); exit(1); }
-            FILE *f = fopen(path->str, "w");
+            FILE *f = fopen(path->str, (n->op == TOK_APPEND) ? "a" : "w");
             if (!f) { fprintf(stderr, "Runtime error: cannot open '%s' for writing\n", path->str); exit(1); }
             if (data->kind == VAL_STR) fprintf(f, "%s", data->str);
             else val_print_to(data, f);
@@ -292,6 +344,15 @@ Value *eval(Node *n, Table *env) {
             Value *v = eval(n->left, env);
             if (v->kind == VAL_STR) return val_num((double)strlen(v->str));
             if (v->kind == VAL_LIST) return val_num(v->item_count);
+            if (v->kind == VAL_DICT) {
+                int count = 0;
+                for (int i = 0; i < TABLE_SIZE; i++) {
+                    for (Entry *e = v->fields->buckets[i]; e; e = e->next) {
+                        count++;
+                    }
+                }
+                return val_num(count);
+            }
             return val_num(0);
         }
         case ND_ORD: {
@@ -354,6 +415,9 @@ Value *eval(Node *n, Table *env) {
                 table_set(scope, fn->def->body[i]->name, argv[i]);
             }
             Value *result = eval_block(fn->def->left, scope);
+            /* Ensure 'break' signal doesn't escape the function into the caller's loop */
+            table_free(scope);
+            if (result->kind == VAL_BREAK) result = val_none();
             free(argv);
             return result;
         }

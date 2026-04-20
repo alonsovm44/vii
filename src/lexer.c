@@ -1,12 +1,12 @@
 #include "vii.h"
 
 static const char *tok_kw[] = {
-    "if","else","while","do","ask","list","at","set","put","arg","paste","len","ord","chr","tonum","tostr","sys","env","exit","and","or"
+    "if","else","while","break","do","ask","list","dict","key","at","set","put","arg","paste","len","ord","chr","tonum","tostr","slice","type","time","append","sys","env","exit","and","or"
 };
 static const TokKind kw_kind[] = {
-    TOK_IF,TOK_ELSE,TOK_WHILE,TOK_DO,TOK_ASK,TOK_LIST,TOK_AT,TOK_SET,TOK_PUT,TOK_ARG,TOK_PASTE,TOK_LEN,TOK_ORD,TOK_CHR,TOK_TONUM,TOK_TOSTR,TOK_SYS,TOK_ENV,TOK_EXIT,TOK_AND,TOK_OR
+    TOK_IF,TOK_ELSE,TOK_WHILE,TOK_BREAK,TOK_DO,TOK_ASK,TOK_LIST,TOK_DICT,TOK_KEY,TOK_AT,TOK_SET,TOK_PUT,TOK_ARG,TOK_PASTE,TOK_LEN,TOK_ORD,TOK_CHR,TOK_TONUM,TOK_TOSTR,TOK_SLICE,TOK_TYPE,TOK_TIME,TOK_APPEND,TOK_SYS,TOK_ENV,TOK_EXIT,TOK_AND,TOK_OR
 };
-#define KW_COUNT 21
+#define KW_COUNT 28
 
 static void lex_push(Lexer *l, Token t) {
     if (l->tok_count >= l->tok_cap) {

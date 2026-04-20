@@ -101,7 +101,7 @@ fib 10
 
 ### File Handling
 ```vii
-put "data.txt" "Line 1" + "\n" + "Line 2"
+put "data.txt" "Line 1" + "\n" + "Line 2" # deprecated syntax
 content = "data.txt" ask
 content
 ```
