@@ -155,6 +155,10 @@ void lex(Lexer *l, const char *filename) {
         if (c == '<') { lex_push(l, (Token){TOK_LT, strdup("<"), 0, l->line, l->pos}); l->pos++; continue; }
         if (c == '>') { lex_push(l, (Token){TOK_GT, strdup(">"), 0, l->line, l->pos}); l->pos++; continue; }
 
+        /* parentheses */
+        if (c == '(') { lex_push(l, (Token){TOK_LPAREN, strdup("("), 0, l->line, l->pos}); l->pos++; continue; }
+        if (c == ')') { lex_push(l, (Token){TOK_RPAREN, strdup(")"), 0, l->line, l->pos}); l->pos++; continue; }
+
         /* identifier / keyword */
         if (isalpha(c) || c == '_') {
             int start = l->pos;

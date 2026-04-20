@@ -1,0 +1,3 @@
+# Original broken cases from today
+now = time
+"Timestamp is positive: " + tostr (now > 0)

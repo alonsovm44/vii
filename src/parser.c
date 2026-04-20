@@ -60,6 +60,12 @@ static Node *parse_block(Parser *p, bool is_function);
 static Node *parse_primary(Parser *p) {
     Token *t = peek(p);
     switch (t->kind) {
+        case TOK_LPAREN: {
+            advance(p);
+            Node *n = parse_expr(p);
+            if (peek(p)->kind == TOK_RPAREN) advance(p);
+            return n;
+        }
         case TOK_MINUS: {
             advance(p);
             Node *n = nd_new(ND_UMINUS);
