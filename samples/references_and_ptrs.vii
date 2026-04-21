@@ -1,0 +1,21 @@
+# references_and_ptrs.vii — Showcasing aliasing and reference passing
+
+# 1. Variable Aliasing with 'ref'
+original = 100
+alias = ref original
+
+# Modifying the alias modifies the original variable
+alias = 200
+"Original value (should be 200): " + tostr original
+
+# 2. Pass-by-Reference with 'ptr'
+# The 'ptr' tag tells Vii to pass the variable's reference, not a copy
+do increment target->ptr
+  target = target + 1
+
+val = 50
+increment val
+"Value after increment (should be 51): " + tostr val
+
+increment val
+"Value after second increment (should be 52): " + tostr val

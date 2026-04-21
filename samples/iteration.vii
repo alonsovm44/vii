@@ -1,0 +1,16 @@
+# iteration.vii — Showcasing the new 'for' loop
+
+colors = list
+colors set 0 "Red"
+colors set 1 "Green"
+colors set 2 "Blue"
+
+"Listing colors using the for loop:"
+for c in colors
+  "Color: " + c
+
+numbers = list
+numbers set 0 10
+numbers set 1 20
+for n in numbers
+  "Number squared: " + tostr (n * n)

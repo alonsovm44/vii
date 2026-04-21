@@ -1,0 +1,15 @@
+# types_and_bits.vii — Showcasing the 'bit' type and type safety
+
+# Comparison operations now return the 'bit' type (0 or 1)
+is_greater bit = 10 > 5
+"Is 10 > 5? " + type is_greater + " value: " + tostr is_greater
+
+# Logical 'and' and 'or' also return bits
+is_valid bit = is_greater and 1
+"Logical result: " + tostr is_valid
+
+# Type tags provide compile-time protection
+name str = "Diego"
+age num = 25
+
+"User: " + name + " Age: " + tostr age

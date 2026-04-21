@@ -1,0 +1,13 @@
+# error_handling.vii — Using 'safe' to prevent crashes
+
+# 'safe' wraps an expression and returns 'none' instead of exiting on error
+path = "missing_file.txt"
+content = safe path ask
+
+if type content == "none"
+  "Error: Could not read " + path
+else
+  "File length: " + tostr len content
+
+# Normal execution continues
+"Program finished gracefully."

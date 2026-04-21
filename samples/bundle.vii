@@ -26,8 +26,6 @@ IF WIN
   cmd = "dir /b " + src + "/*.c > " + tmp
 ELSE IF UNIX
   cmd = "ls -1 " + src + "/*.c > " + tmp
-ELSE IF MAC
-  cmd = "ls -1 " + src + "/*.c > " + tmp
 ENDIF
 sys cmd
 

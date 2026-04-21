@@ -1,0 +1,108 @@
+# Vii 'for' Loop Tutorial (Proposed Feature for v1.3)
+
+# The 'for' loop is a proposed feature designed to simplify iteration over lists.
+# It aims to make code more readable and reduce boilerplate compared to 'while' loops
+# for common list traversal patterns.
+
+# When to use the 'for' loop:
+# - When you need to process each item in a list.
+# - For readable data processing, mapping, or filtering patterns.
+# - To replace common 'while' loop constructs like:
+#   `i = 0; while i < len my_list; item = my_list at i; ...; i = i + 1`
+
+# Rules for 'for' loops:
+# - Syntax: `for <variable_name> in <list_expression>`
+# - The `<list_expression>` must evaluate to a list.
+# - The `<variable_name>` will sequentially take on the value of each element in the list.
+# - The loop continues until all elements in the list have been processed.
+# - 'break' can be used inside a 'for' loop to exit early.
+
+
+# --- Examples ---
+
+# Example 1: Basic List Iteration
+# Print each item in a list.
+colors = list
+colors set 0 "Red"
+colors set 1 "Green"
+colors set 2 "Blue"
+
+"--- Example 1: Listing Colors ---"
+for color in colors
+  "Color: " + color
+
+
+# Example 2: Transforming List Elements
+# Perform an operation on each item and display the result.
+numbers = list
+numbers set 0 1
+numbers set 1 2
+numbers set 2 3
+
+"--- Example 2: Numbers Squared ---"
+for num in numbers
+  "Number " + tostr num + " squared: " + tostr (num * num)
+
+
+# Example 3: Filtering with 'if' inside 'for'
+# Process items selectively based on a condition.
+data_mix = list
+data_mix set 0 10
+data_mix set 1 "hello"
+data_mix set 2 20
+data_mix set 3 "world"
+
+"--- Example 3: Only Numbers from Mixed List ---"
+for item in data_mix
+  if type item == "num"
+    "Found a number: " + tostr item
+
+
+# Example 4: Using 'break' to exit early
+# Search for an item and stop iterating once found.
+search_list = list
+search_list set 0 "apple"
+search_list set 1 "banana"
+search_list set 2 "cherry"
+
+target_fruit = "banana"
+found_status = "false"
+
+"--- Example 4: Searching for an Item ---"
+for fruit in search_list
+  if fruit == target_fruit
+    found_status = "true"
+    break
+  "Checking: " + fruit
+"Found " + target_fruit + ": " + found_status
+
+
+# Example 5: Iterating over a list of lists (simple nested concept)
+# Demonstrates how 'for' can be used with nested data structures.
+matrix = list
+row_one = list
+row_one set 0 1
+row_one set 1 2
+matrix set 0 row_one
+
+row_two = list
+row_two set 0 3
+row_two set 1 4
+matrix set 1 row_two
+
+"--- Example 5: Iterating a Matrix ---"
+for row in matrix
+  line_output = ""
+  for cell in row
+    line_output = line_output + tostr cell + " "
+  line_output # Implicitly prints the row
+
+
+# Note on 'while' loops:
+# For loops with a constant number of iterations or when you need more control
+# over the index, a 'while' loop might still be appropriate.
+# Example:
+i = 0
+while i < 3
+  "While loop iteration: " + tostr i
+  i = i + 1

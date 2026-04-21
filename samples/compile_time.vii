@@ -1,0 +1,14 @@
+# compile_time.vii — Platform-specific logic using 'IF' macros
+
+# Resolved at parse-time. Discarded branches never reach the interpreter.
+IF WIN
+  "Environment: Windows System"
+  sys "dir"
+ELSE IF UNIX
+  "Environment: Unix/Linux System"
+  sys "ls"
+
+# Custom flags via CLI: vii samples/compile_time.vii -D DEBUG
+IF DEBUG
+  "Verbose logging enabled via -D flag"
+  "Current Time: " + tostr time

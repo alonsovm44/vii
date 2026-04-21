@@ -1,0 +1,15 @@
+# string_ops.vii — Fast built-in string processing
+
+csv_line = "  apple, banana, cherry, date  "
+
+# 'trim' removes leading/trailing whitespace
+clean = trim csv_line
+"Cleaned string: [" + clean + "]"
+
+# 'split' breaks a string into a list based on a delimiter
+fruits = split clean ","
+
+"Extracted fruits:"
+for f in fruits
+  # Trim individual items since split doesn't handle spaces
+  "Fruit: " + trim f

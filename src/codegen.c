@@ -237,6 +237,15 @@ static void emit_c_expr(Node *n, FILE *f) {
             emit_c_expr(n->body[1], f);
             fprintf(f, ")");
             break;
+        case ND_SPLIT:
+            fprintf(f, "runtime_split("); emit_c_expr(n->left, f); fprintf(f, ", "); emit_c_expr(n->right, f); fprintf(f, ")");
+            break;
+        case ND_TRIM:
+            fprintf(f, "runtime_trim("); emit_c_expr(n->left, f); fprintf(f, ")");
+            break;
+        case ND_SAFE:
+            fprintf(f, "runtime_safe("); emit_c_expr(n->left, f); fprintf(f, ")");
+            break;
         case ND_TYPE: fprintf(f, "runtime_type("); emit_c_expr(n->left, f); fprintf(f, ")"); break;
         case ND_TIME: fprintf(f, "val_num((double)time(NULL))"); break;
         case ND_SYS:

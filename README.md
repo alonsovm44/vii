@@ -3,36 +3,33 @@
  [Language extension for Windsurf / VS Code:](https://github.com/alonsovm44/vii-lang-extension/releases)
 
 ![Version](https://img.shields.io/badge/version-1.1.4-blue.svg)
+![Version](https://img.shields.io/badge/version-1.2.5-blue.svg)
 ![Language](https://img.shields.io/badge/language-C-orange.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 
 # The one liner
 >Vii is a minimalist programming language designed for those just getting into coding and as an alternative to DevOps bash scripting. 
 
-
 ## The 3 Rules
 
-- **Minimal Punctuation**: No `{ }`, `[ ]`, `( )`, `;`, `,`, or `:`. Punctuation is the #1 cause of beginner syntax errors.
+- **Minimal Punctuation**: No `{ }`, `[ ]`, `;`, `,`, or `:`. Parentheses `( )` are optional for grouping. Punctuation is the #1 cause of beginner syntax errors.
 - **Implicit Output & Return**: If a line results in a value and isn't saved, it prints automatically. Inside a function, the final evaluated line is implicitly returned.
 - **Indentation Only**: Spaces are the only structural syntax used to group blocks of code.
 
-## The Complete Vocabulary (29 Words)
+## The Complete Vocabulary (33 Keywords)
 
-1. **Data**: Numbers (`5`), Text (`"hello"`)
-2. **Assignment & Logic**: `=`, `==`
-3. **Math**: `+`, `-`, `*`, `/`, `%`
-4. **Comparison**: `<`, `>`, `<=`, `>=`, `!=`
-5. **Logic**: `and`, `or`
-6. **Control Flow**: `if`, `else`, `while`
-7. **Abstraction**: `do` (define function, implicit return)
-8. **Memory**: `list`, `at`, `set`
-9. **Universal I/O**: `ask` (keyboard OR file read), `put` (write to disk)
-10. **Environment**: `arg` (CLI arguments list), `paste` (inject file at compile time)
-11. **DevOps**: `sys` (run shell command), `env` (get environment variable), `exit` (terminate process)
-12. **Conversion**: `len` (string/list length), `ord` (char → code), `chr` (code → char), `tonum` (string → number), `tostr` (number → string)
-13. **Comments**: `#` (single line)
+1. **Control Flow**: `if`, `else`, `while`, `break`
+2. **Macros**: `IF`, `ELSE`, `WIN`, `UNIX`
+3. **Abstraction**: `do`, `->`
+4. **Memory**: `list`, `dict`, `ref`, `at`, `set`, `key`
+5. **Universal I/O**: `ask`, `put`, `append`
+6. **Environment**: `arg`, `paste`, `time`, `sys`, `env`, `exit`
+7. **Conversion**: `len`, `type`, `slice`, `ord`, `chr`, `tonum`, `tostr`
+8. **Logic**: `and`, `or`
+9. **Operators**: `=`, `==`, `!=`, `<`, `>`, `Lte`, `Gte`, `+`, `-`, `*`, `/`, `%`
+10. **Meta**: `#` (comment), `#{ }#` (multiline)
 
-> The 18 keywords (`if`, `else`, `while`, `do`, `ask`, `list`, `at`, `set`, `put`, `arg`, `paste`, `len`, `ord`, `chr`, `tonum`, `tostr`, `and`, `or`) cannot be used as variable names.
+> Reserved words cannot be used as variable names. ALL_CAPS names are reserved for constants and macros.
 
 ## Build
 
@@ -169,5 +166,3 @@ paste "lib/math.vii"
 |----------|-------------|
 | `random_01` | Random float 0.0–1.0 (LCG) |
 | `random_int_in_range min max` | Random integer in range |
-
-

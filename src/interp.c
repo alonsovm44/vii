@@ -171,6 +171,45 @@ Value *eval(Node *n, Table *env) {
             }
             return val;
         }
+        case ND_FOR: {
+            Value *list = val_unwrap(eval(n->left, env));
+            if (list->kind != VAL_LIST) { fprintf(stderr, "Runtime error: for requires a list\n"); exit(1); }
+            for (int i = 0; i < list->item_count; i++) {
+                table_set(env, n->name, list->items[i]);
+                Value *res = eval_block(n->body[0], env);
+                if (res->kind == VAL_BREAK) break;
+            }
+            return val_none();
+        }
+        case ND_SPLIT: {
+            Value *str = val_unwrap(eval(n->left, env));
+            Value *delim = val_unwrap(eval(n->right, env));
+            if (str->kind != VAL_STR || delim->kind != VAL_STR) return val_list();
+            Value *res = val_list();
+            char *s = strdup(str->str);
+            char *token = strtok(s, delim->str);
+            while (token) {
+                if (res->item_count >= res->item_cap) {
+                    res->item_cap *= 2;
+                    res->items = realloc(res->items, res->item_cap * sizeof(Value*));
+                }
+                res->items[res->item_count++] = val_str(token);
+                token = strtok(NULL, delim->str);
+            }
+            free(s);
+            return res;
+        }
+        case ND_TRIM: {
+            Value *v = val_unwrap(eval(n->left, env));
+            if (v->kind != VAL_STR) return v;
+            char *s = v->str;
+            while(isspace((unsigned char)*s)) s++;
+            if(*s == 0) return val_str("");
+            char *end = s + strlen(s) - 1;
+            while(end > s && isspace((unsigned char)*end)) end--;
+            *(end+1) = 0;
+            return val_str(s);
+        }
         case ND_BINOP: {
             /* short-circuit for and/or */
             if (n->op == TOK_AND) {

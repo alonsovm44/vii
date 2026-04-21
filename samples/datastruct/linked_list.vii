@@ -1,0 +1,29 @@
+# linked_list.vii — Singly Linked List using Dicts
+
+do create_node val
+  n = dict
+  n key "val" val
+  n key "next" 0 # 0 represents null
+  n
+
+# Manually linking nodes
+head = create_node "Home"
+second = create_node "About"
+third = create_node "Contact"
+
+head key "next" second
+second key "next" third
+
+"--- Traversing Linked List ---"
+curr = head
+while type curr != "num"
+  "Visiting: " + (curr at "val")
+  curr = curr at "next"
+
+# Adding a node in-place using ptr
+do append_node tail->ptr val
+  new = create_node val
+  tail key "next" new
+
+append_node third "Blog"
+"New tail added: " + (third at "next" at "val")

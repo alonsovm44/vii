@@ -1,0 +1,37 @@
+# queue.vii — FIFO Queue Implementation
+
+q = dict
+q key "head" 0
+q key "tail" 0
+q key "items" list
+
+do enqueue q->ptr val
+  tail = q at "tail"
+  items = q at "items"
+  items set tail val
+  q key "tail" (tail + 1)
+
+do dequeue q->ptr
+  head = q at "head"
+  tail = q at "tail"
+  if head == tail
+    "Queue is Empty"
+  else
+    items = q at "items"
+    val = items at head
+    q key "head" (head + 1)
+    val
+
+"--- Queue Test ---"
+enqueue q "User A"
+enqueue q "User B"
+enqueue q "User C"
+
+"Processing: " + dequeue q
+"Processing: " + dequeue q
+
+enqueue q "User D"
+
+"Next in line: " + dequeue q
+"Next in line: " + dequeue q
+"Next in line: " + dequeue q

@@ -86,6 +86,8 @@ static const char *infer_node_type(Node *n, Node *fn_ctx) {
         case ND_CHR: case ND_TOSTR: case ND_ASKFILE: case ND_ENV: return "str";
         case ND_LIST: return "list";
         case ND_DICT: return "dict";
+        case ND_SPLIT: return "list";
+        case ND_TRIM: return "str";
         case ND_REF: return "ptr";
         case ND_CALL: return "unknown"; /* Function return types are resolved at runtime or in a later pass */
         default: break;
@@ -120,6 +122,9 @@ static Node *parse_primary(Parser *p) {
         case TOK_CHR:   advance(p); { Node *n = nd_new(ND_CHR);   n->left = parse_postfix(p); return n; }
         case TOK_TONUM: advance(p); { Node *n = nd_new(ND_TONUM); n->left = parse_postfix(p); return n; }
         case TOK_TOSTR: advance(p); { Node *n = nd_new(ND_TOSTR); n->left = parse_postfix(p); return n; }
+        case TOK_SPLIT: advance(p); { Node *n = nd_new(ND_SPLIT); n->left = parse_primary(p); n->right = parse_primary(p); return n; }
+        case TOK_TRIM:  advance(p); { Node *n = nd_new(ND_TRIM);  n->left = parse_primary(p); return n; }
+        case TOK_SAFE:  advance(p); { Node *n = nd_new(ND_SAFE);  n->left = parse_primary(p); return n; }
         case TOK_SLICE: {
             advance(p);
             Node *n = nd_new(ND_SLICE);
@@ -472,6 +477,19 @@ static Node *parse_stmt(Parser *p) {
         free(filename);
         free(src);
         return included;
+    }
+
+    if (t->kind == TOK_FOR) {
+        advance(p);
+        Node *n = nd_new(ND_FOR);
+        n->name = strdup(advance(p)->text); // loop variable
+        expect(p, TOK_IN);
+        n->left = parse_expr(p); // the list/dict
+        skip_newlines(p);
+        expect(p, TOK_INDENT);
+        nd_push(n, parse_block(p, false));
+        expect(p, TOK_DEDENT);
+        return n;
     }
 
     if (t->kind == TOK_IF) {

@@ -1,6 +1,6 @@
-# Vii Vocabulary Reference (v1.2.0)
+# Vii Vocabulary Reference (v1.2.5)
 
-Vii measures minimalism by concept count. There are exactly 37 words/symbols to learn.
+Vii measures minimalism by concept count. There are exactly 48 words/symbols/concepts to learn.
 
 ## 1. Control Flow
 
@@ -16,6 +16,7 @@ Vii measures minimalism by concept count. There are exactly 37 words/symbols to 
 | Word | Use | Description |
 | :--- | :--- | :--- |
 | `IF` | `IF WIN` | Resolved during parsing. Dead branches are discarded. |
+| `ELSE IF`| `ELSE IF UNIX`| Conditional fallback for compile-time `IF`. |
 | `ELSE` | `ELSE` | Fallback for compile-time `IF`. |
 
 ## 2. Abstraction
@@ -50,6 +51,12 @@ Vii measures minimalism by concept count. There are exactly 37 words/symbols to 
 | `sys` | `sys "ls"` | Executes a shell command and returns the exit code. |
 | `env` | `env "PATH"` | Retrieves an environment variable string. |
 | `exit` | `exit 0` | Terminates the process with the given exit code. |
+
+## 6. Metadata & Comments
+| Word | Use | Description |
+| :--- | :--- | :--- |
+| `#` | `# comment` | Single-line comment. |
+| `#{ }#`| `#{ block }#` | Multiline comment block. |
 
 ## 6. Conversion & Introspection
 | Word | Use | Description |
@@ -87,6 +94,12 @@ Vii measures minimalism by concept count. There are exactly 37 words/symbols to 
 | `*` | Multiplication. |
 | `/` | Division. |
 | `%` | Modulo (Remainder). |
+
+### Grouping
+| Symbol | Description |
+| :--- | :--- |
+| `(` | Begins a grouped expression to override left-to-right evaluation. |
+| `)` | Ends a grouped expression. |
 
 ### Boolean Logic
 | Word | Description |

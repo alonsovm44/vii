@@ -116,7 +116,11 @@ z
 # matrices and vectors
 # 3x3 matrix as list of lists
 vector = list 
-vector set 0 (1 2 3)
+vector set 0 1
+vector set 1 2
+vector set 2 3
+
+val = vector at 3 # 3
 
 matrix = list
 matrix set 0 (1 2 3)
@@ -125,3 +129,7 @@ matrix set 2 (7 8 9)
 
 # Access element
 value = matrix at 1 at 2  # 6 (row 1, col 2)
+
+# something
+
+x # x and y share the same memory address 

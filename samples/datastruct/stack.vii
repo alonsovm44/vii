@@ -1,0 +1,24 @@
+# stack.vii — LIFO Stack Implementation
+
+my_stack = list
+
+do push s->ptr val
+  # Append to the end of the list
+  idx = len s
+  s set idx val
+
+do peek s->ptr
+  n = len s
+  if n == 0
+    "Empty Stack"
+  else
+    idx = n - 1
+    s at idx
+
+"--- Stack Test ---"
+push my_stack "Task 1"
+push my_stack "Task 2"
+push my_stack "Task 3"
+
+"Current Top: " + peek my_stack
+"Stack Size: " + tostr len my_stack
