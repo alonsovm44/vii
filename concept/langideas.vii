@@ -69,4 +69,59 @@ multiline comment (not currently supported by parser) but by syntax highlighter
 while i < 10 # understanding while loops is trivial 
   #loop 
 
-for 
+
+# idea 7, functions as objects 
+
+x = do func 
+
+# idea 8, code tables
+
+table DB
+  | ID | NAME    | do GREET s |
+  | 1  | "Vii"   | "Hello " + s |
+  | 2  | "Diego" | "Hi " + s |
+
+# Would become:
+
+DB = list
+DB set 0 dict
+DB at 0 key "ID" 1
+DB at 0 key "NAME" "Vii"
+DB at 0 key "GREET" do s "Hello " + s
+DB set 1 dict
+DB at 1 key "ID" 2
+DB at 1 key "NAME" "Diego"
+DB at 1 key "GREET" do s "Hi " + s
+
+# idea 9 async code blocks
+
+do fun1 arg1
+do fun2 arg2
+do fun3 arg3
+
+fun1 X
+fun2 Y
+fun3 Z # this executes each function in series
+
+fun1 X || fun2 Y || fun3 Z # this executes themm in parallel
+
+# you could use the same function simultaneously
+
+x num = fun1 X || y num = fun1 Y || z num = fun1 Z  # it is not like func(); func(); func(); but actually making 3 threads
+
+x 
+y
+z
+
+# matrices and vectors
+# 3x3 matrix as list of lists
+vector = list 
+vector set 0 (1 2 3)
+
+matrix = list
+matrix set 0 (1 2 3)
+matrix set 1 (4 5 6)
+matrix set 2 (7 8 9)
+
+# Access element
+value = matrix at 1 at 2  # 6 (row 1, col 2)
