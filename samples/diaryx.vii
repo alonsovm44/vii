@@ -1,0 +1,21 @@
+# a simple dev diary CLI tool
+cmd = arg at 0 
+
+do init 
+  "Making new devlog file...\n"
+  file str = "devlog.md"
+  file put "Devlog kept with diaryx. Written in Vii"
+
+do log 
+  message = arg at 1
+  file str = "devlog.md"
+  file put ("\n\n" + time + "\n") append 
+  file put message append 
+
+do main cmd->str
+  if cmd == "init"
+    init
+  else if cmd == "log"
+    log
+
+main cmd

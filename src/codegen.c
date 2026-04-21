@@ -29,7 +29,7 @@ void dump_ast_json(Node *n, FILE *f, int indent) {
 
 static void emit_c_header(FILE *f) {
     fprintf(f, "#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n#include <stdbool.h>\n#include <math.h>\n#include <time.h>\n\n");
-    fprintf(f, "typedef enum { VAL_NUM, VAL_STR, VAL_LIST, VAL_DICT, VAL_FUNC, VAL_REF, VAL_NONE } ValKind;\n");
+    fprintf(f, "typedef enum { VAL_NUM, VAL_STR, VAL_LIST, VAL_DICT, VAL_FUNC, VAL_BIT, VAL_REF, VAL_NONE } ValKind;\n");
     fprintf(f, "struct Table;\nstruct Value;\n");
     fprintf(f, "typedef struct Value* (*IoFunc)(struct Table*, int, struct Value**);\n");
     fprintf(f, "typedef struct Value { ValKind kind; double num; char *str; struct Value **items; int item_count; int item_cap; struct Table *fields; IoFunc func; struct Value *target; } Value;\n");
@@ -42,6 +42,7 @@ static void emit_c_header(FILE *f) {
     fprintf(f, "static Value *val_list() { Value *v = calloc(1, sizeof(Value)); v->kind = VAL_LIST; v->item_cap = 8; v->items = calloc(8, sizeof(Value*)); return v; }\n");
     fprintf(f, "static Value *val_dict() { Value *v = calloc(1, sizeof(Value)); v->kind = VAL_DICT; v->fields = table_new(NULL); return v; }\n");
     fprintf(f, "static Value *val_func(IoFunc f) { Value *v = calloc(1, sizeof(Value)); v->kind = VAL_FUNC; v->func = f; return v; }\n");
+    fprintf(f, "static Value *val_bit(bool b) { Value *v = calloc(1, sizeof(Value)); v->kind = VAL_BIT; v->num = b ? 1 : 0; return v; }\n");
     fprintf(f, "static Value *val_ref(Value *t) { Value *v = calloc(1, sizeof(Value)); v->kind = VAL_REF; v->target = t; return v; }\n");
     fprintf(f, "static Value *val_none() { Value *v = calloc(1, sizeof(Value)); v->kind = VAL_NONE; return v; }\n\n");
 
@@ -61,12 +62,12 @@ static void emit_c_header(FILE *f) {
     fprintf(f, "  if(op==%d && (l->kind==VAL_STR||r->kind==VAL_STR)){ char b[2048]; sprintf(b, \"%%s%%s\", l->kind==VAL_STR?l->str:\"\", r->kind==VAL_STR?r->str:\"\"); return val_str(b); }\n", TOK_PLUS);
     fprintf(f, "  if(l->kind==VAL_STR && r->kind==VAL_STR) {\n");
     fprintf(f, "    int c=strcmp(l->str,r->str); switch(op){\n");
-    fprintf(f, "      case %d: return val_num(c==0?1:0); case %d: return val_num(c!=0?1:0);\n", TOK_EQEQ, TOK_NE);
-    fprintf(f, "      case %d: return val_num(c<0?1:0); case %d: return val_num(c>0?1:0); case %d: return val_num(c<=0?1:0); case %d: return val_num(c>=0?1:0);\n", TOK_LT, TOK_GT, TOK_LTE, TOK_GTE);
+    fprintf(f, "      case %d: return val_bit(c==0); case %d: return val_bit(c!=0);\n", TOK_EQEQ, TOK_NE);
+    fprintf(f, "      case %d: return val_bit(c<0); case %d: return val_bit(c>0); case %d: return val_bit(c<=0); case %d: return val_bit(c>=0);\n", TOK_LT, TOK_GT, TOK_LTE, TOK_GTE);
     fprintf(f, "    }\n  }\n");
     fprintf(f, "  double a=l->num, b=r->num; switch(op){\n");
     fprintf(f, "    case %d: return val_num(a+b); case %d: return val_num(a-b); case %d: return val_num(a*b); case %d: return val_num(b?a/b:0); case %d: return val_num(b?fmod(a,b):0);\n", TOK_PLUS, TOK_MINUS, TOK_STAR, TOK_SLASH, TOK_PCT);
-    fprintf(f, "    case %d: return val_num(a<b?1:0); case %d: return val_num(a>b?1:0); case %d: return val_num(a<=b?1:0); case %d: return val_num(a>=b?1:0); case %d: return val_num(a!=b?1:0); case %d: return val_num(a==b?1:0); case %d: return val_num(val_truthy(l)&&val_truthy(r)?1:0); case %d: return val_num(val_truthy(l)||val_truthy(r)?1:0); default: return val_none();\n", TOK_LT, TOK_GT, TOK_LTE, TOK_GTE, TOK_NE, TOK_EQEQ, TOK_AND, TOK_OR);
+    fprintf(f, "    case %d: return val_bit(a<b); case %d: return val_bit(a>b); case %d: return val_bit(a<=b); case %d: return val_bit(a>=b); case %d: return val_bit(a!=b); case %d: return val_bit(a==b); case %d: return val_bit(val_truthy(l)&&val_truthy(r)); case %d: return val_bit(val_truthy(l)||val_truthy(r)); default: return val_none();\n", TOK_LT, TOK_GT, TOK_LTE, TOK_GTE, TOK_NE, TOK_EQEQ, TOK_AND, TOK_OR);
     fprintf(f, "  }\n}\n");
     fprintf(f, "static Value* runtime_call(Value* f, Table* e, int c, Value** v) { if(f->kind==VAL_FUNC) return f->func(e, c, v); return val_none(); }\n");
     fprintf(f, "static Value* io_args;\n");
@@ -82,7 +83,7 @@ static void emit_c_header(FILE *f) {
     fprintf(f, "static Value* runtime_put(Value* p, Value* d, int a) { p = val_unwrap(p); d = val_unwrap(d); if(p->kind!=VAL_STR) return val_none(); FILE* f=fopen(p->str, a?\"a\":\"w\"); if(!f) return val_none(); if(d->kind==VAL_STR) fprintf(f,\"%%s\",d->str); else { if(d->kind==VAL_NUM) fprintf(f,d->num==(long long)d->num?\"%%lld\":\"%%g\",(long long)d->num); } fclose(f); return val_none(); }\n");
     fprintf(f, "static Value* runtime_tostr(Value* v) { v = val_unwrap(v); char b[64]; if(v->kind==VAL_NUM){ if(v->num==(long long)v->num) snprintf(b,64,\"%%%%lld\",(long long)v->num); else snprintf(b,64,\"%%%%g\",v->num); return val_str(b); } if(v->kind==VAL_STR) return v; return val_str(\"\"); }\n");
     fprintf(f, "static Value* runtime_slice(Value* v, Value* sv, Value* ev) { v = val_unwrap(v); sv = val_unwrap(sv); ev = val_unwrap(ev); int s=(int)sv->num, e=(int)ev->num; if(v->kind==VAL_STR){ int l=strlen(v->str); if(s<0)s+=l; if(e<0)e+=l; if(s<0)s=0; if(e>l)e=l; if(s>=e)return val_str(\"\"); int n=e-s; char *b=malloc(n+1); memcpy(b,v->str+s,n); b[n]=0; Value *res=val_str(b); free(b); return res; } if(v->kind==VAL_LIST){ int l=v->item_count; if(s<0)s+=l; if(e<0)e+=l; if(s<0)s=0; if(e>l)e=l; Value *res=val_list(); if(s>=e)return res; for(int i=s;i<e;i++){ if(res->item_count>=res->item_cap){ res->item_cap*=2; res->items=realloc(res->items,res->item_cap*sizeof(Value*)); } res->items[res->item_count++]=v->items[i]; } return res; } return val_none(); }\n");
-    fprintf(f, "static Value* runtime_type(Value* v) { v = val_unwrap(v); switch(v->kind){ case VAL_NUM: return val_str(\"num\"); case VAL_STR: return val_str(\"str\"); case VAL_LIST: return val_str(\"list\"); case VAL_DICT: return val_str(\"dict\"); default: return val_str(\"none\"); } }\n");
+    fprintf(f, "static Value* runtime_type(Value* v) { v = val_unwrap(v); switch(v->kind){ case VAL_NUM: return val_str(\"num\"); case VAL_STR: return val_str(\"str\"); case VAL_LIST: return val_str(\"list\"); case VAL_DICT: return val_str(\"dict\"); case VAL_BIT: return val_str(\"bit\"); default: return val_str(\"none\"); } }\n");
     fprintf(f, "static Value* runtime_sys(Value* v) { v = val_unwrap(v); if(v->kind!=VAL_STR) return val_num(-1); return val_num((double)system(v->str)); }\n");
     fprintf(f, "static Value* runtime_env(Value* v) { v = val_unwrap(v); if(v->kind!=VAL_STR) return val_str(\"\"); char* e=getenv(v->str); return e?val_str(e):val_str(\"\"); }\n");
 }

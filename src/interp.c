@@ -175,25 +175,25 @@ Value *eval(Node *n, Table *env) {
             /* short-circuit for and/or */
             if (n->op == TOK_AND) {
                 Value *l = eval(n->left, env);
-                if (!val_truthy(l)) return val_num(0);
+                if (!val_truthy(l)) return val_bit(0);
                 Value *r = eval(n->right, env);
-                return val_num(val_truthy(r) ? 1 : 0);
+                return val_bit(val_truthy(r));
             }
             if (n->op == TOK_OR) {
                 Value *l = eval(n->left, env);
-                if (val_truthy(l)) return val_num(1);
+                if (val_truthy(l)) return val_bit(1);
                 Value *r = eval(n->right, env);
-                return val_num(val_truthy(r) ? 1 : 0);
+                return val_bit(val_truthy(r));
             }
             Value *l = val_unwrap(eval(n->left, env));
             Value *r = val_unwrap(eval(n->right, env));
             if (l->kind == VAL_STR && r->kind == VAL_STR) {
                 int cmp = strcmp(l->str, r->str);
                 switch (n->op) {
-                    case TOK_LT:  return val_num(cmp < 0 ? 1 : 0);
-                    case TOK_GT:  return val_num(cmp > 0 ? 1 : 0);
-                    case TOK_LTE: return val_num(cmp <= 0 ? 1 : 0);
-                    case TOK_GTE: return val_num(cmp >= 0 ? 1 : 0);
+                    case TOK_LT:  return val_bit(cmp < 0);
+                    case TOK_GT:  return val_bit(cmp > 0);
+                    case TOK_LTE: return val_bit(cmp <= 0);
+                    case TOK_GTE: return val_bit(cmp >= 0);
                     default: break;
                 }
             }
@@ -214,19 +214,19 @@ Value *eval(Node *n, Table *env) {
                 case TOK_STAR:  return val_num(a * b);
                 case TOK_SLASH: return val_num(b != 0 ? a / b : 0);
                 case TOK_PCT:   return val_num(b != 0 ? fmod(a, b) : 0);
-                case TOK_LT:    return val_num(a < b ? 1 : 0);
-                case TOK_GT:    return val_num(a > b ? 1 : 0);
-                case TOK_LTE:   return val_num(a <= b ? 1 : 0);
-                case TOK_GTE:   return val_num(a >= b ? 1 : 0);
+                case TOK_LT:    return val_bit(a < b);
+                case TOK_GT:    return val_bit(a > b);
+                case TOK_LTE:   return val_bit(a <= b);
+                case TOK_GTE:   return val_bit(a >= b);
                 case TOK_NE:    {
                     if (l->kind == VAL_STR && r->kind == VAL_STR)
-                        return val_num(strcmp(l->str, r->str) != 0 ? 1 : 0);
-                    return val_num(a != b ? 1 : 0);
+                        return val_bit(strcmp(l->str, r->str) != 0);
+                    return val_bit(a != b);
                 }
                 case TOK_EQEQ:  {
                     if (l->kind == VAL_STR && r->kind == VAL_STR)
-                        return val_num(strcmp(l->str, r->str) == 0 ? 1 : 0);
-                    return val_num(a == b ? 1 : 0);
+                        return val_bit(strcmp(l->str, r->str) == 0);
+                    return val_bit(a == b);
                 }
                 default: return val_num(0);
             }
@@ -457,6 +457,7 @@ Value *eval(Node *n, Table *env) {
                 case VAL_STR:  return val_str("str");
                 case VAL_LIST: return val_str("list");
                 case VAL_DICT: return val_str("dict");
+                case VAL_BIT:  return val_str("bit");
                 default:       return val_str("none");
             }
         }

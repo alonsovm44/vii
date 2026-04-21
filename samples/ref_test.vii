@@ -8,11 +8,11 @@ alias = 42
 "Original value after alias modification (should be 42): " + tostr original
 
 # 2. Pass-by-Reference in Functions
-do increment_ref target->ptr
+do increment_ptr target->ptr
   target = target + 1
 
 val = 100
-increment_ref val
+increment_ptr val
 "Value after function reference increment (should be 101): " + tostr val
 
 # 3. Complex Objects (Dicts) are implicitly shared, but ref ensures pointer safety

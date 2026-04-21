@@ -12,6 +12,12 @@ Value *val_str(const char *s) {
     return v;
 }
 
+Value *val_bit(bool b) {
+    Value *v = calloc(1, sizeof(Value));
+    v->kind = VAL_BIT; v->num = b ? 1 : 0;
+    return v;
+}
+
 Value *val_list(void) {
     Value *v = calloc(1, sizeof(Value));
     v->kind = VAL_LIST; v->item_cap = 8;
@@ -37,6 +43,7 @@ bool val_truthy(Value *v) {
         case VAL_NUM:  return v->num != 0;
         case VAL_STR:  return v->str[0] != '\0';
         case VAL_LIST: return v->item_count > 0;
+        case VAL_BIT:  return v->num != 0;
         case VAL_REF:  return val_truthy(v->target);
         default:       return false;
     }
@@ -61,6 +68,7 @@ void val_print_to(Value *v, FILE *f) {
             }
             fputc(']', f);
             break;
+        case VAL_BIT:  fprintf(f, v->num ? "1" : "0"); break;
         case VAL_NONE: break;
     }
 }

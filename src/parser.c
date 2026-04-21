@@ -74,7 +74,11 @@ static const char *infer_node_type(Node *n, Node *fn_ctx) {
                 }
             }
             return "unknown";
-        case ND_BINOP: return "num";
+        case ND_BINOP:
+            if (n->op == TOK_EQEQ || n->op == TOK_NE || n->op == TOK_LT || n->op == TOK_GT ||
+                n->op == TOK_LTE || n->op == TOK_GTE || n->op == TOK_AND || n->op == TOK_OR)
+                return "bit";
+            return "num";
         case ND_BLOCK:
             if (n->body_count > 0) return infer_node_type(n->body[n->body_count - 1], fn_ctx);
             break;
@@ -141,7 +145,7 @@ static Node *parse_primary(Parser *p) {
             /* check for do->attribute */
             if (peek(p)->kind == TOK_ARROW) {
                 advance(p);
-                if (peek(p)->kind == TOK_IDENT || peek(p)->kind == TOK_REF || peek(p)->kind == TOK_PTR)
+                if (peek(p)->kind == TOK_IDENT || peek(p)->kind == TOK_REF || peek(p)->kind == TOK_PTR || peek(p)->kind == TOK_BIT)
                     fn->mod_tag = strdup(advance(p)->text);
             }
 
@@ -150,7 +154,7 @@ static Node *parse_primary(Parser *p) {
             /* check for return type: do func->type */
             if (peek(p)->kind == TOK_ARROW) {
                 advance(p);
-                if (peek(p)->kind == TOK_IDENT || peek(p)->kind == TOK_REF || peek(p)->kind == TOK_PTR)
+                if (peek(p)->kind == TOK_IDENT || peek(p)->kind == TOK_REF || peek(p)->kind == TOK_PTR || peek(p)->kind == TOK_BIT)
                     fn->type_tag = strdup(advance(p)->text);
             }
 
@@ -165,7 +169,7 @@ static Node *parse_primary(Parser *p) {
                 }
                 if (peek(p)->kind == TOK_ARROW) {
                     advance(p);
-                    if (peek(p)->kind == TOK_IDENT || peek(p)->kind == TOK_REF || peek(p)->kind == TOK_PTR)
+                    if (peek(p)->kind == TOK_IDENT || peek(p)->kind == TOK_REF || peek(p)->kind == TOK_PTR || peek(p)->kind == TOK_BIT)
                         param->type_tag = strdup(advance(p)->text);
                 }
                 nd_push(fn, param);
@@ -305,7 +309,7 @@ static Node *parse_expr(Parser *p) {
     }
 
     /* assignment: var = expr OR var type = expr */
-    bool is_typed = (left->kind == ND_VAR && (peek(p)->kind == TOK_IDENT || peek(p)->kind == TOK_REF || peek(p)->kind == TOK_PTR) &&
+    bool is_typed = (left->kind == ND_VAR && (peek(p)->kind == TOK_IDENT || peek(p)->kind == TOK_REF || peek(p)->kind == TOK_PTR || peek(p)->kind == TOK_BIT) &&
                     (p->tokens[p->pos+1].kind == TOK_EQ || p->tokens[p->pos+1].kind == TOK_ARROW));
     bool is_normal = (peek(p)->kind == TOK_EQ && (left->kind == ND_VAR || left->kind == ND_AT));
 

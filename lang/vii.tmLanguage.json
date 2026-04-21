@@ -63,7 +63,7 @@
                 "name": "keyword.operator.logical.vii"
                 },
                 {
-                    "match": "\\b(num|str|ref|ptr)\\b",
+                    "match": "\\b(num|str|ref|ptr|bit)\\b",
                     "name": "storage.type.vii"
                 }
             ]
