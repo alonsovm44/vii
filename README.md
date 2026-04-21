@@ -7,13 +7,12 @@
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 
 # The one liner
->Vii is a simple minimalist programming language designed for those just getting into coding and as an alternative to DevOps bash scripting. 
+>Vii is a minimalist programming language designed for those just getting into coding and as an alternative to DevOps bash scripting. 
 
-Vii measures minimalism not by character count, but by concept count. No punctuation, no boilerplate — just logic.
 
 ## The 3 Rules
 
-- **No Punctuation**: No `{ }`, `[ ]`, `( )`, `;`, `,`, or `:`. Punctuation is the #1 cause of beginner syntax errors.
+- **Minimal Punctuation**: No `{ }`, `[ ]`, `( )`, `;`, `,`, or `:`. Punctuation is the #1 cause of beginner syntax errors.
 - **Implicit Output & Return**: If a line results in a value and isn't saved, it prints automatically. Inside a function, the final evaluated line is implicitly returned.
 - **Indentation Only**: Spaces are the only structural syntax used to group blocks of code.
 
@@ -42,6 +41,7 @@ gcc -Wall -O3 -std=c99 -o vii src/main.c src/ui.c src/value.c src/lexer.c src/pa
 ```
 
 Or with Make:
+1. Clone the repo, then
 ```bash
 make
 ```
@@ -70,97 +70,6 @@ vii --debug file.vii # generates debug_ast.json
 ./vii examples/fizzbuzz.vii -o fizzbuzz 
 ```
 This produces a C executable
-
-
-## Examples
-
-### FizzBuzz
-```vii
-x = 1
-while x < 101
-  if x % 15 == 0
-    "FizzBuzz"
-  else if x % 3 == 0
-    "Fizz"
-  else if x % 5 == 0
-    "Buzz"
-  else
-    x
-  x = x + 1
-```
-
-### Number Guessing Game
-```vii
-do get_hint guess target
-  if guess > target
-    "Lower"
-  else if guess < target
-    "Higher"
-  else
-    "Correct!"
-
-x = 0
-"Think of a number between 1 and 10."
-target = ask
-
-while x == 0
-  "What is your guess?"
-  guess = ask
-  get_hint guess target
-  if guess == target
-    x = 1
-```
-
-### Lists (with `set`)
-```vii
-nums = list
-nums set 0 42
-nums set 1 99
-nums at 0
-```
-
-### File I/O
-```vii
-"test.txt" put "Hello from Vii!"
-content = "test.txt" ask
-content
-```
-
-### CLI Arguments
-```vii
-if arg at 0
-  "First arg:"
-  arg at 0
-```
-
-### Paste (Include)
-```vii
-paste "helper.vii"
-result = double 21
-```
-
-### Conversion Built-ins
-```vii
-# len — length of string or list
-len "hello"        # 5
-nums = list
-nums set 0 10
-nums set 1 20
-len nums           # 2
-
-# ord — first character to numeric code
-ord "A"            # 65
-
-# chr — numeric code to single character
-chr 65             # "A"
-
-# tonum — parse string to number
-tonum "42"         # 42
-tonum "3.14"       # 3.14
-
-# tostr — convert number to string
-tostr 42           # "42"
-```
 
 ## Standard Library
 
@@ -258,25 +167,7 @@ paste "lib/math.vii"
 
 | Function | Description |
 |----------|-------------|
-| `random_01 seed` | Random float 0.0–1.0 (LCG) |
-| `random_int_in_range seed min max` | Random integer in range |
+| `random_01` | Random float 0.0–1.0 (LCG) |
+| `random_int_in_range min max` | Random integer in range |
 
-> **Note**: `random.vii` uses a Linear Congruential Generator. Pass a different seed each call for varied results.
 
-### Idiomatic Vii Tips
-
-- **No unary minus**: Use `0 - x` instead of `-x`
-- **No operator precedence**: All operators evaluate left-to-right. Use intermediate variables for complex expressions:
-  ```vii
-  # Instead of: x == 5 and y == 10
-  a = x == 5
-  b = y == 10
-  if a and b
-    "both match"
-  ```
-- **`set` uses simple values**: Use intermediate variables for index/value:
-  ```vii
-  idx = len result
-  result set idx current
-  ```
-- **Division is floating-point**: Use `%` (modulo) for integer remainder
