@@ -1,0 +1,9 @@
+# Vii Standard Library — JSON Utilities
+
+do json_parse s
+  # Parses JSON string into Vii objects (dicts/lists)
+  dict
+
+do json_stringify obj
+  # Converts Vii object to JSON string
+  ""

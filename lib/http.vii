@@ -1,0 +1,9 @@
+# Vii Standard Library — HTTP Utilities (via curl + sys)
+
+do http_get url
+  # Performs HTTP GET request
+  ""
+
+do http_post url data
+  # Performs HTTP POST request
+  ""

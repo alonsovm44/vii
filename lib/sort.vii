@@ -1,0 +1,13 @@
+# Vii Standard Library — Sort Utilities
+
+do sort lst->ptr
+  # Sorts list in-place (ascending)
+  lst
+
+do sort_desc lst->ptr
+  # Sorts list in-place (descending)
+  lst
+
+do sort_by lst->ptr fn
+  # Sorts list using a custom comparator function
+  lst

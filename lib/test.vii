@@ -1,0 +1,15 @@
+# Vii Standard Library — Testing Framework
+
+do assert condition msg
+  # Fails process if condition is 0
+  if condition == 0
+    "Assertion failed: " + msg
+    exit 1
+
+do test name fn
+  # Registers or runs a named test case
+  0
+
+do run_tests
+  # Executes all registered tests
+  0

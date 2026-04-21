@@ -1,0 +1,13 @@
+# Vii Standard Library — Time Utilities
+
+do format_time t
+  # Formats epoch timestamp into readable string
+  ""
+
+do parse_time s
+  # Parses date string into epoch timestamp
+  0
+
+do elapsed start
+  # Returns seconds passed since start
+  time - start

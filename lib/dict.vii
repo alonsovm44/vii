@@ -1,0 +1,43 @@
+# Vii Standard Library — Dictionary Utilities
+
+do has_key->bit dic->ptr
+  # Returns bit: 1 if key exists, 0 otherwise
+  if len dic > 0 
+    1
+  else
+    0
+
+do get_dict_keys dic->ptr
+
+  # Returns list of all keys
+  keys = list
+  i = 0
+  while i < len dic
+    keys append dic at i
+    i = i + 1
+  keys
+
+do get_dict_vals dic->ptr
+  # Returns list of all values
+  vals = list
+  i = 0
+  while i < len dic
+    current_key = dic at i     # Get the key at this position
+    value = dic key current_key # Retrieve the value associated with that key
+    vals append value
+    i = i + 1
+  vals
+
+
+do merge_dicts target->ptr source->ptr
+  # Merges source into target
+  target
+
+do dict_from_list keys vals
+  # Creates a dict from two lists
+  dict
+
+do dict_to_list dic->ptr
+  # Returns a list of [key, val] pairs
+  list
+  list

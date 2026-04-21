@@ -36,6 +36,10 @@ static void emit_c_header(FILE *f) {
     fprintf(f, "typedef struct Entry { char *key; Value *val; bool is_constant; struct Entry *next; } Entry;\n");
     fprintf(f, "typedef struct Table { Entry *buckets[256]; struct Table *parent; } Table;\n\n");
 
+    /* Runtime Table Logic */
+    fprintf(f, "static unsigned hash(const char *s) { unsigned h = 0; while(*s) h = h * 31 + (unsigned char)*s++; return h %% 256; }\n");
+    fprintf(f, "static Table* table_new(Table *p) { Table *t = calloc(1, sizeof(Table)); t->parent = p; return t; }\n");
+
     /* Allocation Helpers */
     fprintf(f, "static Value *val_num(double n) { Value *v = calloc(1, sizeof(Value)); v->kind = VAL_NUM; v->num = n; return v; }\n");
     fprintf(f, "static Value *val_str(const char *s) { Value *v = calloc(1, sizeof(Value)); v->kind = VAL_STR; v->str = strdup(s); return v; }\n");
@@ -46,9 +50,6 @@ static void emit_c_header(FILE *f) {
     fprintf(f, "static Value *val_ref(Value *t) { Value *v = calloc(1, sizeof(Value)); v->kind = VAL_REF; v->target = t; return v; }\n");
     fprintf(f, "static Value *val_none() { Value *v = calloc(1, sizeof(Value)); v->kind = VAL_NONE; return v; }\n\n");
 
-    /* Runtime Table Logic */
-    fprintf(f, "static unsigned hash(const char *s) { unsigned h = 0; while(*s) h = h * 31 + (unsigned char)*s++; return h %% 256; }\n");
-    fprintf(f, "static Table* table_new(Table *p) { Table *t = calloc(1, sizeof(Table)); t->parent = p; return t; }\n");
     fprintf(f, "static Value* table_get(Table *t, const char *k) { for(Table *cur=t;cur;cur=cur->parent){ unsigned h=hash(k); for(Entry *e=cur->buckets[h];e;e=e->next) if(!strcmp(e->key,k)) return e->val; } return val_none(); }\n");
     fprintf(f, "static bool is_all_caps(const char *s) { if(!s||!*s)return false; bool h=false; for(const char *c=s;*c;c++){ if(*c>='a'&&*c<='z') return false; if(*c>='A'&&*c<='Z') h=true; } return h; }\n");
     fprintf(f, "static void table_set(Table *t, const char *k, Value *v) { unsigned h = hash(k); for(Entry *e=t->buckets[h];e;e=e->next) if(!strcmp(e->key,k)){ if(e->is_constant){fprintf(stderr,\"Runtime error: cannot reassign constant '%%s'\\n\",k);exit(1);} if(e->val->kind == VAL_REF) { Value *trg = e->val->target; trg->kind=v->kind; trg->num=v->num; trg->str=v->str; trg->items=v->items; trg->item_count=v->item_count; trg->fields=v->fields; return; } e->val=v;return;} Entry *e=malloc(sizeof(Entry)); e->key=strdup(k); e->val=v; e->is_constant=is_all_caps(k); e->next=t->buckets[h]; t->buckets[h]=e; }\n\n");
@@ -130,14 +131,11 @@ static void emit_c_expr(Node *n, FILE *f) {
                 else emit_c_expr(n->right, f);
                 fprintf(f, ")");
             } else if (n->op == TOK_PLUS && ((n->left->type_tag && !strcmp(n->left->type_tag, "str")) || n->left->kind == ND_STR)) {
-                fprintf(f, "runtime_str_concat(");
-                if (n->left->kind == ND_STR) fprintf(f, "\"%s\"", n->left->str);
-                else emit_c_expr(n->left, f);
-                fprintf(f, ", ");
-                if (n->right->kind == ND_STR) fprintf(f, "\"%s\"", n->right->str);
-                else if (n->right->type_tag && !strcmp(n->right->type_tag, "str")) emit_c_expr(n->right, f);
-                else { fprintf(f, "("); emit_c_expr(n->right, f); fprintf(f, ")->str"); }
-                fprintf(f, ")");
+                fprintf(f, "runtime_str_concat(runtime_tostr(");
+                emit_c_expr(n->left, f);
+                fprintf(f, ")->str, runtime_tostr(");
+                emit_c_expr(n->right, f);
+                fprintf(f, ")->str)");
             } else {
                 fprintf(f, "runtime_binop(%d, ", n->op);
                 emit_c_expr(n->left, f);
@@ -156,13 +154,10 @@ static void emit_c_expr(Node *n, FILE *f) {
             break;
         case ND_ASSIGN:
             if (n->left->kind == ND_VAR) {
-                if (n->left->type_tag && !strcmp(n->left->type_tag, "num")) {
-                    fprintf(f, "%s = ", n->left->name);
+                if (n->left->type_tag && !strcmp(n->left->type_tag, "str")) {
+                    fprintf(f, "table_set(env, \"%s\", runtime_tostr(", n->left->name);
                     emit_c_expr(n->right, f);
-                } else if (n->left->type_tag && !strcmp(n->left->type_tag, "str")) {
-                    fprintf(f, "%s = (", n->left->name);
-                    emit_c_expr(n->right, f);
-                    fprintf(f, ")->str");
+                    fprintf(f, "))");
                 } else {
                     fprintf(f, "table_set(env, \"%s\", ", n->left->name);
                     emit_c_expr(n->right, f);
@@ -206,7 +201,7 @@ static void emit_c_expr(Node *n, FILE *f) {
             emit_c_expr(n->left, f);
             fprintf(f, ", ");
             emit_c_expr(n->right, f);
-            fprintf(f, ")");
+            fprintf(f, ", %d)", n->op == TOK_APPEND ? 1 : 0);
             break;
         case ND_LEN:
             fprintf(f, "runtime_len(");
@@ -268,10 +263,6 @@ static void emit_c_stmt(Node *n, int indent, FILE *f) {
     for (int i = 0; i < indent; i++) fprintf(f, "  ");
     switch (n->kind) {
         case ND_ASSIGN:
-            if (n->left->type_tag && !strcmp(n->left->type_tag, "num"))
-                fprintf(f, "double ");
-            else if (n->left->type_tag && !strcmp(n->left->type_tag, "str"))
-                fprintf(f, "char* ");
             emit_c_expr(n, f);
             fprintf(f, ";\n");
             break;
@@ -330,15 +321,7 @@ static void emit_c_functions(Node *n, FILE *f) {
         if (n->mod_tag) fprintf(f, "  /* Modifier: %s */\n", n->mod_tag);
 
         for (int i = 0; i < n->body_count; i++) {
-            if (n->body[i]->type_tag && !strcmp(n->body[i]->type_tag, "num")) {
-                fprintf(f, "  double %s = (argc > %d && argv[%d]->kind == VAL_NUM) ? argv[%d]->num : 0;\n",
-                        n->body[i]->name, i, i, i);
-            } else if (n->body[i]->type_tag && !strcmp(n->body[i]->type_tag, "str")) {
-                fprintf(f, "  char* %s = (argc > %d && argv[%d]->kind == VAL_STR) ? argv[%d]->str : \"\";\n",
-                        n->body[i]->name, i, i, i);
-            } else {
-                fprintf(f, "  if(argc > %d) table_set(env, \"%s\", argv[%d]);\n", i, n->body[i]->name, i);
-            }
+            fprintf(f, "  if(argc > %d) table_set(env, \"%s\", argv[%d]);\n", i, n->body[i]->name, i);
         }
         emit_c_functions(n->left, f);
         Node *block = n->left;

@@ -1,0 +1,21 @@
+# Vii Standard Library — File System Utilities (via sys)
+
+do ls path
+  # Returns list of files in directory
+  list
+
+do mkdir path
+  # Creates directory
+  0
+
+do rm path
+  # Removes file or directory
+  0
+
+do cp src dst
+  # Copies file
+  0
+
+do mv src dst
+  # Moves/Renames file
+  0
