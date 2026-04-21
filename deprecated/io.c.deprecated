@@ -52,6 +52,7 @@ static void report_error(const char *filename, const char *src, int pos, int lin
 /* ──────────────────────── Value ──────────────────────── */
 
 typedef enum { VAL_NUM, VAL_STR, VAL_LIST, VAL_NONE } ValKind;
+typedef enum { VAL_NUM, VAL_STR, VAL_LIST, VAL_REF, VAL_NONE } ValKind;
 
 typedef struct Value {
     ValKind kind;
@@ -60,6 +61,7 @@ typedef struct Value {
     struct Value **items;   /* list items */
     int    item_count;
     int    item_cap;
+    struct Value *target;   /* target for VAL_REF */
 } Value;
 
 static Value *val_num(double n) {
@@ -81,9 +83,21 @@ static Value *val_list(void) {
     return v;
 }
 
+static Value *val_ref(Value *target) {
+    Value *v = calloc(1, sizeof(Value));
+    v->kind = VAL_REF;
+    v->target = target;
+    return v;
+}
+
 static Value *val_none(void) {
     Value *v = calloc(1, sizeof(Value));
     v->kind = VAL_NONE;
+    return v;
+}
+
+static Value *val_unwrap(Value *v) {
+    if (v && v->kind == VAL_REF) return val_unwrap(v->target);
     return v;
 }
 
@@ -93,12 +107,14 @@ static bool val_truthy(Value *v) {
         case VAL_NUM:  return v->num != 0;
         case VAL_STR:  return v->str[0] != '\0';
         case VAL_LIST: return v->item_count > 0;
+        case VAL_REF:  return val_truthy(v->target);
         default:       return false;
     }
 }
 
 static void val_print_to(Value *v, FILE *f) {
     if (!v) return;
+    if (v->kind == VAL_REF) { val_print_to(v->target, f); return; }
     switch (v->kind) {
         case VAL_NUM:
             if (v->num == (long long)v->num)
@@ -130,17 +146,21 @@ typedef enum {
     TOK_IF, TOK_ELSE, TOK_WHILE, TOK_DO, TOK_ASK, TOK_LIST, TOK_AT, TOK_SET,
     TOK_PUT, TOK_ARG, TOK_PASTE, TOK_LEN, TOK_ORD, TOK_CHR, TOK_TONUM, TOK_TOSTR,
     TOK_SYS, TOK_ENV, TOK_EXIT, TOK_EQ, TOK_EQEQ, TOK_PLUS, TOK_MINUS, TOK_STAR, TOK_SLASH, TOK_PCT, TOK_ARROW,
+    TOK_SYS, TOK_ENV, TOK_EXIT, TOK_REF, TOK_EQ, TOK_EQEQ, TOK_PLUS, TOK_MINUS, TOK_STAR, TOK_SLASH, TOK_PCT, TOK_ARROW,
     TOK_LT, TOK_GT, 
     TOK_NEWLINE, TOK_INDENT, TOK_DEDENT, TOK_EOF
 } TokKind;
 
 static const char *tok_kw[] = {
     "if","else","while","do","ask","list","at","set","put","arg","paste","len","ord","chr","tonum","tostr","sys","env","exit"
+    "if","else","while","do","ask","list","at","set","put","arg","paste","len","ord","chr","tonum","tostr","sys","env","exit","ref"
 };
 static const TokKind kw_kind[] = {
     TOK_IF,TOK_ELSE,TOK_WHILE,TOK_DO,TOK_ASK,TOK_LIST,TOK_AT,TOK_SET,TOK_PUT,TOK_ARG,TOK_PASTE,TOK_LEN,TOK_ORD,TOK_CHR,TOK_TONUM,TOK_TOSTR,TOK_SYS,TOK_ENV,TOK_EXIT
+    TOK_IF,TOK_ELSE,TOK_WHILE,TOK_DO,TOK_ASK,TOK_LIST,TOK_AT,TOK_SET,TOK_PUT,TOK_ARG,TOK_PASTE,TOK_LEN,TOK_ORD,TOK_CHR,TOK_TONUM,TOK_TOSTR,TOK_SYS,TOK_ENV,TOK_EXIT,TOK_REF
 };
 #define KW_COUNT 19
+#define KW_COUNT 20
 
 typedef struct Token {
     TokKind kind;
@@ -334,6 +354,7 @@ typedef enum {
     ND_NUM, ND_STR, ND_VAR,
     ND_ASSIGN, ND_BINOP,
     ND_IF, ND_WHILE, ND_DO,
+    ND_REF,
     ND_ASK, ND_ASKFILE, ND_LIST, ND_AT, ND_SET,
     ND_PUT, ND_ARG, ND_LEN, ND_ORD, ND_CHR, ND_TONUM, ND_TOSTR,
     ND_SYS, ND_ENV, ND_EXIT,
@@ -415,6 +436,7 @@ static Node *parse_primary(Parser *p) {
         case TOK_TONUM: advance(p); { Node *n = nd_new(ND_TONUM); n->left = parse_postfix(p); return n; }
         case TOK_TOSTR: advance(p); { Node *n = nd_new(ND_TOSTR); n->left = parse_postfix(p); return n; }
         case TOK_SYS:   advance(p); { Node *n = nd_new(ND_SYS);   n->left = parse_postfix(p); return n; }
+        case TOK_REF:   advance(p); { Node *n = nd_new(ND_REF);   n->left = parse_postfix(p); return n; }
         case TOK_ENV:   advance(p); { Node *n = nd_new(ND_ENV);   n->left = parse_postfix(p); return n; }
         case TOK_EXIT:  advance(p); { Node *n = nd_new(ND_EXIT);  n->left = parse_postfix(p); return n; }
         case TOK_LIST:  advance(p); return nd_new(ND_LIST);
@@ -789,11 +811,25 @@ static Value *eval(Node *n, Table *env) {
         case ND_ASSIGN: {
             Value *val = eval(n->right, env);
             if (n->left->kind == ND_VAR) {
+                Value *existing = table_get(env, n->left->name);
+                if (existing && existing->kind == VAL_REF) {
+                    /* Mutate the target of the reference in-place */
+                    Value *target = existing->target;
+                    target->kind = val->kind;
+                    target->num = val->num;
+                    target->str = val->str;
+                    target->items = val->items;
+                    target->item_count = val->item_count;
+                    target->item_cap = val->item_cap;
+                    return target;
+                }
                 table_set(env, n->left->name, val);
             } else if (n->left->kind == ND_AT) {
                 /* list at index = value */
                 Value *list = eval(n->left->left, env); // This is the list itself
                 Value *idx  = eval(n->left->right, env);
+                Value *list = val_unwrap(eval(n->left->left, env));
+                Value *idx  = val_unwrap(eval(n->left->right, env));
                 if (list->kind != VAL_LIST) { fprintf(stderr, "Runtime error: 'at' on non-list\n"); exit(1); }
                 int i = (int)idx->num;
                 if (i < 0) i += list->item_count;
@@ -814,6 +850,8 @@ static Value *eval(Node *n, Table *env) {
         case ND_BINOP: {
             Value *l = eval(n->left, env);
             Value *r = eval(n->right, env);
+            Value *l = val_unwrap(eval(n->left, env));
+            Value *r = val_unwrap(eval(n->right, env));
             double a = l->num, b = r->num;
             /* handle string concatenation */
             if (n->op == TOK_PLUS && (l->kind == VAL_STR || r->kind == VAL_STR)) {
@@ -844,6 +882,7 @@ static Value *eval(Node *n, Table *env) {
         }
         case ND_IF: {
             Value *cond = eval(n->left, env);
+            Value *cond = val_unwrap(eval(n->left, env));
             if (val_truthy(cond)) {
                 if (n->body_count > 0) {
                     for (int i = 0; i < n->body_count; i++)
@@ -860,6 +899,7 @@ static Value *eval(Node *n, Table *env) {
         }
         case ND_WHILE: {
             while (val_truthy(eval(n->left, env))) {
+            while (val_truthy(val_unwrap(eval(n->left, env)))) {
                 for (int i = 0; i < n->body_count; i++)
                     eval(n->body[i], env);
             }
@@ -868,6 +908,12 @@ static Value *eval(Node *n, Table *env) {
         case ND_DO: {
             func_register(n->name, n);
             return val_none();
+        }
+        case ND_REF: {
+            if (n->left->kind != ND_VAR) { fprintf(stderr, "Runtime error: ref requires a variable\n"); exit(1); }
+            Value *v = table_get(env, n->left->name);
+            if (!v) { fprintf(stderr, "Runtime error: undefined variable '%s'\n", n->left->name); exit(1); }
+            return val_ref(v);
         }
         case ND_ASK: {
             /* keyboard input */
@@ -882,6 +928,7 @@ static Value *eval(Node *n, Table *env) {
         case ND_ASKFILE: {
             /* file read: "path.txt" ask */
             Value *path = eval(n->left, env);
+            Value *path = val_unwrap(eval(n->left, env));
             if (path->kind != VAL_STR) { fprintf(stderr, "Runtime error: ask requires a string path\n"); exit(1); }
             FILE *f = fopen(path->str, "rb");
             if (!f) { fprintf(stderr, "Runtime error: cannot open '%s'\n", path->str); exit(1); }
@@ -902,6 +949,8 @@ static Value *eval(Node *n, Table *env) {
         case ND_AT: {
             Value *list = eval(n->left, env);
             Value *idx  = eval(n->right, env);
+            Value *list = val_unwrap(eval(n->left, env));
+            Value *idx  = val_unwrap(eval(n->right, env));
             if (list->kind == VAL_STR) {
                 /* string at index → single character */
                 int i = (int)idx->num;
@@ -919,8 +968,10 @@ static Value *eval(Node *n, Table *env) {
         case ND_SET: {
             /* list set index value */
             Value *list = eval(n->left, env);
+            Value *list = val_unwrap(eval(n->left, env));
             if (list->kind != VAL_LIST) { fprintf(stderr, "Runtime error: 'set' on non-list\n"); exit(1); }
             Value *idx  = eval(n->body[0], env);
+            Value *idx  = val_unwrap(eval(n->body[0], env));
             Value *val  = eval(n->body[1], env);
             int i = (int)idx->num;
             if (i < 0) i += list->item_count;
@@ -941,6 +992,8 @@ static Value *eval(Node *n, Table *env) {
             /* put "path" "data" */
             Value *path = eval(n->left, env);
             Value *data = eval(n->right, env);
+            Value *path = val_unwrap(eval(n->left, env));
+            Value *data = val_unwrap(eval(n->right, env));
             if (path->kind != VAL_STR) { fprintf(stderr, "Runtime error: put requires a string path\n"); exit(1); }
             FILE *f = fopen(path->str, "w");
             if (!f) { fprintf(stderr, "Runtime error: cannot open '%s' for writing\n", path->str); exit(1); }
@@ -954,22 +1007,26 @@ static Value *eval(Node *n, Table *env) {
         }
         case ND_LEN: {
             Value *v = eval(n->left, env);
+            Value *v = val_unwrap(eval(n->left, env));
             if (v->kind == VAL_STR) return val_num((double)strlen(v->str));
             if (v->kind == VAL_LIST) return val_num(v->item_count);
             return val_num(0);
         }
         case ND_ORD: {
             Value *v = eval(n->left, env);
+            Value *v = val_unwrap(eval(n->left, env));
             if (v->kind == VAL_STR && v->str[0]) return val_num((unsigned char)v->str[0]);
             return val_num(0);
         }
         case ND_CHR: {
             Value *v = eval(n->left, env);
+            Value *v = val_unwrap(eval(n->left, env));
             char buf[2] = { (char)(int)v->num, '\0' };
             return val_str(buf);
         }
         case ND_TONUM: {
             Value *v = eval(n->left, env);
+            Value *v = val_unwrap(eval(n->left, env));
             if (v->kind == VAL_STR) {
                 char *end;
                 double d = strtod(v->str, &end);
@@ -981,6 +1038,7 @@ static Value *eval(Node *n, Table *env) {
         }
         case ND_TOSTR: {
             Value *v = eval(n->left, env);
+            Value *v = val_unwrap(eval(n->left, env));
             if (v->kind == VAL_NUM) {
                 char buf[64];
                 if (v->num == (long long)v->num)
@@ -994,12 +1052,14 @@ static Value *eval(Node *n, Table *env) {
         }
         case ND_SYS: {
             Value *v = eval(n->left, env);
+            Value *v = val_unwrap(eval(n->left, env));
             if (v->kind != VAL_STR) return val_num(-1);
             int result = system(v->str);
             return val_num((double)result);
         }
         case ND_ENV: {
             Value *v = eval(n->left, env);
+            Value *v = val_unwrap(eval(n->left, env));
             if (v->kind != VAL_STR) return val_str("");
             char *e = getenv(v->str);
             return e ? val_str(e) : val_str("");
@@ -1014,6 +1074,18 @@ static Value *eval(Node *n, Table *env) {
             Value **argv = malloc(argc * sizeof(Value*));
             for (int i = 0; i < argc; i++)
                 argv[i] = eval(n->body[i], env);
+            for (int i = 0; i < argc; i++) {
+                /* If param is marked ->ref, pass as VAL_REF automatically */
+                if (i < fn->def->body_count && fn->def->body[i]->type_tag && !strcmp(fn->def->body[i]->type_tag, "ref")) {
+                    if (n->body[i]->kind == ND_VAR) {
+                        argv[i] = val_ref(table_get(env, n->body[i]->name));
+                    } else {
+                        fprintf(stderr, "Runtime error: cannot pass literal as ref to %s\n", fname); exit(1);
+                    }
+                } else {
+                    argv[i] = eval(n->body[i], env);
+                }
+            }
             /* create new scope */
             Table *scope = table_new(env);
             /* bind params */

@@ -46,13 +46,13 @@ do fx state->bit # this is basically bool
 # this would be useful for large objects
 #we could use ref keyword
 x = 10
-y ref x        # y is now an alias for x — reads and writes go to x
+y ptr = x        # y is now an alias for x — reads and writes go to x
 
 y               # 10 (transparent read)
 y = 20          # x is now 20 too (transparent write)
 
-do func y->ref  # y is passed by reference (alias to caller's variable)
+do func y->ptr  # y is passed by reference (alias to caller's variable)
   y = 20        # modifies the original
 
 # Explicit type
-y num ref x     # y is a ref to x, and x must be num
+y num ptr = x     # y is a ref to x, and x must be num

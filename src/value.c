@@ -19,6 +19,12 @@ Value *val_list(void) {
     return v;
 }
 
+Value *val_ref(Value *target) {
+    Value *v = calloc(1, sizeof(Value));
+    v->kind = VAL_REF; v->target = target;
+    return v;
+}
+
 Value *val_none(void) {
     Value *v = calloc(1, sizeof(Value));
     v->kind = VAL_NONE;
@@ -31,12 +37,14 @@ bool val_truthy(Value *v) {
         case VAL_NUM:  return v->num != 0;
         case VAL_STR:  return v->str[0] != '\0';
         case VAL_LIST: return v->item_count > 0;
+        case VAL_REF:  return val_truthy(v->target);
         default:       return false;
     }
 }
 
 void val_print_to(Value *v, FILE *f) {
     if (!v) return;
+    if (v->kind == VAL_REF) { val_print_to(v->target, f); return; }
     switch (v->kind) {
         case VAL_NUM:
             if (v->num == (long long)v->num)

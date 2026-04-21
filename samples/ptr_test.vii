@@ -1,0 +1,23 @@
+# ptr_test.vii — Testing 'ptr' type for functions
+
+# 1. Variable Aliasing still uses 'ref' builtin
+original = 10
+alias = ref original
+alias = 42
+"Original (should be 42): " + tostr original
+
+# 2. Functions use 'ptr' type tag
+do increment_ptr target->ptr
+  target = target + 1
+
+val = 100
+increment_ptr val
+"Incremented (should be 101): " + tostr val
+
+# 3. Dictionaries with ptr
+d = dict
+do update d->ptr
+  d key "status" "ok"
+
+update d
+"Dict status: " + (d at "status")

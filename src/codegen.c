@@ -29,10 +29,10 @@ void dump_ast_json(Node *n, FILE *f, int indent) {
 
 static void emit_c_header(FILE *f) {
     fprintf(f, "#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n#include <stdbool.h>\n#include <math.h>\n#include <time.h>\n\n");
-    fprintf(f, "typedef enum { VAL_NUM, VAL_STR, VAL_LIST, VAL_DICT, VAL_FUNC, VAL_NONE } ValKind;\n");
+    fprintf(f, "typedef enum { VAL_NUM, VAL_STR, VAL_LIST, VAL_DICT, VAL_FUNC, VAL_REF, VAL_NONE } ValKind;\n");
     fprintf(f, "struct Table;\nstruct Value;\n");
     fprintf(f, "typedef struct Value* (*IoFunc)(struct Table*, int, struct Value**);\n");
-    fprintf(f, "typedef struct Value { ValKind kind; double num; char *str; struct Value **items; int item_count; int item_cap; struct Table *fields; IoFunc func; } Value;\n");
+    fprintf(f, "typedef struct Value { ValKind kind; double num; char *str; struct Value **items; int item_count; int item_cap; struct Table *fields; IoFunc func; struct Value *target; } Value;\n");
     fprintf(f, "typedef struct Entry { char *key; Value *val; bool is_constant; struct Entry *next; } Entry;\n");
     fprintf(f, "typedef struct Table { Entry *buckets[256]; struct Table *parent; } Table;\n\n");
 
@@ -42,6 +42,7 @@ static void emit_c_header(FILE *f) {
     fprintf(f, "static Value *val_list() { Value *v = calloc(1, sizeof(Value)); v->kind = VAL_LIST; v->item_cap = 8; v->items = calloc(8, sizeof(Value*)); return v; }\n");
     fprintf(f, "static Value *val_dict() { Value *v = calloc(1, sizeof(Value)); v->kind = VAL_DICT; v->fields = table_new(NULL); return v; }\n");
     fprintf(f, "static Value *val_func(IoFunc f) { Value *v = calloc(1, sizeof(Value)); v->kind = VAL_FUNC; v->func = f; return v; }\n");
+    fprintf(f, "static Value *val_ref(Value *t) { Value *v = calloc(1, sizeof(Value)); v->kind = VAL_REF; v->target = t; return v; }\n");
     fprintf(f, "static Value *val_none() { Value *v = calloc(1, sizeof(Value)); v->kind = VAL_NONE; return v; }\n\n");
 
     /* Runtime Table Logic */
@@ -49,12 +50,14 @@ static void emit_c_header(FILE *f) {
     fprintf(f, "static Table* table_new(Table *p) { Table *t = calloc(1, sizeof(Table)); t->parent = p; return t; }\n");
     fprintf(f, "static Value* table_get(Table *t, const char *k) { for(Table *cur=t;cur;cur=cur->parent){ unsigned h=hash(k); for(Entry *e=cur->buckets[h];e;e=e->next) if(!strcmp(e->key,k)) return e->val; } return val_none(); }\n");
     fprintf(f, "static bool is_all_caps(const char *s) { if(!s||!*s)return false; bool h=false; for(const char *c=s;*c;c++){ if(*c>='a'&&*c<='z') return false; if(*c>='A'&&*c<='Z') h=true; } return h; }\n");
-    fprintf(f, "static void table_set(Table *t, const char *k, Value *v) { unsigned h = hash(k); for(Entry *e=t->buckets[h];e;e=e->next) if(!strcmp(e->key,k)){ if(e->is_constant){fprintf(stderr,\"Runtime error: cannot reassign constant '%%s'\\n\",k);exit(1);} e->val=v;return;} Entry *e=malloc(sizeof(Entry)); e->key=strdup(k); e->val=v; e->is_constant=is_all_caps(k); e->next=t->buckets[h]; t->buckets[h]=e; }\n\n");
+    fprintf(f, "static void table_set(Table *t, const char *k, Value *v) { unsigned h = hash(k); for(Entry *e=t->buckets[h];e;e=e->next) if(!strcmp(e->key,k)){ if(e->is_constant){fprintf(stderr,\"Runtime error: cannot reassign constant '%%s'\\n\",k);exit(1);} if(e->val->kind == VAL_REF) { Value *trg = e->val->target; trg->kind=v->kind; trg->num=v->num; trg->str=v->str; trg->items=v->items; trg->item_count=v->item_count; trg->fields=v->fields; return; } e->val=v;return;} Entry *e=malloc(sizeof(Entry)); e->key=strdup(k); e->val=v; e->is_constant=is_all_caps(k); e->next=t->buckets[h]; t->buckets[h]=e; }\n\n");
 
     /* Builtin Operations */
-    fprintf(f, "static bool val_truthy(Value *v) { if(!v) return false; if(v->kind==VAL_NUM) return v->num != 0; if(v->kind==VAL_STR) return v->str[0]!='\\0'; return v->item_count > 0; }\n");
-    fprintf(f, "static void val_print(Value *v) { if(!v) return; if(v->kind==VAL_NUM) printf(v->num==(long long)v->num?\"%%lld\":\"%%g\",(long long)v->num); else if(v->kind==VAL_STR) printf(\"%%s\",v->str); else if(v->kind==VAL_LIST){ printf(\"[\"); for(int i=0;i<v->item_count;i++){ if(i)printf(\", \"); val_print(v->items[i]); } printf(\"]\"); } }\n");
+    fprintf(f, "static Value* val_unwrap(Value* v) { while(v && v->kind == VAL_REF) v = v->target; return v; }\n");
+    fprintf(f, "static bool val_truthy(Value *v) { v = val_unwrap(v); if(!v) return false; if(v->kind==VAL_NUM) return v->num != 0; if(v->kind==VAL_STR) return v->str[0]!='\\0'; return v->item_count > 0; }\n");
+    fprintf(f, "static void val_print(Value *v) { v = val_unwrap(v); if(!v) return; if(v->kind==VAL_NUM) printf(v->num==(long long)v->num?\"%%lld\":\"%%g\",(long long)v->num); else if(v->kind==VAL_STR) printf(\"%%s\",v->str); else if(v->kind==VAL_LIST){ printf(\"[\"); for(int i=0;i<v->item_count;i++){ if(i)printf(\", \"); val_print(v->items[i]); } printf(\"]\"); } }\n");
     fprintf(f, "static Value* runtime_binop(int op, Value* l, Value* r) {\n");
+    fprintf(f, "  l = val_unwrap(l); r = val_unwrap(r);\n");
     fprintf(f, "  if(op==%d && (l->kind==VAL_STR||r->kind==VAL_STR)){ char b[2048]; sprintf(b, \"%%s%%s\", l->kind==VAL_STR?l->str:\"\", r->kind==VAL_STR?r->str:\"\"); return val_str(b); }\n", TOK_PLUS);
     fprintf(f, "  if(l->kind==VAL_STR && r->kind==VAL_STR) {\n");
     fprintf(f, "    int c=strcmp(l->str,r->str); switch(op){\n");
@@ -68,20 +71,20 @@ static void emit_c_header(FILE *f) {
     fprintf(f, "static Value* runtime_call(Value* f, Table* e, int c, Value** v) { if(f->kind==VAL_FUNC) return f->func(e, c, v); return val_none(); }\n");
     fprintf(f, "static Value* io_args;\n");
     fprintf(f, "static Value* runtime_var_get(Table* e, const char* k) { Value* v=table_get(e,k); if(v->kind==VAL_FUNC) return v->func(e,0,NULL); return v; }\n");
-    fprintf(f, "static Value* runtime_at(Value* l, Value* r) { int i=(int)r->num; if(l->kind==VAL_STR){ if(i<0||i>=strlen(l->str)) return val_none(); char b[2]={l->str[i],0}; return val_str(b); } if(l->kind==VAL_LIST){ if(i<0||i>=l->item_count) return val_none(); return l->items[i]; } return val_none(); }\n");
-    fprintf(f, "static void runtime_set(Value* l, Value* i, Value* v) { if(l->kind!=VAL_LIST) return; int idx=(int)i->num; if(idx==l->item_count){ if(l->item_count>=l->item_cap){ l->item_cap*=2; l->items=realloc(l->items,l->item_cap*sizeof(Value*)); } l->items[l->item_count++]=v; } else if(idx>=0 && idx<l->item_count) l->items[idx]=v; }\n");
-    fprintf(f, "static Value* runtime_ask(Value* p) { if(p&&p->kind==VAL_STR){ FILE* f=fopen(p->str,\"rb\"); if(!f) return val_str(\"\"); fseek(f,0,SEEK_END); long l=ftell(f); fseek(f,0,SEEK_SET); char* b=malloc(l+1); fread(b,1,l,f); b[l]=0; fclose(f); Value* v=val_str(b); free(b); return v; } char buf[1024]; if(!fgets(buf,1024,stdin)) return val_str(\"\"); buf[strcspn(buf,\"\\n\")]=0; return val_str(buf); }\n");
-    fprintf(f, "static Value* runtime_len(Value* v) { if(v->kind==VAL_STR) return val_num(strlen(v->str)); if(v->kind==VAL_LIST) return val_num(v->item_count); if(v->kind==VAL_DICT){ int c=0; for(int i=0;i<256;i++) for(Entry *e=v->fields->buckets[i];e;e=e->next) c++; return val_num(c); } return val_num(0); }\n");
-    fprintf(f, "static Value* runtime_ord(Value* v) { if(v->kind==VAL_STR&&v->str[0]) return val_num((unsigned char)v->str[0]); return val_num(0); }\n");
-    fprintf(f, "static Value* runtime_chr(Value* v) { char b[2]={v->num,0}; return val_str(b); }\n");
-    fprintf(f, "static Value* runtime_tonum(Value* v) { if(v->kind==VAL_STR){ char*e; double d=strtod(v->str,&e); return val_num(*e==0&&e!=v->str?d:0); } if(v->kind==VAL_NUM) return v; return val_num(0); }\n");
+    fprintf(f, "static Value* runtime_at(Value* l, Value* r) { l = val_unwrap(l); r = val_unwrap(r); int i=(int)r->num; if(l->kind==VAL_STR){ if(i<0||i>=strlen(l->str)) return val_none(); char b[2]={l->str[i],0}; return val_str(b); } if(l->kind==VAL_LIST){ if(i<0||i>=l->item_count) return val_none(); return l->items[i]; } return val_none(); }\n");
+    fprintf(f, "static void runtime_set(Value* l, Value* i, Value* v) { l = val_unwrap(l); i = val_unwrap(i); if(l->kind!=VAL_LIST) return; int idx=(int)i->num; if(idx==l->item_count){ if(l->item_count>=l->item_cap){ l->item_cap*=2; l->items=realloc(l->items,l->item_cap*sizeof(Value*)); } l->items[l->item_count++]=v; } else if(idx>=0 && idx<l->item_count) l->items[idx]=v; }\n");
+    fprintf(f, "static Value* runtime_ask(Value* p) { p = val_unwrap(p); if(p&&p->kind==VAL_STR){ FILE* f=fopen(p->str,\"rb\"); if(!f) return val_str(\"\"); fseek(f,0,SEEK_END); long l=ftell(f); fseek(f,0,SEEK_SET); char* b=malloc(l+1); fread(b,1,l,f); b[l]=0; fclose(f); Value* v=val_str(b); free(b); return v; } char buf[1024]; if(!fgets(buf,1024,stdin)) return val_str(\"\"); buf[strcspn(buf,\"\\n\")]=0; return val_str(buf); }\n");
+    fprintf(f, "static Value* runtime_len(Value* v) { v = val_unwrap(v); if(v->kind==VAL_STR) return val_num(strlen(v->str)); if(v->kind==VAL_LIST) return val_num(v->item_count); if(v->kind==VAL_DICT){ int c=0; for(int i=0;i<256;i++) for(Entry *e=v->fields->buckets[i];e;e=e->next) c++; return val_num(c); } return val_num(0); }\n");
+    fprintf(f, "static Value* runtime_ord(Value* v) { v = val_unwrap(v); if(v->kind==VAL_STR&&v->str[0]) return val_num((unsigned char)v->str[0]); return val_num(0); }\n");
+    fprintf(f, "static Value* runtime_chr(Value* v) { v = val_unwrap(v); char b[2]={v->num,0}; return val_str(b); }\n");
+    fprintf(f, "static Value* runtime_tonum(Value* v) { v = val_unwrap(v); if(v->kind==VAL_STR){ char*e; double d=strtod(v->str,&e); return val_num(*e==0&&e!=v->str?d:0); } if(v->kind==VAL_NUM) return v; return val_num(0); }\n");
     fprintf(f, "static Value* runtime_str_concat(const char* a, const char* b) { char buf[2048]; snprintf(buf, 2048, \"%%s%%s\", a, b); return val_str(buf); }\n");
-    fprintf(f, "static Value* runtime_put(Value* p, Value* d, int a) { if(p->kind!=VAL_STR) return val_none(); FILE* f=fopen(p->str, a?\"a\":\"w\"); if(!f) return val_none(); if(d->kind==VAL_STR) fprintf(f,\"%%s\",d->str); else { if(d->kind==VAL_NUM) fprintf(f,d->num==(long long)d->num?\"%%lld\":\"%%g\",(long long)d->num); } fclose(f); return val_none(); }\n");
-    fprintf(f, "static Value* runtime_tostr(Value* v) { char b[64]; if(v->kind==VAL_NUM){ if(v->num==(long long)v->num) snprintf(b,64,\"%%%%lld\",(long long)v->num); else snprintf(b,64,\"%%%%g\",v->num); return val_str(b); } if(v->kind==VAL_STR) return v; return val_str(\"\"); }\n");
-    fprintf(f, "static Value* runtime_slice(Value* v, Value* sv, Value* ev) { int s=(int)sv->num, e=(int)ev->num; if(v->kind==VAL_STR){ int l=strlen(v->str); if(s<0)s+=l; if(e<0)e+=l; if(s<0)s=0; if(e>l)e=l; if(s>=e)return val_str(\"\"); int n=e-s; char *b=malloc(n+1); memcpy(b,v->str+s,n); b[n]=0; Value *res=val_str(b); free(b); return res; } if(v->kind==VAL_LIST){ int l=v->item_count; if(s<0)s+=l; if(e<0)e+=l; if(s<0)s=0; if(e>l)e=l; Value *res=val_list(); if(s>=e)return res; for(int i=s;i<e;i++){ if(res->item_count>=res->item_cap){ res->item_cap*=2; res->items=realloc(res->items,res->item_cap*sizeof(Value*)); } res->items[res->item_count++]=v->items[i]; } return res; } return val_none(); }\n");
-    fprintf(f, "static Value* runtime_type(Value* v) { switch(v->kind){ case VAL_NUM: return val_str(\"num\"); case VAL_STR: return val_str(\"str\"); case VAL_LIST: return val_str(\"list\"); case VAL_DICT: return val_str(\"dict\"); default: return val_str(\"none\"); } }\n");
-    fprintf(f, "static Value* runtime_sys(Value* v) { if(v->kind!=VAL_STR) return val_num(-1); return val_num((double)system(v->str)); }\n");
-    fprintf(f, "static Value* runtime_env(Value* v) { if(v->kind!=VAL_STR) return val_str(\"\"); char* e=getenv(v->str); return e?val_str(e):val_str(\"\"); }\n");
+    fprintf(f, "static Value* runtime_put(Value* p, Value* d, int a) { p = val_unwrap(p); d = val_unwrap(d); if(p->kind!=VAL_STR) return val_none(); FILE* f=fopen(p->str, a?\"a\":\"w\"); if(!f) return val_none(); if(d->kind==VAL_STR) fprintf(f,\"%%s\",d->str); else { if(d->kind==VAL_NUM) fprintf(f,d->num==(long long)d->num?\"%%lld\":\"%%g\",(long long)d->num); } fclose(f); return val_none(); }\n");
+    fprintf(f, "static Value* runtime_tostr(Value* v) { v = val_unwrap(v); char b[64]; if(v->kind==VAL_NUM){ if(v->num==(long long)v->num) snprintf(b,64,\"%%%%lld\",(long long)v->num); else snprintf(b,64,\"%%%%g\",v->num); return val_str(b); } if(v->kind==VAL_STR) return v; return val_str(\"\"); }\n");
+    fprintf(f, "static Value* runtime_slice(Value* v, Value* sv, Value* ev) { v = val_unwrap(v); sv = val_unwrap(sv); ev = val_unwrap(ev); int s=(int)sv->num, e=(int)ev->num; if(v->kind==VAL_STR){ int l=strlen(v->str); if(s<0)s+=l; if(e<0)e+=l; if(s<0)s=0; if(e>l)e=l; if(s>=e)return val_str(\"\"); int n=e-s; char *b=malloc(n+1); memcpy(b,v->str+s,n); b[n]=0; Value *res=val_str(b); free(b); return res; } if(v->kind==VAL_LIST){ int l=v->item_count; if(s<0)s+=l; if(e<0)e+=l; if(s<0)s=0; if(e>l)e=l; Value *res=val_list(); if(s>=e)return res; for(int i=s;i<e;i++){ if(res->item_count>=res->item_cap){ res->item_cap*=2; res->items=realloc(res->items,res->item_cap*sizeof(Value*)); } res->items[res->item_count++]=v->items[i]; } return res; } return val_none(); }\n");
+    fprintf(f, "static Value* runtime_type(Value* v) { v = val_unwrap(v); switch(v->kind){ case VAL_NUM: return val_str(\"num\"); case VAL_STR: return val_str(\"str\"); case VAL_LIST: return val_str(\"list\"); case VAL_DICT: return val_str(\"dict\"); default: return val_str(\"none\"); } }\n");
+    fprintf(f, "static Value* runtime_sys(Value* v) { v = val_unwrap(v); if(v->kind!=VAL_STR) return val_num(-1); return val_num((double)system(v->str)); }\n");
+    fprintf(f, "static Value* runtime_env(Value* v) { v = val_unwrap(v); if(v->kind!=VAL_STR) return val_str(\"\"); char* e=getenv(v->str); return e?val_str(e):val_str(\"\"); }\n");
 }
 
 static void emit_c_expr(Node *n, FILE *f);
@@ -244,6 +247,9 @@ static void emit_c_expr(Node *n, FILE *f) {
             fprintf(f, "runtime_sys(");
             emit_c_expr(n->left, f);
             fprintf(f, ")");
+            break;
+        case ND_REF:
+            fprintf(f, "val_ref(table_get(env, \"%s\"))", n->left->name);
             break;
         case ND_ENV:
             fprintf(f, "runtime_env(");

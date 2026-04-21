@@ -1,0 +1,28 @@
+# Simple deployment script in Vii
+
+# Read arguments: source path and destination path
+src = arg at 0
+dest = arg at 1
+
+"Starting deployment..."
+"Source: " + src
+"Destination: " + dest
+
+# Copy files (using system command)
+sys ("cp -r " + src + " " + dest)
+
+# Set environment variable
+env "DEPLOY_ENV" = "production"
+"Deployment environment set to: " + env "DEPLOY_ENV"
+
+# Restart service depending on platform
+IF WIN
+  sys "net stop MyService"
+  sys "net start MyService"
+ELSE IF UNIX
+  sys "systemctl restart myservice"
+ELSE
+  "Unknown platform, manual restart required"
+
+"Deployment finished successfully."
+exit 0

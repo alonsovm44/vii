@@ -1,5 +1,5 @@
 
 do function->str x->num
-  x 
+  tostr x 
   
 function 5 

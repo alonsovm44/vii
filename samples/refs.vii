@@ -1,0 +1,21 @@
+# refs
+# the idea is to pass vars and objects by reference to functions to save memory
+#the goal is to avoid copying large objects
+# this would be useful for large objects
+#we could use ref keyword
+  
+x num = 10 
+t = ref x 
+
+t = 12
+x
+a = dict 
+a key "name" "roxanne" 
+
+do fx a->ref 
+  a 
+
+do main a 
+  fx a 
+
+main a

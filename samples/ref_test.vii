@@ -1,0 +1,26 @@
+# ref_test.vii — Testing Reference Aliasing and Pass-by-Reference
+
+# 1. Variable Aliasing
+original = 10
+alias = ref original
+
+alias = 42
+"Original value after alias modification (should be 42): " + tostr original
+
+# 2. Pass-by-Reference in Functions
+do increment_ref target->ptr
+  target = target + 1
+
+val = 100
+increment_ref val
+"Value after function reference increment (should be 101): " + tostr val
+
+# 3. Complex Objects (Dicts) are implicitly shared, but ref ensures pointer safety
+d = dict
+d key "score" 0
+
+do update_score data->ref
+  data key "score" 100
+
+update_score d
+"Dict score after ref update: " + tostr (d at "score")

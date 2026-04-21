@@ -57,6 +57,38 @@ static Node *parse_postfix(Parser *p);
 static Node *parse_expr(Parser *p);
 static Node *parse_block(Parser *p, bool is_function);
 
+/* Infers the type of a node at compile-time for validation */
+static const char *infer_node_type(Node *n, Node *fn_ctx) {
+    if (!n) return "none";
+    switch (n->kind) {
+        case ND_NUM: return "num";
+        case ND_STR: return "str";
+        case ND_VAR:
+            if (n->type_tag) return n->type_tag;
+            /* Check if it matches a typed parameter in the current function context */
+            if (fn_ctx) {
+                for (int i = 0; i < fn_ctx->body_count; i++) {
+                    if (strcmp(fn_ctx->body[i]->name, n->name) == 0) {
+                        return fn_ctx->body[i]->type_tag ? fn_ctx->body[i]->type_tag : "unknown";
+                    }
+                }
+            }
+            return "unknown";
+        case ND_BINOP: return "num";
+        case ND_BLOCK:
+            if (n->body_count > 0) return infer_node_type(n->body[n->body_count - 1], fn_ctx);
+            break;
+        case ND_LEN: case ND_ORD: case ND_TONUM: case ND_SYS: case ND_TIME: return "num";
+        case ND_CHR: case ND_TOSTR: case ND_ASKFILE: case ND_ENV: return "str";
+        case ND_LIST: return "list";
+        case ND_DICT: return "dict";
+        case ND_REF: return "ptr";
+        case ND_CALL: return "unknown"; /* Function return types are resolved at runtime or in a later pass */
+        default: break;
+    }
+    return "unknown";
+}
+
 static Node *parse_primary(Parser *p) {
     Token *t = peek(p);
     switch (t->kind) {
@@ -97,19 +129,20 @@ static Node *parse_primary(Parser *p) {
         case TOK_TYPE:  advance(p); { Node *n = nd_new(ND_TYPE);  n->left = parse_primary(p); return n; }
         case TOK_TIME:  advance(p); return nd_new(ND_TIME);
         case TOK_SYS:   advance(p); { Node *n = nd_new(ND_SYS);   n->left = parse_postfix(p); return n; }
+        case TOK_REF:   advance(p); { Node *n = nd_new(ND_REF);   n->left = parse_primary(p); return n; }
         case TOK_ENV:   advance(p); { Node *n = nd_new(ND_ENV);   n->left = parse_postfix(p); return n; }
         case TOK_EXIT:  advance(p); { Node *n = nd_new(ND_EXIT);  n->left = parse_postfix(p); return n; }
         case TOK_LIST:  advance(p); return nd_new(ND_LIST);
         case TOK_DO: {
+            Token *do_tok = t;
             advance(p);
             Node *fn = nd_new(ND_DO);
 
             /* check for do->attribute */
             if (peek(p)->kind == TOK_ARROW) {
                 advance(p);
-                if (peek(p)->kind == TOK_IDENT)
+                if (peek(p)->kind == TOK_IDENT || peek(p)->kind == TOK_REF || peek(p)->kind == TOK_PTR)
                     fn->mod_tag = strdup(advance(p)->text);
-                advance(p);
             }
 
             fn->name = strdup(advance(p)->text);
@@ -117,9 +150,8 @@ static Node *parse_primary(Parser *p) {
             /* check for return type: do func->type */
             if (peek(p)->kind == TOK_ARROW) {
                 advance(p);
-                if (peek(p)->kind == TOK_IDENT)
+                if (peek(p)->kind == TOK_IDENT || peek(p)->kind == TOK_REF || peek(p)->kind == TOK_PTR)
                     fn->type_tag = strdup(advance(p)->text);
-                advance(p);
             }
 
             fn->body_cap = 8;
@@ -133,7 +165,7 @@ static Node *parse_primary(Parser *p) {
                 }
                 if (peek(p)->kind == TOK_ARROW) {
                     advance(p);
-                    if (peek(p)->kind == TOK_IDENT)
+                    if (peek(p)->kind == TOK_IDENT || peek(p)->kind == TOK_REF || peek(p)->kind == TOK_PTR)
                         param->type_tag = strdup(advance(p)->text);
                 }
                 nd_push(fn, param);
@@ -141,9 +173,25 @@ static Node *parse_primary(Parser *p) {
             skip_newlines(p);
             expect(p, TOK_INDENT);
             p->in_func++;
+            Node *old_func = p->current_func;
+            p->current_func = fn;
             fn->left = parse_block(p, true);
-            p->in_func--;
+            p->current_func = old_func; p->in_func--;
             expect(p, TOK_DEDENT);
+
+            /* Compile-time validation: Ensure return type matches the last expression */
+            if (fn->type_tag) {
+                Node *block = fn->left;
+                if (block->body_count > 0) {
+                    Node *last = block->body[block->body_count - 1];
+                    const char *actual = infer_node_type(last, fn);
+                    if (strcmp(actual, "unknown") != 0 && strcmp(actual, fn->type_tag) != 0) {
+                        report_error(p->filename, p->src, do_tok->pos, do_tok->line, 
+                            "return type mismatch in function '%s': expected '%s', found '%s'", 
+                            fn->name, fn->type_tag, actual);
+                    }
+                }
+            }
             return fn;
         }
         default:
@@ -257,7 +305,7 @@ static Node *parse_expr(Parser *p) {
     }
 
     /* assignment: var = expr OR var type = expr */
-    bool is_typed = (left->kind == ND_VAR && peek(p)->kind == TOK_IDENT &&
+    bool is_typed = (left->kind == ND_VAR && (peek(p)->kind == TOK_IDENT || peek(p)->kind == TOK_REF || peek(p)->kind == TOK_PTR) &&
                     (p->tokens[p->pos+1].kind == TOK_EQ || p->tokens[p->pos+1].kind == TOK_ARROW));
     bool is_normal = (peek(p)->kind == TOK_EQ && (left->kind == ND_VAR || left->kind == ND_AT));
 
@@ -278,6 +326,16 @@ static Node *parse_expr(Parser *p) {
         }
 
         assign->right = parse_expr(p);
+
+        /* Implementation of Assignment Type Checking */
+        if (left->type_tag) {
+            const char *actual = infer_node_type(assign->right, p->current_func);
+            if (strcmp(actual, "unknown") != 0 && strcmp(actual, left->type_tag) != 0) {
+                report_error(p->filename, p->src, op->pos, op->line, 
+                    "type mismatch in assignment to '%s': expected '%s', found '%s'", 
+                    left->name, left->type_tag, actual);
+            }
+        }
         return assign;
     }
 

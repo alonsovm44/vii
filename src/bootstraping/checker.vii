@@ -12,22 +12,35 @@ do validate_function_return node
     last_expr = body at (len body - 1)
     
     # Infers the type of the last expression in the block
-    actual_type = infer_type last_expr
+    actual_type = infer_type last_expr node
     
-    if actual_type != expected_type
-      "Compile Error: return type mismatch in function '" + (node at "name") + "'"
-      "  Expected: " + expected_type
-      "  Found:    " + actual_type
-      exit 1
+    if actual_type != "unknown"
+      if actual_type != expected_type
+        "Compile Error: return type mismatch in function '" + (node at "name") + "'"
+        "  Expected: " + expected_type
+        "  Found:    " + actual_type
+        exit 1
 
-do infer_type expr
+do infer_type node fn_ctx
   # Logic to determine type of AST node
-  # If it's a variable, look up in symbol table
-  # If it's a literal, use built-in 'type'
-  t = type expr
-  if t == "num"
+  kind = node at "kind"
+  
+  if kind == "num"
     "num"
-  else if t == "str"
+  else if kind == "str"
     "str"
+  else if kind == "var"
+    # Check if the variable matches a typed parameter in the function context
+    name = node at "name"
+    params = fn_ctx at "params"
+    i = 0
+    while i < len params
+      p = params at i
+      if (p at "name") == name
+        return p at "type_tag"
+      i = i + 1
+    "unknown"
+  else if kind == "binop"
+    "num"
   else
     "unknown"

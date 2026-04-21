@@ -99,6 +99,11 @@ Value *cli_args = NULL;
 
 /* ──────────────────────── Eval ──────────────────────── */
 
+static Value *val_unwrap(Value *v) {
+    if (v && v->kind == VAL_REF) return val_unwrap(v->target);
+    return v;
+}
+
 Value *eval_block(Node *block, Table *env) {
     Value *last = val_none();
     for (int i = 0; i < block->body_count; i++) {
@@ -135,6 +140,17 @@ Value *eval(Node *n, Table *env) {
         case ND_ASSIGN: {
             Value *val = eval(n->right, env);
             if (n->left->kind == ND_VAR) {
+                Value *existing = table_get(env, n->left->name);
+                if (existing && existing->kind == VAL_REF) {
+                    /* Mutate the target of the reference in-place (Aliasing) */
+                    Value *target = existing->target;
+                    target->kind = val->kind;
+                    target->num = val->num;
+                    target->str = val->str;
+                    target->items = val->items;
+                    target->item_count = val->item_count;
+                    return target;
+                }
                 table_set(env, n->left->name, val);
             } else if (n->left->kind == ND_AT) {
                 Value *list = eval(n->left->left, env);
@@ -169,8 +185,8 @@ Value *eval(Node *n, Table *env) {
                 Value *r = eval(n->right, env);
                 return val_num(val_truthy(r) ? 1 : 0);
             }
-            Value *l = eval(n->left, env);
-            Value *r = eval(n->right, env);
+            Value *l = val_unwrap(eval(n->left, env));
+            Value *r = val_unwrap(eval(n->right, env));
             if (l->kind == VAL_STR && r->kind == VAL_STR) {
                 int cmp = strcmp(l->str, r->str);
                 switch (n->op) {
@@ -246,6 +262,12 @@ Value *eval(Node *n, Table *env) {
             func_register(n->name, n);
             return val_none();
         }
+        case ND_REF: {
+            if (n->left->kind != ND_VAR) { fprintf(stderr, "Runtime error: ref requires a variable\n"); exit(1); }
+            Value *v = table_get(env, n->left->name);
+            if (!v) { fprintf(stderr, "Runtime error: undefined variable '%s'\n", n->left->name); exit(1); }
+            return val_ref(v);
+        }
         case ND_ASK: {
             char buf[1024];
             if (!fgets(buf, sizeof(buf), stdin)) return val_str("");
@@ -278,8 +300,8 @@ Value *eval(Node *n, Table *env) {
             return val_dict();
         }
         case ND_KEY: {
-            Value *dict = eval(n->left, env);
-            Value *key = eval(n->body[0], env);
+            Value *dict = val_unwrap(eval(n->left, env));
+            Value *key = val_unwrap(eval(n->body[0], env));
             Value *val = eval(n->body[1], env);
             if (dict->kind != VAL_DICT) { fprintf(stderr, "Runtime error: 'key' on non-dict\n"); exit(1); }
             if (key->kind != VAL_STR) { fprintf(stderr, "Runtime error: dict key must be string\n"); exit(1); }
@@ -287,8 +309,8 @@ Value *eval(Node *n, Table *env) {
             return val;
         }
         case ND_AT: {
-            Value *list = eval(n->left, env);
-            Value *idx  = eval(n->right, env);
+            Value *list = val_unwrap(eval(n->left, env));
+            Value *idx  = val_unwrap(eval(n->right, env));
             if (list->kind == VAL_DICT) {
                 if (idx->kind != VAL_STR) { fprintf(stderr, "Runtime error: dict index must be string\n"); exit(1); }
                 Value *v = table_get(list->fields, idx->str);
@@ -458,8 +480,17 @@ Value *eval(Node *n, Table *env) {
             if (!fn) { fprintf(stderr, "Runtime error: undefined function '%s'\n", fname); exit(1); }
             int argc = n->body_count;
             Value **argv = malloc(argc * sizeof(Value*));
-            for (int i = 0; i < argc; i++)
-                argv[i] = eval(n->body[i], env);
+            for (int i = 0; i < argc; i++) {
+                if (i < fn->def->body_count && fn->def->body[i]->type_tag && !strcmp(fn->def->body[i]->type_tag, "ptr")) {
+                    if (n->body[i]->kind == ND_VAR) {
+                        argv[i] = val_ref(table_get(env, n->body[i]->name));
+                    } else {
+                        fprintf(stderr, "Runtime error: cannot pass literal as ptr to %s\n", fname); exit(1);
+                    }
+                } else {
+                    argv[i] = eval(n->body[i], env);
+                }
+            }
             Table *scope = table_new(env);
             for (int i = 0; i < fn->def->body_count && i < argc; i++) {
                 table_set(scope, fn->def->body[i]->name, argv[i]);

@@ -14,8 +14,17 @@
     ],
     "repository": {
         "comments": {
-            "match": "#.*$",
-            "name": "comment.line.number-sign.vii"
+            "patterns": [
+                {
+                    "name": "comment.block.vii",
+                    "begin": "#\\{",
+                    "end": "\\}#"
+                },
+                {
+                    "name": "comment.line.number-sign.vii",
+                    "match": "#.*$"
+                }
+            ]
         },
         "strings": {
             "name": "string.quoted.double.vii",
@@ -42,7 +51,7 @@
                     "name": "keyword.control.vii"
                 },
                 {
-                "match": "\\b(ask|put|paste|list|at|set|len|ord|chr|tonum|tostr|sys|env|exit|dict|key|slice|type|time|append)\\b",
+                "match": "\\b(ask|put|paste|list|at|set|len|ord|chr|tonum|tostr|sys|env|exit|dict|key|slice|type|time|append|ref)\\b",
                     "name": "support.function.vii"
                 },
                 {
@@ -54,14 +63,14 @@
                 "name": "keyword.operator.logical.vii"
                 },
                 {
-                    "match": "\\b(num|str)\\b",
+                    "match": "\\b(num|str|ref|ptr)\\b",
                     "name": "storage.type.vii"
                 }
             ]
         },
     "constants": {
-        "match": "\\b[A-Z][A-Z0-9_]*\\b",
-        "name": "constant.other.vii"
+        "match": "\\b[A-Z_][A-Z0-9_]*\\b",
+        "name": "variable.other.constant.vii"
     },
         "numbers": {
             "match": "\\b([0-9]+(\\.[0-9]+)?)\\b",
