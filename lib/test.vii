@@ -6,10 +6,14 @@ do assert condition msg
     "Assertion failed: " + msg
     exit 1
 
-do test name fn
-  # Registers or runs a named test case
-  0
+do run_test name result->bit
+  if result == 1
+    "PASS: " + name
+  else
+    "FAIL: " + name
 
 do run_tests
-  # Executes all registered tests
+  "Running Vii Test Suite..."
+  # Integration point for library tests
+  1
   0

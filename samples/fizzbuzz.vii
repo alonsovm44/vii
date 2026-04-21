@@ -1,12 +1,31 @@
-# FizzBuzz in IO
-x = 1
-while x < 101 
-  if x % 15 == 0
-    "FizzBuzz"
-  else if x % 3 == 0
-    "Fizz"
-  else if x % 5 == 0
-    "Buzz"
-  else
-    x
-  x = x + 1
+# FizzBuzz in VII
+IF WIN 
+  x = 1
+  while x < 101 
+    if x % 15 == 0
+      "FizzBuzz"
+    else if x % 3 == 0
+      "Fizz"
+    else if x % 5 == 0
+      "Buzz"
+    else
+      x
+    x = x + 1
+ELSE IF UNIX
+ 
+  do fizzbuzz 
+  ls = list
+  x = 1
+  while x < 101 
+    if x % 15 == 0
+      ls append "FizzBuzz"
+    else if x % 3 == 0
+      ls append "Fizz"
+    else if x % 5 == 0
+      ls append "Buzz"
+    else
+      ls append x
+    x = x + 1
+  ls
+   
+  fizzbuzz

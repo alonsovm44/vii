@@ -1,0 +1,29 @@
+# Vii Automated Build System
+paste "lib/fs.vii"
+
+BINARY = "vii_engine"
+"--- Vii Pipeline: Start ---"
+
+# 1. Compilation
+"[1/3] Compiling C project..."
+# Vii constructs the string left-to-right; shell handles the globbing
+build_status = sys "gcc -O3 src/*.c -Iinclude -o " + BINARY
+
+if build_status != 0
+  "Build Error: gcc returned " + tostr build_status
+  exit 1
+
+# 2. Testing
+"[2/3] Running test suite..."
+test_status = sys "./" + BINARY + " --run-tests"
+
+# 3. Deployment (Only if tests pass)
+if test_status == 0
+  "[3/3] Tests passed. Deploying to dist/..."
+  mkdir "dist"
+  target = "dist/" + BINARY
+  cp BINARY target
+  "Done: Project is live in dist/"
+else
+  "Error: Tests failed. Aborting deployment."
+  exit 1

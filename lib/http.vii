@@ -1,9 +1,19 @@
 # Vii Standard Library — HTTP Utilities (via curl + sys)
-
+paste "fs.vii"
 do http_get url
-  # Performs HTTP GET request
-  ""
+# first sanity check if curl is installed
+  if sys "curl --version" == ""
+    "Error: curl is not installed"
+    exit 1
+  # Performs HTTP GET request and returns output to temp file
+  tmp = "http_res.tmp"
+  sys "curl -s " + url + " -o " + tmp
+  res = tmp ask
+  rm tmp 
+  res
 
 do http_post url data
-  # Performs HTTP POST request
-  ""
+  if sys "curl --version" == ""
+    "Error: curl is not installed"
+    exit 1
+  sys "curl -s -X POST -d '" + data + "' " + url

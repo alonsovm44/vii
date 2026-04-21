@@ -2,20 +2,20 @@
 
 do ls path
   # Returns list of files in directory
-  list
+  sys "ls " + path
 
 do mkdir path
   # Creates directory
-  0
+  sys "mkdir " + path
 
 do rm path
   # Removes file or directory
-  0
+  sys "rm -rf " + path
 
 do cp src dst
   # Copies file
-  0
+  sys "cp " + src + " " + dst
 
 do mv src dst
   # Moves/Renames file
-  0
+  sys "mv " + src + " " + dst
