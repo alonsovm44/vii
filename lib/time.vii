@@ -10,4 +10,4 @@ do parse_time s
 
 do elapsed start
   # Returns seconds passed since start
-  (time) - start
+  time - start

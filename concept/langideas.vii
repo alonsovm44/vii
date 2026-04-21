@@ -40,19 +40,33 @@ do fx state->bit # this is basically bool
     #other logic
 # but this could be don with num 
 
-# pointers
-# the idea is adding C like pointers to pass variables by reference to functions to save memory
+# ref and ptr
+# the idea is to pass vars and objects by reference to functions to save memory
 #the goal is to avoid copying large objects
 # this would be useful for large objects
 #we could use ref keyword
-x = 10
-y ptr = x        # y is now an alias for x — reads and writes go to x
+  
+x num = 10 
+t = ref x 
 
-y               # 10 (transparent read)
-y = 20          # x is now 20 too (transparent write)
+t = 12
+x
 
-do func y->ptr  # y is passed by reference (alias to caller's variable)
-  y = 20        # modifies the original
+# for functions 
+f = 12
 
-# Explicit type
-y num ptr = x     # y is a ref to x, and x must be num
+do func x->ptr  # we pass x by reference
+  x = 13 # this modifies x in the caller scope
+
+func f # this should output 13 
+
+## Idea 6, actually adding for loops
+#{
+multiline comment (not currently supported by parser) but by syntax highlighter
+}#
+# i want to think a super easy for loop syntax, the one that i've always wanted to exist, one that is not confusing 
+
+while i < 10 # understanding while loops is trivial 
+  #loop 
+
+for 
