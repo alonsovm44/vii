@@ -105,7 +105,7 @@ for row in matrix
 
 "--- Example 6: Iterating a Dictionary ---"
 d = dict
-d key "name" "Vii"
+d key "name" "Vii" # reads like: dictionary 'd' set 'key' '"name"' to '"Vii"'
 d key "version" "1.2.5"
 
 ks = keys d # "keys d" keys is a built in function that returns a list of keys from a dictionary
