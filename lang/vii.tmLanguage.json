@@ -47,11 +47,11 @@
         "keywords": {
             "patterns": [
                 {
-                "match": "\\b(if|else|while|do|break|IF|ELSE)\\b",
+                "match": "\\b(if|else|while|do|break|for|in|safe|IF|ELSE)\\b",
                     "name": "keyword.control.vii"
                 },
                 {
-                "match": "\\b(ask|put|paste|list|at|set|len|ord|chr|tonum|tostr|sys|env|exit|dict|key|slice|type|time|append|ref)\\b",
+                "match": "\\b(ask|put|paste|list|at|set|len|ord|chr|tonum|tostr|sys|env|exit|dict|key|keys|slice|type|time|append|ref|split|trim|replace)\\b",
                     "name": "support.function.vii"
                 },
                 {
@@ -79,7 +79,7 @@
         "operators": {
             "patterns": [
                 {
-                "match": "==|!=|<=|>=|<|>",
+                "match": "==|!=|<=|>=|<|>|Lte|Gte",
                     "name": "keyword.operator.comparison.vii"
                 },
                 {

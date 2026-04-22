@@ -210,6 +210,11 @@ Value *eval(Node *n, Table *env) {
             *(end+1) = 0;
             return val_str(s);
         }
+        case ND_SAFE: {
+            /* Placeholder for v1.3 error recovery. 
+               Currently just evaluates the branch. */
+            return eval(n->left, env);
+        }
         case ND_BINOP: {
             /* short-circuit for and/or */
             if (n->op == TOK_AND) {
@@ -337,6 +342,22 @@ Value *eval(Node *n, Table *env) {
         }
         case ND_DICT: {
             return val_dict();
+        }
+        case ND_KEYS: {
+            Value *dict = val_unwrap(eval(n->left, env));
+            if (dict->kind != VAL_DICT) { fprintf(stderr, "Runtime error: keys requires a dict\n"); exit(1); }
+            Value *res = val_list();
+            for (int i = 0; i < TABLE_SIZE; i++) {
+                for (Entry *e = dict->fields->buckets[i]; e; e = e->next) {
+                    /* Grow list capacity if necessary */
+                    if (res->item_count >= res->item_cap) {
+                        res->item_cap = res->item_cap ? res->item_cap * 2 : 8;
+                        res->items = realloc(res->items, res->item_cap * sizeof(Value*));
+                    }
+                    res->items[res->item_count++] = val_str(e->key);
+                }
+            }
+            return res;
         }
         case ND_KEY: {
             Value *dict = val_unwrap(eval(n->left, env));

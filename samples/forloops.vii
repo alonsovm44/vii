@@ -1,6 +1,6 @@
-# Vii 'for' Loop Tutorial (Proposed Feature for v1.3)
+# Vii 'for' Loop Tutorial 
 
-# The 'for' loop is a proposed feature designed to simplify iteration over lists.
+# The 'for' loop is a feature designed to simplify iteration over lists.
 # It aims to make code more readable and reduce boilerplate compared to 'while' loops
 # for common list traversal patterns.
 
@@ -17,6 +17,11 @@
 # - The loop continues until all elements in the list have been processed.
 # - 'break' can be used inside a 'for' loop to exit early.
 
+# The philosophy behind for for loops in Vii is to limit them specifically to iterate on lists.
+# Dictionary iteration is NOT supported directly. To iterate a dictionary, 
+# use a library function to get a list of keys first:
+#   ks = keys my_dict
+#   for k in ks
 
 # --- Examples ---
 
@@ -96,6 +101,16 @@ for row in matrix
   for cell in row
     line_output = line_output + tostr cell + " "
   line_output # Implicitly prints the row
+
+
+"--- Example 6: Iterating a Dictionary ---"
+d = dict
+d key "name" "Vii"
+d key "version" "1.2.5"
+
+ks = keys d
+for k in ks
+  k + ": " + tostr (d at k)
 
 
 # Note on 'while' loops:

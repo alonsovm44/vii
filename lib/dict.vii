@@ -1,17 +1,17 @@
 # Vii Standard Library — Dictionary Utilities
 
-do has_key->bit dic->ptr key->str
+do has_key->bit dic->ptr key_->str
   # Returns bit: 1 if key exists, 0 otherwise
-  val = dic at key
+  val = dic at key_
   is_none = type val == "none"
   if is_none
     0
   else
     1
 
-do get_val->ptr dic->ptr key->str default
+do get_val->ptr dic->ptr key_->str default
   # Safe lookup with default value
-  val = dic at key
+  val = dic at key_
   is_none = type val == "none"
   if is_none
     default
@@ -40,3 +40,8 @@ do dict_from_lists keys->ptr vals->ptr
     d key k v
     i = i + 1
   d
+
+  
+  # get a list of keys from a dictionary
+do get_list_of_keys dic->ptr 
+  keys dic

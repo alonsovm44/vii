@@ -19,7 +19,7 @@ increment_ptr val
 d = dict
 d key "score" 0
 
-do update_score data->ref
+do update_score data->ptr
   data key "score" 100
 
 update_score d
