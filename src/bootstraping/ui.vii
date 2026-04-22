@@ -1,11 +1,52 @@
 paste "vii.vii"
 
-do enable_ansi_colors 
+do enable_ansi_colors
   IF WIN
-    handle h getStdHandle STD_error_handler
-    dword mode = 0
-    if (getConsoleMode h mode)
-    
+    # This logic usually requires direct Windows API calls.
+    # For the bootstrap, we assume the host terminal is already configured 
+    # or handled by the C-based interpreter/compiler wrapper.
+    ""
+  ELSE
+    ""
 
+do read_file path
+  path ask
 
-do report_error filename->ref src->ref pos->num line->num fmt->ref 
+do report_error filename src pos line fmt
+  # 1. Print the error header in red
+  "\x1b[1;31mError in " + filename + " on line " + tostr line + ": \x1b[0m" + fmt
+
+  # 2. Find the start of the current line
+  start = pos
+  while start > 0
+    c = src at (start - 1)
+    if c == "\n" or c == "\r"
+      break
+    start = start - 1
+
+  # 3. Find the end of the current line
+  end = pos
+  while end < len src
+    c = src at end
+    if c == "\n" or c == "\r"
+      break
+    end = end + 1
+
+  # 4. Print the source line with line number padding
+  lstr = tostr line
+  while len lstr < 5
+    lstr = " " + lstr
+  
+  " " + lstr + " | " + (slice src start end)
+
+  # 5. Build and print the caret line
+  caret_line = "       | "
+  i = start
+  while i < pos
+    if (src at i) != "\r"
+      caret_line = caret_line + " "
+    i = i + 1
+  
+  caret_line + "\x1b[1;32m^\x1b[0m"
+
+  exit 1
