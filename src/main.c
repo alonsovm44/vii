@@ -7,6 +7,27 @@ static int cli_define_cap = 0;
 
 Arena *global_arena = NULL;
 
+typedef struct InternEntry {
+    char *str;
+    struct InternEntry *next;
+} InternEntry;
+
+static InternEntry *intern_table[1024];
+
+char* arena_intern(Arena *a, const char *s) {
+    unsigned h = 0;
+    for (const char *p = s; *p; p++) h = h * 31 + (unsigned char)*p;
+    h %= 1024;
+    for (InternEntry *e = intern_table[h]; e; e = e->next) {
+        if (strcmp(e->str, s) == 0) return e->str;
+    }
+    InternEntry *new_entry = arena_alloc(a, sizeof(InternEntry));
+    new_entry->str = arena_strdup(a, s);
+    new_entry->next = intern_table[h];
+    intern_table[h] = new_entry;
+    return new_entry->str;
+}
+
 Arena* arena_create(size_t size) {
     Arena *a = malloc(sizeof(Arena));
     a->capacity = size;
@@ -47,7 +68,7 @@ static void add_define(const char *name) {
 
 int main(int argc, char **argv) {
     enable_ansi_colors();
-    global_arena = arena_create(64 * 1024 * 1024); // 64MB Arena
+    global_arena = arena_create(512 * 1024 * 1024); // 512MB Arena
 
     const char *input_path = NULL;
     const char *output_name = NULL;

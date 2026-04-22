@@ -71,11 +71,7 @@ do val_truthy v
 
 do val_unwrap v
   if v at "kind" == VAL_REF
-    target = v at "target"
-    if target == v
-      "Runtime error: circular reference in unwrap"
-      exit 1
-    out val_unwrap target
+    out val_unwrap (v at "target")
   v
 
 # ──────────────────────── Scope / Table Logic ────────────────────────
@@ -325,8 +321,7 @@ do eval n env_
 
   if k == ND_PRINT
     v = eval (n at "left") env_
-    "" put (val_print v + "\n")
-    out v
+    out val_str (val_print v + "\n")
 
   if k == ND_ASK
     out val_str ask

@@ -34,6 +34,7 @@ typedef struct {
 Arena* arena_create(size_t size);
 void*  arena_alloc(Arena *a, size_t size);
 char*  arena_strdup(Arena *a, const char *s);
+char*  arena_intern(Arena *a, const char *s);
 void   arena_reset(Arena *a);
 
 extern Arena *global_arena;
@@ -171,7 +172,7 @@ typedef struct Entry {
     struct Entry *next;
 } Entry;
 
-#define TABLE_SIZE 256
+#define TABLE_SIZE 32
 
 typedef struct Table {
     Entry      *buckets[TABLE_SIZE];

@@ -40,7 +40,7 @@ void table_set(Table *t, const char *key, Value *val) {
         }
     }
     Entry *e = arena_alloc(global_arena, sizeof(Entry));
-    e->key = arena_strdup(global_arena, key);
+    e->key = arena_intern(global_arena, key);
     e->val = val;
     e->is_constant = is_all_caps(key);
     e->next = t->buckets[h];
@@ -57,7 +57,7 @@ static Func *funcs = NULL;
 
 static void func_register(const char *name, Node *def) {
     Func *f = arena_alloc(global_arena, sizeof(Func));
-    f->name = arena_strdup(global_arena, name);
+    f->name = arena_intern(global_arena, name);
     f->def = def;
     f->next = funcs;
     funcs = f;
@@ -89,7 +89,11 @@ Value *cli_args = NULL;
 /* ──────────────────────── Eval ──────────────────────── */
 
 static Value *val_unwrap(Value *v) {
-    if (v && v->kind == VAL_REF) return val_unwrap(v->target);
+    int depth = 0;
+    while (v && v->kind == VAL_REF) {
+        if (depth++ > 100) { fprintf(stderr, "Runtime error: circular reference detected\n"); exit(1); }
+        v = v->target;
+    }
     return v;
 }
 
@@ -440,11 +444,13 @@ Value *eval(Node *n, Table *env) {
             Value *path = eval(n->left, env);
             Value *data = eval(n->right, env);
             if (path->kind != VAL_STR) { fprintf(stderr, "Runtime error: put requires a string path\n"); exit(1); }
-            FILE *f = fopen(path->str, (n->op == TOK_APPEND) ? "a" : "w");
+            FILE *f;
+            if (path->str[0] == '\0') f = stdout;
+            else f = fopen(path->str, (n->op == TOK_APPEND) ? "a" : "w");
             if (!f) { fprintf(stderr, "Runtime error: cannot open '%s' for writing\n", path->str); exit(1); }
             if (data->kind == VAL_STR) fprintf(f, "%s", data->str);
             else val_print_to(data, f);
-            fclose(f);
+            if (f != stdout) fclose(f);
             return val_none();
         }
         case ND_ARG: {

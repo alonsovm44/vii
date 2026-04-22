@@ -1,0 +1,355 @@
+
+# keyword list
+
+TK_KW = list
+TK_KW set 0 "if"
+TK_KW set 1 "else"
+TK_KW set 2 "while"
+TK_KW set 3 "break"
+TK_KW set 4 "do"
+TK_KW set 5 "ask"
+TK_KW set 6 "list"
+TK_KW set 7 "dict"
+TK_KW set 8 "key"
+TK_KW set 9 "keys"
+TK_KW set 10 "at"
+TK_KW set 11 "set"
+TK_KW set 12 "put"
+TK_KW set 13 "arg"
+TK_KW set 14 "paste"
+TK_KW set 15 "len"
+TK_KW set 16 "ord"
+TK_KW set 17 "chr"
+TK_KW set 18 "tonum"
+TK_KW set 19 "tostr"
+TK_KW set 20 "slice"
+TK_KW set 21 "type"
+TK_KW set 22 "time"
+TK_KW set 23 "append"
+TK_KW set 24 "sys"
+TK_KW set 25 "env"
+TK_KW set 26 "exit"
+TK_KW set 27 "ref"
+TK_KW set 28 "ptr"
+TK_KW set 29 "bit"
+TK_KW set 30 "for"
+TK_KW set 31 "in"
+TK_KW set 32 "split"
+TK_KW set 33 "trim"
+TK_KW set 34 "replace"
+TK_KW set 35 "safe"
+TK_KW set 36 "and"
+TK_KW set 37 "or"
+TK_KW set 38 "out"
+TK_KW set 39 "not"
+
+KW_KIND = list
+KW_KIND set 0 TOK_IF
+KW_KIND set 1 TOK_ELSE
+KW_KIND set 2 TOK_WHILE
+KW_KIND set 3 TOK_BREAK
+KW_KIND set 4 TOK_DO
+KW_KIND set 5 TOK_ASK
+KW_KIND set 6 TOK_LIST
+KW_KIND set 7 TOK_DICT
+KW_KIND set 8 TOK_KEY
+KW_KIND set 9 TOK_KEYS
+KW_KIND set 10 TOK_AT
+KW_KIND set 11 TOK_SET
+KW_KIND set 12 TOK_PUT
+KW_KIND set 13 TOK_ARG
+KW_KIND set 14 TOK_PASTE
+KW_KIND set 15 TOK_LEN
+KW_KIND set 16 TOK_ORD
+KW_KIND set 17 TOK_CHR
+KW_KIND set 18 TOK_TONUM
+KW_KIND set 19 TOK_TOSTR
+KW_KIND set 20 TOK_SLICE
+KW_KIND set 21 TOK_TYPE
+KW_KIND set 22 TOK_TIME
+KW_KIND set 23 TOK_APPEND
+KW_KIND set 24 TOK_SYS
+KW_KIND set 25 TOK_ENV
+KW_KIND set 26 TOK_EXIT
+KW_KIND set 27 TOK_REF
+KW_KIND set 28 TOK_PTR
+KW_KIND set 29 TOK_BIT
+KW_KIND set 30 TOK_FOR
+KW_KIND set 31 TOK_IN
+KW_KIND set 32 TOK_SPLIT
+KW_KIND set 33 TOK_TRIM
+KW_KIND set 34 TOK_REPLACE
+KW_KIND set 35 TOK_SAFE
+KW_KIND set 36 TOK_AND
+KW_KIND set 37 TOK_OR
+KW_KIND set 38 TOK_OUT
+KW_KIND set 39 TOK_NOT
+
+# Build O(1) Keyword Map
+KW_MAP = dict
+i = 0
+while i < len TK_KW
+  KW_MAP key (TK_KW at i) (KW_KIND at i)
+  i = i + 1
+
+# Character classification helpers
+do is_digit->bit c
+  o = ord c
+  o >= 48 and o <= 57
+
+do is_alpha->bit c
+  o = ord c
+  (o >= 65 and o <= 90) or (o >= 97 and o <= 122) or (o == 95)
+
+do is_alnum->bit c
+  is_alpha c or is_digit c
+
+do get_kw_kind text
+  kind = KW_MAP at text
+  if type kind == "none"
+    TOK_IDENT
+  else
+    kind
+
+do lex lexer_ctx
+  tokens = list
+  pos = lexer_ctx at "pos" # Initial position
+  line = lexer_ctx at "line" # Initial line
+  at_start = 1
+  indent_stack = list
+  indent_stack set 0 0
+  
+  src = lexer_ctx at "src" # Source string
+  source_len = len src
+
+  while pos < source_len
+    char = src at pos
+
+    # 0. Skip \r (CRLF)
+    if char == "\r"
+      pos = pos + 1
+
+    # 1. Newlines & Deduplication
+    else if char == "\n"
+      # Push TOK_NEWLINE if last wasn't newline
+      if len tokens == 0 or (tokens at (len tokens - 1) at "kind") != TOK_NEWLINE
+        t = dict
+        t key "kind" TOK_NEWLINE
+        t key "line" line
+        t key "pos" pos # Use current pos
+        tokens set (len tokens) t
+      line = line + 1
+      pos = pos + 1
+      at_start = 1
+    
+    # 2. Indentation logic
+    else if at_start
+      start_pos = pos
+      spaces = 0
+      while pos < source_len and (src at pos) == " "
+        spaces = spaces + 1
+        pos = pos + 1
+      
+      next = src at pos
+      # Skip indentation for empty lines, CRLF, EOF, or comments
+      if next == "\n" or next == "\r" or next == "#" or next == "" or type next == "none"
+        at_start = 0
+      else
+        top = indent_stack at (len indent_stack - 1)
+        if spaces > top
+          indent_stack set (len indent_stack) spaces
+          t = dict
+          t key "kind" TOK_INDENT
+          t key "line" line # Use current line
+          t key "pos" start_pos # Use current start_pos
+          tokens set (len tokens) t
+        while spaces < (indent_stack at (len indent_stack - 1))
+          # pop stack
+          indent_stack = slice indent_stack 0 (len indent_stack - 1)
+          t = dict
+          t key "kind" TOK_DEDENT
+          t key "line" line
+          t key "pos" start_pos # Use current start_pos
+          tokens set (len tokens) t
+        at_start = 0
+
+    # 3. Skip whitespace
+    else if char == " " or char == "\t"
+      pos = pos + 1
+
+    # 4. Comments
+    else if char == "#"
+      while pos < source_len and (src at pos) != "\n"
+        pos = pos + 1
+
+    # 5. Numbers
+    else if is_digit char
+      start = pos
+      while pos < source_len and is_digit (src at pos)
+        pos = pos + 1
+      if (src at pos) == "."
+        pos = pos + 1
+        while pos < source_len and is_digit (src at pos)
+          pos = pos + 1
+      
+      t = dict
+      t key "kind" TOK_NUM
+      t key "text" (slice src start pos)
+      t key "num" (tonum (slice src start pos))
+      t key "line" line
+      t key "pos" start
+      tokens set (len tokens) t
+
+    # 6. Strings
+    else if char == "\""
+      start_pos = pos
+      pos = pos + 1
+      start = pos
+      while pos < source_len and (src at pos) != "\""
+        if (src at pos) == "\\"
+          pos = pos + 1
+        pos = pos + 1
+      
+      raw = slice src start pos
+      unescaped = ""
+      i = 0
+      while i < len raw
+        c = raw at i
+        if c == "\\"
+          i = i + 1
+          nc = raw at i
+          if nc == "n"
+            unescaped = unescaped + (chr 10)
+          else if nc == "t"
+            unescaped = unescaped + (chr 9)
+          else if nc == "\\"
+            unescaped = unescaped + "\\"
+          else if nc == "\""
+            unescaped = unescaped + "\""
+          else
+            unescaped = unescaped + nc
+        else
+          unescaped = unescaped + c
+        i = i + 1
+
+      t = dict
+      t key "kind" TOK_STR
+      t key "text" unescaped
+      t key "line" line # Use current line
+      t key "pos" start_pos # Use current start_pos
+      tokens set (len tokens) t
+      pos = pos + 1 # consume "
+
+    # 7. Identifiers and Keywords
+    else if is_alpha char
+      start = pos
+      while pos < source_len and is_alnum (src at pos)
+        pos = pos + 1
+      
+      text = slice src start pos
+      t = dict
+      t key "kind" (get_kw_kind text)
+      t key "text" text
+      t key "line" line # Use current line
+      t key "pos" start # Use current start
+      tokens set (len tokens) t
+
+    # 8. Operators (multi-character first)
+    else
+      op_kind = -1
+      op_text = ""
+      start_pos = pos
+      next = src at (pos + 1)
+      
+      if char == "=" and next == "="
+        op_kind = TOK_EQEQ
+        op_text = "=="
+        pos = pos + 2
+      else if char == "-" and next == ">"
+        op_kind = TOK_ARROW
+        op_text = "->"
+        pos = pos + 2
+      else if char == "<" and next == "="
+        op_kind = TOK_LTE
+        op_text = "<=" 
+        pos = pos + 2
+      else if char == ">" and next == "="
+        op_kind = TOK_GTE
+        op_text = ">="
+        pos = pos + 2
+      else if char == "!" and next == "="
+        op_kind = TOK_NE
+        op_text = "!="
+        pos = pos + 2
+      else if char == "="
+        op_kind = TOK_EQ
+        op_text = "="
+        pos = pos + 1
+      else if char == "+"
+        op_kind = TOK_PLUS
+        op_text = "+"
+        pos = pos + 1
+      else if char == "-"
+        op_kind = TOK_MINUS
+        op_text = "-"
+        pos = pos + 1
+      else if char == "*"
+        op_kind = TOK_STAR
+        op_text = "*"
+        pos = pos + 1
+      else if char == "/"
+        op_kind = TOK_SLASH
+        op_text = "/"
+        pos = pos + 1
+      else if char == "%"
+        op_kind = TOK_PCT 
+        op_text = "%"
+        pos = pos + 1
+      else if char == "<"
+        op_kind = TOK_LT 
+        op_text = "<"
+        pos = pos + 1
+      else if char == ">"
+        op_kind = TOK_GT
+        op_text = ">"
+        pos = pos + 1
+      else if char == "("
+        op_kind = TOK_LPAREN
+        op_text = "("
+        pos = pos + 1
+      else if char == ")"
+        op_kind = TOK_RPAREN
+        op_text = ")"
+        pos = pos + 1
+      else if char == ";"
+        op_kind = TOK_SEMICOLON
+        op_text = ";"
+        pos = pos + 1
+
+      if op_kind != -1
+        t = dict
+        t key "kind" op_kind
+        t key "text" op_text
+        t key "line" line # Use current line
+        t key "pos" start_pos # Use current start_pos
+        tokens set (len tokens) t
+      else
+        report_error (lexer_ctx at "filename") src pos line ("Unexpected character: " + char) # Use report_error
+
+  # 9. Final Dedent Chain
+  while (len indent_stack) > 1
+    indent_stack = slice indent_stack 0 (len indent_stack - 1)
+    t = dict
+    t key "kind" TOK_DEDENT
+    t key "line" line # Use current line
+    t key "pos" pos # Use current pos
+    tokens set (len tokens) t
+
+  # 10. EOF Token
+  t = dict
+  t key "kind" TOK_EOF
+  t key "line" line # Use current line
+  t key "pos" pos # Use current pos
+  tokens set (len tokens) t
+
+  tokens

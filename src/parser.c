@@ -41,7 +41,7 @@ static void track_constant(Parser *p, const char *name, int pos, int line) {
         if (parsed_constants) memcpy(new_constants, parsed_constants, old_cap * sizeof(char*));
         parsed_constants = new_constants;
     }
-    parsed_constants[parsed_const_count++] = arena_strdup(global_arena, name);
+    parsed_constants[parsed_const_count++] = arena_intern(global_arena, name);
 }
 
 /* ──────────────────────── Parser helpers ──────────────────────── */
@@ -125,7 +125,7 @@ static Node *parse_primary(Parser *p) {
         case TOK_KEYS:  advance(p); { Node *n = nd_new(ND_KEYS);  n->left = parse_postfix(p); return n; }
         case TOK_NOT:   advance(p); { Node *n = nd_new(ND_NOT);   n->left = parse_primary(p); return n; }
         case TOK_IDENT: 
-            advance(p); { Node *n = nd_new(ND_VAR); n->name = arena_strdup(p->arena, t->text); return n; }
+            advance(p); { Node *n = nd_new(ND_VAR); n->name = arena_intern(p->arena, t->text); return n; }
         case TOK_ASK:   advance(p); return nd_new(ND_ASK);
         case TOK_ARG:   advance(p); return nd_new(ND_ARG);
         case TOK_LEN:   advance(p); { Node *n = nd_new(ND_LEN);   n->left = parse_postfix(p); return n; }
@@ -172,23 +172,23 @@ static Node *parse_primary(Parser *p) {
             if (peek(p)->kind == TOK_ARROW) {
                 advance(p);
                 if (peek(p)->kind == TOK_IDENT || peek(p)->kind == TOK_REF || peek(p)->kind == TOK_PTR || peek(p)->kind == TOK_BIT)
-                    fn->mod_tag = arena_strdup(p->arena, advance(p)->text);
+                    fn->mod_tag = arena_intern(p->arena, advance(p)->text);
             }
 
-            fn->name = arena_strdup(p->arena, advance(p)->text);
+            fn->name = arena_intern(p->arena, advance(p)->text);
 
             /* check for return type: do func->type */
             if (peek(p)->kind == TOK_ARROW) {
                 advance(p);
                 if (peek(p)->kind == TOK_IDENT || peek(p)->kind == TOK_REF || peek(p)->kind == TOK_PTR || peek(p)->kind == TOK_BIT)
-                    fn->type_tag = arena_strdup(p->arena, advance(p)->text);
+                    fn->type_tag = arena_intern(p->arena, advance(p)->text);
             }
 
             fn->body_cap = 8;
             fn->body = arena_alloc(p->arena, fn->body_cap * sizeof(Node*));
             while (peek(p)->kind == TOK_IDENT) {
                 Node *param = nd_new(ND_VAR);
-                param->name = arena_strdup(p->arena, advance(p)->text);
+                param->name = arena_intern(p->arena, advance(p)->text);
                 if (is_all_caps(param->name)) {
                     /* Parameters in ALL_CAPS are immutable within the function scope */
                     track_constant(p, param->name, p->tokens[p->pos-1].pos, p->tokens[p->pos-1].line);
@@ -196,7 +196,7 @@ static Node *parse_primary(Parser *p) {
                 if (peek(p)->kind == TOK_ARROW) {
                     advance(p);
                     if (peek(p)->kind == TOK_IDENT || peek(p)->kind == TOK_REF || peek(p)->kind == TOK_PTR || peek(p)->kind == TOK_BIT)
-                        param->type_tag = arena_strdup(p->arena, advance(p)->text);
+                        param->type_tag = arena_intern(p->arena, advance(p)->text);
                 }
                 nd_push(fn, param);
             }
@@ -277,7 +277,7 @@ static Node *parse_postfix(Parser *p) {
             expr = af;
         } else if (peek(p)->kind != TOK_NEWLINE && peek(p)->kind != TOK_SEMICOLON && peek(p)->kind != TOK_DEDENT && peek(p)->kind != TOK_EOF &&
                    (peek(p)->kind == TOK_IDENT || peek(p)->kind == TOK_NUM || peek(p)->kind == TOK_LPAREN ||
-                   peek(p)->kind == TOK_MINUS || peek(p)->kind == TOK_STR || peek(p)->kind == TOK_ASK ||
+                   peek(p)->kind == TOK_STR || peek(p)->kind == TOK_ASK ||
                    peek(p)->kind == TOK_LIST || peek(p)->kind == TOK_ARG ||
                    peek(p)->kind == TOK_LEN || peek(p)->kind == TOK_ORD ||
                    peek(p)->kind == TOK_CHR || peek(p)->kind == TOK_TONUM ||
@@ -299,7 +299,7 @@ static Node *parse_postfix(Parser *p) {
             call->body = arena_alloc(p->arena, call->body_cap * sizeof(Node*));
             while (peek(p)->kind != TOK_NEWLINE && peek(p)->kind != TOK_SEMICOLON && peek(p)->kind != TOK_DEDENT && peek(p)->kind != TOK_EOF &&
                    (peek(p)->kind == TOK_IDENT || peek(p)->kind == TOK_NUM || peek(p)->kind == TOK_LPAREN ||
-                   peek(p)->kind == TOK_MINUS || peek(p)->kind == TOK_STR || peek(p)->kind == TOK_ASK ||
+                   peek(p)->kind == TOK_STR || peek(p)->kind == TOK_ASK ||
                    peek(p)->kind == TOK_LIST || peek(p)->kind == TOK_ARG ||
                    peek(p)->kind == TOK_LEN || peek(p)->kind == TOK_ORD ||
                    peek(p)->kind == TOK_CHR || peek(p)->kind == TOK_TONUM ||
@@ -351,7 +351,7 @@ static Node *parse_expr(Parser *p) {
         if (is_typed) {
             if (left->kind == ND_VAR && is_all_caps(left->name))
                 track_constant(p, left->name, op->pos, op->line);
-            left->type_tag = arena_strdup(p->arena, advance(p)->text);
+            left->type_tag = arena_intern(p->arena, advance(p)->text);
             advance(p);
         } else {
             if (left->kind == ND_VAR && is_all_caps(left->name))
@@ -568,7 +568,7 @@ static Node *parse_stmt(Parser *p) {
 
     /* expression statement (with implicit print outside function bodies) */
     Node *expr = parse_expr(p);
-    if (!p->in_func && expr->kind != ND_ASSIGN && expr->kind != ND_DO && 
+    if (expr->kind != ND_ASSIGN && expr->kind != ND_DO && 
         expr->kind != ND_SET && expr->kind != ND_KEY && expr->kind != ND_PUT && 
         expr->kind != ND_EXIT && expr->kind != ND_BLOCK && expr->kind != ND_BREAK) {
         Node *print = nd_new(ND_PRINT);
@@ -586,14 +586,16 @@ static Node *parse_block(Parser *p, bool is_function) {
         Node *stmt = parse_stmt(p);
         skip_newlines(p);
 
-        if (is_function) {
-            if (stmt->kind == ND_PRINT) {
-                Node *expr = stmt->left;
-                stmt = expr;
-            }
-        }
         nd_push(block, stmt);
         skip_newlines(p);
+    }
+
+    /* Implicit return logic: the last expression in a function shouldn't print, it's the return value */
+    if (is_function && block->body_count > 0) {
+        Node *last = block->body[block->body_count - 1];
+        if (last->kind == ND_PRINT) {
+            block->body[block->body_count - 1] = last->left;
+        }
     }
     return block;
 }
