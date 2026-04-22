@@ -36,8 +36,11 @@ char* arena_strdup(Arena *a, const char *s) {
 
 static void add_define(const char *name) {
     if (cli_define_count >= cli_define_cap) {
+        int old_cap = cli_define_cap;
         cli_define_cap = cli_define_cap ? cli_define_cap * 2 : 8;
-        cli_defines = realloc(cli_defines, cli_define_cap * sizeof(char*));
+        char **new_defines = arena_alloc(global_arena, cli_define_cap * sizeof(char*));
+        if (cli_defines) memcpy(new_defines, cli_defines, old_cap * sizeof(char*));
+        cli_defines = new_defines;
     }
     cli_defines[cli_define_count++] = strdup(name);
 }
@@ -109,8 +112,7 @@ int main(int argc, char **argv) {
         if (argv[i] == input_path) continue;
 
         if (cli_args->item_count >= cli_args->item_cap) {
-            cli_args->item_cap = cli_args->item_cap ? cli_args->item_cap * 2 : 8;
-            cli_args->items = realloc(cli_args->items, cli_args->item_cap * sizeof(Value*));
+            val_list_grow(cli_args);
         }
         cli_args->items[cli_args->item_count++] = val_str(argv[i]);
     }

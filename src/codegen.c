@@ -350,8 +350,10 @@ static void emit_c_functions(Node *n, FILE *f) {
 }
 
 void compile_to_bin(Node *prog, const char *out_name, bool keep_c) {
-    char c_file[512];
-    snprintf(c_file, sizeof(c_file), "%s_gen.c", out_name);
+    size_t c_path_len = strlen(out_name) + 8;
+    char *c_file = arena_alloc(global_arena, c_path_len);
+    snprintf(c_file, c_path_len, "%s_gen.c", out_name);
+
     FILE *f = fopen(c_file, "w");
     if (!f) { fprintf(stderr, "Failed to create C source\n"); exit(1); }
 
@@ -370,8 +372,9 @@ void compile_to_bin(Node *prog, const char *out_name, bool keep_c) {
     fprintf(f, "  return 0;\n}\n");
     fclose(f);
 
-    char cmd[1024];
-    snprintf(cmd, sizeof(cmd), "gcc -O2 %s -o %s", c_file, out_name);
+    size_t cmd_len = strlen(c_file) + strlen(out_name) + 32;
+    char *cmd = arena_alloc(global_arena, cmd_len);
+    snprintf(cmd, cmd_len, "gcc -O2 %s -o %s", c_file, out_name);
 
     printf("Compiling %s...\n", out_name);
     if (system(cmd) != 0) {

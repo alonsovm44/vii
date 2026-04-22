@@ -35,8 +35,11 @@ static void track_constant(Parser *p, const char *name, int pos, int line) {
         }
     }
     if (parsed_const_count >= parsed_const_cap) {
+        int old_cap = parsed_const_cap;
         parsed_const_cap = parsed_const_cap ? parsed_const_cap * 2 : 8;
-        parsed_constants = realloc(parsed_constants, parsed_const_cap * sizeof(char*));
+        char **new_constants = arena_alloc(global_arena, parsed_const_cap * sizeof(char*));
+        if (parsed_constants) memcpy(new_constants, parsed_constants, old_cap * sizeof(char*));
+        parsed_constants = new_constants;
     }
     parsed_constants[parsed_const_count++] = arena_strdup(global_arena, name);
 }

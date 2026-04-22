@@ -10,8 +10,11 @@ static const TokKind kw_kind[] = {
 
 static void lex_push(Lexer *l, Token t) {
     if (l->tok_count >= l->tok_cap) {
+        int old_cap = l->tok_cap;
         l->tok_cap = l->tok_cap ? l->tok_cap * 2 : 256;
-        l->tokens = realloc(l->tokens, l->tok_cap * sizeof(Token));
+        Token *new_tokens = arena_alloc(l->arena, l->tok_cap * sizeof(Token));
+        if (l->tokens) memcpy(new_tokens, l->tokens, old_cap * sizeof(Token));
+        l->tokens = new_tokens;
     }
     l->tokens[l->tok_count++] = t;
 }

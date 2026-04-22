@@ -153,8 +153,7 @@ Value *eval(Node *n, Table *env) {
                 if (i < 0) i += list->item_count;
                 if (i == list->item_count) {
                     if (list->item_count >= list->item_cap) {
-                        list->item_cap = list->item_cap ? list->item_cap * 2 : 8;
-                        list->items = realloc(list->items, list->item_cap * sizeof(Value*));
+                        val_list_grow(list);
                     }
                     list->items[list->item_count++] = val;
                 } else {
@@ -183,8 +182,7 @@ Value *eval(Node *n, Table *env) {
             char *token = strtok(s, delim->str);
             while (token) {
                 if (res->item_count >= res->item_cap) {
-                    res->item_cap *= 2;
-                    res->items = realloc(res->items, res->item_cap * sizeof(Value*));
+                    val_list_grow(res);
                 }
                 res->items[res->item_count++] = val_str(token);
                 token = strtok(NULL, delim->str);
@@ -373,8 +371,7 @@ Value *eval(Node *n, Table *env) {
                 for (Entry *e = dict->fields->buckets[i]; e; e = e->next) {
                     /* Grow list capacity if necessary */
                     if (res->item_count >= res->item_cap) {
-                        res->item_cap = res->item_cap ? res->item_cap * 2 : 8;
-                        res->items = realloc(res->items, res->item_cap * sizeof(Value*));
+                        val_list_grow(res);
                     }
                     res->items[res->item_count++] = val_str(e->key);
                 }
@@ -420,8 +417,7 @@ Value *eval(Node *n, Table *env) {
             if (i < 0) i += list->item_count;
             if (i == list->item_count) {
                 if (list->item_count >= list->item_cap) {
-                    list->item_cap = list->item_cap ? list->item_cap * 2 : 8;
-                    list->items = realloc(list->items, list->item_cap * sizeof(Value*));
+                    val_list_grow(list);
                 }
                 list->items[list->item_count++] = val;
             } else {
@@ -523,8 +519,7 @@ Value *eval(Node *n, Table *env) {
                 if (s >= e) return res;
                 for (int i = s; i < e; i++) {
                     if (res->item_count >= res->item_cap) {
-                        res->item_cap *= 2;
-                        res->items = realloc(res->items, res->item_cap * sizeof(Value*));
+                        val_list_grow(res);
                     }
                     res->items[res->item_count++] = v->items[i];
                 }

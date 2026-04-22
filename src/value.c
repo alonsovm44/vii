@@ -37,6 +37,14 @@ Value *val_none(void) {
     return v;
 }
 
+void val_list_grow(Value *v) {
+    int old_cap = v->item_cap;
+    v->item_cap = v->item_cap ? v->item_cap * 2 : 8;
+    Value **new_items = arena_alloc(global_arena, v->item_cap * sizeof(Value*));
+    if (v->items) memcpy(new_items, v->items, old_cap * sizeof(Value*));
+    v->items = new_items;
+}
+
 bool val_truthy(Value *v) {
     if (!v) return false;
     switch (v->kind) {
