@@ -1,3 +1,8 @@
-"before paste"
-paste "x.vii"
-"after paste"
+x = list 
+i=0
+while i < 100
+  x at i = i + 1
+  i = i + 1
+
+for a in x 
+  "hello " + a

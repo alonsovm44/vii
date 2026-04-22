@@ -7,6 +7,12 @@ if x == 10
 else
   "nooo"
 
+x num = 1
+a str = "aa"
+f = ref a
+f = "olé"
+f
+
 arg1 = arg at 0
 if arg1 == "test"
   "test mode"
@@ -14,5 +20,11 @@ else
   "normal mode"
 
 
+l = list
+x = list 
+l set 0 x # reads like this: in l set 0 to x 
+x at 0 = 14
+x set 1 15
+y = l at 0 at 0
+y
 
-  

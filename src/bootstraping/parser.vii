@@ -100,11 +100,13 @@ do infer_node_type n fn_ctx
       out "bit"
     else
       out "num"
+  else if k == ND_NOT
+    out "bit"
   else if k == ND_LEN or k == ND_ORD or k == ND_TONUM or k == ND_TIME
     "num"
   else if k == ND_CHR or k == ND_TOSTR or k == ND_TRIM
     "str"
-  else if k == ND_LIST or k == ND_SPLIT
+  else if k == ND_LIST or k == ND_SPLIT or k == ND_KEYS
     "list"
   else if k == ND_DICT
     "dict"
@@ -128,6 +130,12 @@ do parse_primary p
   else if k == TOK_MINUS
     advance p
     n = nd_new ND_UMINUS t
+    n key "left" (parse_primary p)
+    n
+
+  else if k == TOK_NOT
+    advance p
+    n = nd_new ND_NOT t
     n key "left" (parse_primary p)
     n
 
@@ -156,6 +164,12 @@ do parse_primary p
   else if k == TOK_ARG
     advance p
     nd_new ND_ARG t
+
+  else if k == TOK_KEYS
+    advance p
+    n = nd_new ND_KEYS t
+    n key "left" (parse_postfix p)
+    n
 
   else if k == TOK_LEN
     advance p
@@ -468,11 +482,11 @@ do skip_block_body p
 do resolve_condition p name
   defines = p at "defines"
   if type defines == "none"
-    return 0
+    out 0
   i = 0
   while i < len defines
     if (defines at i) == name
-      return 1
+      out 1
     i = i + 1
   0
 
@@ -575,12 +589,11 @@ do parse_stmt p
 
   expr = parse_expr p
   # Implicit print logic
-  if (p at "in_func") == 0
-    ek = expr at "kind"
-    if ek != ND_ASSIGN and ek != ND_DO and ek != ND_SET and ek != ND_KEY and ek != ND_PUT and ek != ND_EXIT
-      n = nd_new ND_PRINT t
-      n key "left" expr
-      out n
+  ek = expr at "kind"
+  if ek != ND_ASSIGN and ek != ND_DO and ek != ND_SET and ek != ND_KEY and ek != ND_PUT and ek != ND_EXIT
+    n = nd_new ND_PRINT t
+    n key "left" expr
+    out n
   expr
 
 do parse_block p is_func
@@ -590,11 +603,19 @@ do parse_block p is_func
       advance p
     else
       stmt = parse_stmt p
-      # Functions return values, blocks outside don't need the print wrapper
-      if is_func and (stmt at "kind") == ND_PRINT
-        stmt = stmt at "left"
       nd_push block stmt
       skip_newlines p
+
+  # Implicit return logic: the last expression in a function shouldn't print inside,
+  # it should be the raw return value.
+  if is_func
+    body = block at "body"
+    blen = len body
+    if blen > 0
+      last_idx = blen - 1
+      last = body at last_idx
+      if (last at "kind") == ND_PRINT
+        body set last_idx (last at "left")
   block
 
 do parse_program p

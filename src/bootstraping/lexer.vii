@@ -43,6 +43,7 @@ TK_KW set 35 "safe"
 TK_KW set 36 "and"
 TK_KW set 37 "or"
 TK_KW set 38 "out"
+TK_KW set 39 "not"
 
 KW_KIND = list
 KW_KIND set 0 TOK_IF
@@ -84,6 +85,7 @@ KW_KIND set 35 TOK_SAFE
 KW_KIND set 36 TOK_AND
 KW_KIND set 37 TOK_OR
 KW_KIND set 38 TOK_OUT
+KW_KIND set 39 TOK_NOT
 
 # Build O(1) Keyword Map
 KW_MAP = dict
@@ -93,15 +95,15 @@ while i < len TK_KW
   i = i + 1
 
 # Character classification helpers
-do is_digit c
+do is_digit->bit c
   o = ord c
   o >= 48 and o <= 57
 
-do is_alpha c
+do is_alpha->bit c
   o = ord c
   (o >= 65 and o <= 90) or (o >= 97 and o <= 122) or (o == 95)
 
-do is_alnum c
+do is_alnum->bit c
   is_alpha c or is_digit c
 
 do get_kw_kind text

@@ -1,0 +1,16 @@
+do print msg->str
+  msg
+
+do print_usage
+  "vii - a minimalist programming language"
+  "Usage: vii <file.vii> [-o program] [args...]"
+  "       vii --version"
+  "       vii --help"
+  "       vii --debug <file.vii>"
+  "Options:"
+  "  -o <name>      Compile to executable"
+  "  -k, --keep     Keep transpiled .c source"
+  "  -D <name>      Define compile-time flag for IF macros"
+  exit 1 
+print_usage 
+

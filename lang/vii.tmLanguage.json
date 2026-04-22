@@ -59,7 +59,7 @@
                     "name": "variable.language.vii"
             },
             {
-                "match": "\\b(and|or)\\b",
+                "match": "\\b(and|or|not)\\b",
                 "name": "keyword.operator.logical.vii"
                 },
                 {

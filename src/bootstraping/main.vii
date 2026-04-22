@@ -1,90 +1,187 @@
+paste "vii.vii"
 
 color_red = "\x1b[1;31m"
 color_grn = "\x1b[1;32m"
 color_yel = "\x1b[1;33m"
 color_rst = "\x1b[0m"
+ 
 
-# Helper to print errors with colors
-do report_error filename line message
-  color_red
-  "Error: " + filename + " at line " + line
-  message
-  color_rst
-  0 # Return 0 for failure
+# Helper function for printing usage
+do print_usage
+   "vii - a minimalist programming language"
+   "Usage: vii <file.vii> [-o program] [args...]"
+   "       vii --version"
+   "       vii --help"
+   "       vii --debug <file.vii>"
+   ""
+   "Options:"
+   "  -o <name>      Compile to executable"
+   "  -k, --keep     Keep transpiled .c source"
+   "  -D <name>      Define compile-time flag for IF macros"
+  exit 1 # Exit with error code for usage
 
-# Lexer: Transforms a raw string into a list of tokens
-do tokenize src
-  tokens = list
-  t_idx = 0
-  pos = 0
-  s_len = len src
 
-  while pos < s_len
-    char = src at pos
-    code = ord char
+CLI_DEFINES = list # Global list to store CLI defines
 
-    # 1. Skip whitespace (Space: 32, Newline: 10, Tab: 9)
-    if code == 32
-      pos = pos + 1
-    else if code == 10
-      pos = pos + 1
-    else if code == 9
-      pos = pos + 1
+do add_define name
+  CLI_DEFINES set (len CLI_DEFINES) name
 
-    # 2. Skip comments starting with #
-    else if code == 35
-      while pos < s_len
-        if ord src at pos == 10
-          pos = s_len # break inner loop
-        else
-          pos = pos + 1
+# Simple string contains for Windows .exe check
+do str_contains s sub
+  len_s = len s
+  len_sub = len sub
+  if len_sub == 0
+    out 1
+  if len_s < len_sub
+    out 0
+  i = 0
+  while i <= len_s - len_sub
+    if slice s i (i + len_sub) == sub
+      out 1
+    i = i + 1
+  out 0
 
-    # 3. Capture Identifiers, Numbers, and Operators
-    else
-      token = ""
-      searching = 1
-      while searching
-        if pos == s_len
-          searching = 0
-        else
-          curr = src at pos
-          c_code = ord curr
-          # Stop at whitespace or comment
-          if c_code == 32
-            searching = 0
-          else if c_code == 10
-            searching = 0
-          else if c_code == 35
-            searching = 0
-          else
-            token = token + curr
-            pos = pos + 1
-      
-      tokens set t_idx token
-      t_idx = t_idx + 1
+do main
+  global_arena = arena_create(64*1024*1024) # Assuming arena_create is available from vii.vii or C runtime
+  
+  INPUT_PATH str = "none"
+  output_name str = "none"
+  debug_ast bit = 0
+  keep_c bit = 0 
+  
+  argc = len arg 
+  
+  # Check for basic usage/help/version before full parsing
+  if argc < 2
+    print_usage
+  
+  if arg at 1 == "--version"
+    "vii 1.2.6"
+    exit 0
+  
+  if arg at 1 == "--help"
+    print_usage
+  
+  # Argument Parsing
+  i num = 1 # Start from 1, as arg at 0 is the program name
+  while i < argc
+    current_arg = arg at i
+    if current_arg == "--debug"
+      debug_ast = 1
+    else if current_arg == "-o"
+      if i + 1 < argc
+        output_name = arg at (i + 1)
+        i = i + 1
+      else
+        color_red + "Error: -o requires a filename" + color_rst
+        exit 1
+    else if current_arg == "-k" or current_arg == "--keep"
+      keep_c = 1
+    else if current_arg == "-D" or current_arg == "--define"
+      if i + 1 < argc
+        add_define arg at (i + 1)
+        i = i + 1
+      else
+        color_red + "Error: -D requires a name" + color_rst
+        exit 1
+    else if current_arg at 0 != "-" # Not an option, must be input file
+      if INPUT_PATH == "none"
+        INPUT_PATH = current_arg
+      # else: ignore extra positional arguments for now, or handle as error
+    i = i + 1
 
-  tokens
+  if INPUT_PATH == "none"
+    print_usage
 
-# The core compiler/interpreter logic
-do run_compiler target_file
-  source_code = target_file ask
-  if source_code == 0
-    report_error target_file 0 "Could not read file"
-  else
-    "Processing " + target_file + "..."
+  # Windows .exe handling
+  IF WIN # Compile-time conditional
+    if output_name != "none" and str_contains output_name ".exe" == 0 and str_contains output_name ".EXE" == 0
+      output_name = output_name + ".exe"
+  
+  # Build CLI arg list for the Vii program itself
+  cli_args = list
+  i = 1 # Reset i for building cli_args
+  while i < argc
+    current_arg = arg at i
+    if current_arg == "--debug"
+      i = i + 1 # Skip debug flag
+      continue
+    if current_arg == "-o"
+      i = i + 2 # Skip -o and its value
+      continue
+    if current_arg == "-k" or current_arg == "--keep"
+      i = i + 1 # Skip -k or --keep
+      continue
+    if current_arg == "-D" or current_arg == "--define"
+      i = i + 2 # Skip -D and its value
+      continue
+    if current_arg == INPUT_PATH
+      i = i + 1 # Skip input path
+      continue
     
-    tokens = tokenize source_code
-    "Tokens found: " + tostr len tokens
+    cli_args set (len cli_args) current_arg
+    i = i + 1
 
-    # Here we would add the Parser stage to process the tokens list
-    1 # Return 1 for success
+  src = INPUT_PATH ask # Read the source file
+  
+  lexer = dict
+  lexer key "src" src
+  lexer key "pos" 0
+  lexer key "filename" INPUT_PATH
+  lexer key "arena" global_arena # Assuming arena is passed to lexer
 
-# Entry Point
-target = arg at 0
-if target == 0
-  color_yel
-  "Vii Compiler v1.0.0"
-  "Usage: vii vii.vii <file.vii>"
-  color_rst
-else
-  run_compiler target
+  tokens = lex lexer # Call the lexer
+
+  parser = dict
+  parser key "tokens" tokens
+  parser key "pos" 0
+  parser key "src" src
+  parser key "filename" INPUT_PATH
+  parser key "arena" global_arena # Assuming arena is passed to parser
+  parser key "defines" CLI_DEFINES # Pass CLI defines to the parser
+  parser key "in_func" 0 # Initialize in_func
+  parser key "current_func" "none" # Initialize current_func
+  parser key "constants" list # Initialize constants
+
+  prog = parse_program parser # Call the parser
+
+  if debug_ast
+    # dump_ast_json prog "debug_ast.json" # Assuming this function exists in vii.vii or C runtime
+    # For now, let's just print a message as dump_ast_json is a C function
+    "AST debug output not yet implemented in Vii main.vii"
+    "AST would be dumped to debug_ast.json"
+
+  if output_name != "none"
+    compile_to_bin prog output_name keep_c # Call the compiler
+    exit 0
+
+  # Otherwise, Interpret
+  global = dict # Create a new global scope table
+  # Set cli_args in the global scope for the interpreted program
+  global key "arg" cli_args
+  
+  res = eval prog global # Evaluate the entire program
+
+  # The implicit print logic is handled by the Vii interpreter's ND_PRINT node.
+  # If the last statement was an implicit print, it's already printed.
+  # If not, and there's a result, print it.
+  # This part is tricky because the C main.c explicitly checks for ND_PRINT.
+  # In Vii, the `eval` function should return the final value, and the top-level
+  # `main` function in Vii would implicitly print it if it's the last expression.
+  # However, since `eval` is called, and then we explicitly check `res`,
+  # we need to replicate the C logic or rely on the Vii interpreter's behavior.
+  # For now, let's assume `eval` handles the printing if it's an ND_PRINT,
+  # and if `res` is not none/break, we print it.
+
+  # This logic is directly from main.c
+  last_stmt_was_implicit_print = 0
+  if (prog at "kind") == ND_BLOCK and len (prog at "body") > 0
+    last_stmt = (prog at "body") at (len (prog at "body") - 1)
+    if (last_stmt at "kind") == ND_PRINT
+      last_stmt_was_implicit_print = 1
+
+  if last_stmt_was_implicit_print == 0 and res != "none" and res != "break" # Assuming "none" and "break" are string representations of Value kinds
+    val_print res # Assuming val_print is available
+    "" # Newline after printing
+
+  exit 0 # Successful execution

@@ -33,7 +33,7 @@ colors set 1 "Green"
 colors set 2 "Blue"
 
 "--- Example 1: Listing Colors ---"
-for color in colors
+for color in colors 
   "Color: " + color
 
 
