@@ -268,6 +268,11 @@ static void emit_c_expr(Node *n, FILE *f) {
         case ND_EXIT:
             fprintf(f, "exit((int)("); emit_c_expr(n->left, f); fprintf(f, ")->num)");
             break;
+        case ND_NOT:
+            fprintf(f, "val_bit(!val_truthy(");
+            emit_c_expr(n->left, f);
+            fprintf(f, "))");
+            break;
         default: fprintf(f, "val_none()"); break;
     }
 }
@@ -312,6 +317,11 @@ static void emit_c_stmt(Node *n, int indent, FILE *f) {
             break;
         case ND_DO:
             fprintf(f, "table_set(env, \"%s\", val_func(io_func_%s));\n", n->name, n->name);
+            break;
+        case ND_OUT:
+            fprintf(f, "return ");
+            emit_c_expr(n->left, f);
+            fprintf(f, ";\n");
             break;
         default:
             emit_c_expr(n, f);

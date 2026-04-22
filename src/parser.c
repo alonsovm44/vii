@@ -87,6 +87,7 @@ static const char *infer_node_type(Node *n, Node *fn_ctx) {
                 n->op == TOK_LTE || n->op == TOK_GTE || n->op == TOK_AND || n->op == TOK_OR)
                 return "bit";
             return "num";
+        case ND_NOT: return "bit";
         case ND_BLOCK:
             if (n->body_count > 0) return infer_node_type(n->body[n->body_count - 1], fn_ctx);
             break;
@@ -214,7 +215,9 @@ static Node *parse_primary(Parser *p) {
                 if (block->body_count > 0) {
                     Node *last = block->body[block->body_count - 1];
                     const char *actual = infer_node_type(last, fn);
-                    if (strcmp(actual, "unknown") != 0 && strcmp(actual, fn->type_tag) != 0) {
+                    bool compatible = (strcmp(actual, fn->type_tag) == 0) || 
+                                      (strcmp(fn->type_tag, "bit") == 0 && strcmp(actual, "num") == 0);
+                    if (strcmp(actual, "unknown") != 0 && !compatible) {
                         report_error(p->filename, p->src, do_tok->pos, do_tok->line, 
                             "return type mismatch in function '%s': expected '%s', found '%s'", 
                             fn->name, fn->type_tag, actual);
@@ -361,7 +364,9 @@ static Node *parse_expr(Parser *p) {
         /* Implementation of Assignment Type Checking */
         if (left->type_tag) {
             const char *actual = infer_node_type(assign->right, p->current_func);
-            if (strcmp(actual, "unknown") != 0 && strcmp(actual, left->type_tag) != 0) {
+            bool compatible = (strcmp(actual, left->type_tag) == 0) || 
+                              (strcmp(left->type_tag, "bit") == 0 && strcmp(actual, "num") == 0);
+            if (strcmp(actual, "unknown") != 0 && !compatible) {
                 report_error(p->filename, p->src, op->pos, op->line, 
                     "type mismatch in assignment to '%s': expected '%s', found '%s'", 
                     left->name, left->type_tag, actual);

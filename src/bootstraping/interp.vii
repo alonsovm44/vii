@@ -37,30 +37,25 @@ do val_bit n
 do val_print v
   k = v at "kind"
   if k == VAL_NUM
-    v at "num"
+    out tostr (v at "num")
   else if k == VAL_STR
-    v at "str"
+    out v at "str"
   else if k == VAL_BIT
-    v at "num"
+    out tostr (v at "num")
   else if k == VAL_NONE
-    "none"
+    out "none"
   else if k == VAL_LIST
     items = v at "items"
-    "["
+    res_str = "["
     i = 0
     while i < len items
-      val_print (items at i)
+      res_str = res_str + val_print (items at i)
       if i < (len items - 1)
-        ", "
+        res_str = res_str + ", "
       i = i + 1
-    "]"
+    out res_str + "]"
   else if k == VAL_DICT
-    fields = v at "fields"
-    "{"
-    # Dict printing is complex for a minimal version, omitting for now
-    # parity with C version would just print "dict"
-    "dict"
-    "}"
+    out "{dict}"
 
 do val_truthy v
   k = v at "kind"
@@ -170,8 +165,8 @@ do eval n env_
     l = val_unwrap (eval (n at "left") env_)
     # Short circuit
     if op == TOK_AND
-      if not val_truthy l
-        out val_num 0
+      if not (val_truthy l)
+          out val_num 0
       out eval (n at "right") env_
     if op == TOK_OR
       if val_truthy l
@@ -326,8 +321,6 @@ do eval n env_
 
   if k == ND_PRINT
     v = eval (n at "left") env_
-    val_print v
-    "\n"
     out v
 
   if k == ND_ASK
@@ -393,7 +386,8 @@ do eval n env_
       out (target at "items") at (idx at "num")
     if (target at "kind") == VAL_DICT
       res = (target at "fields") at (idx at "str")
-      if type res == "none"; out val_none
+      if type res == "none"
+        out val_none
       out res
     out val_none
 
@@ -429,7 +423,8 @@ do eval n env_
   if k == ND_ARG
     out table_get env_ "arg"
 
-  if k == ND_TIME; out val_num time
+  if k == ND_TIME
+    out val_num time
 
   if k == ND_TYPE
     v = eval (n at "left") env_

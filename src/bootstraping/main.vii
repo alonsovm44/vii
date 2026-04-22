@@ -53,7 +53,7 @@ do str_contains s sub
 do main
   global_arena = arena_create(64*1024*1024) # Assuming arena_create is available from vii.vii or C runtime
   
-  INPUT_PATH str = "none"
+  input_path str = "none"
   output_name str = "none"
   debug_ast bit = 0
   keep_c bit = 0 
@@ -94,12 +94,12 @@ do main
         color_red + "Error: -D requires a name" + color_rst
         exit 1
     else if current_arg at 0 != "-" # Not an option, must be input file
-      if INPUT_PATH == "none"
-        INPUT_PATH = current_arg
+      if input_path == "none"
+        input_path = current_arg
       # else: ignore extra positional arguments for now, or handle as error
     i = i + 1
 
-  if INPUT_PATH == "none"
+  if input_path == "none"
     print_usage
 
   # Windows .exe handling
@@ -124,20 +124,20 @@ do main
     if current_arg == "-D" or current_arg == "--define"
       i = i + 2 # Skip -D and its value
       continue
-    if current_arg == INPUT_PATH
+    if current_arg == input_path
       i = i + 1 # Skip input path
       continue
     
     cli_args set (len cli_args) current_arg
     i = i + 1
 
-  src_content = INPUT_PATH ask # Read the source file
+  src_content = input_path ask # Read the source file
   
   lexer = dict
-  lexer key "src" src_content // The source string to lex
+  lexer key "src" src_content # The source string to lex
   lexer key "pos" 0
-  lexer key "line" 1 // Starting line for this lexer instance
-  lexer key "filename" INPUT_PATH
+  lexer key "line" 1 # Starting line for this lexer instance
+  lexer key "filename" input_path
   lexer key "arena" global_arena # Assuming arena is passed to lexer
 
   tokens = lex lexer # Call the lexer
@@ -146,7 +146,7 @@ do main
   parser key "tokens" tokens
   parser key "pos" 0
   parser key "src" src
-  parser key "filename" INPUT_PATH
+  parser key "filename" input_path
   parser key "arena" global_arena # Assuming arena is passed to parser
   parser key "defines" CLI_DEFINES # Pass CLI defines to the parser
   parser key "in_func" 0 # Initialize in_func
@@ -178,23 +178,9 @@ do main
   # This part is tricky because the C main.c explicitly checks for ND_PRINT.
   # In Vii, the `eval` function should return the final value, and the top-level
   # `main` function in Vii would implicitly print it if it's the last expression.
-  # However, since `eval` is called, and then we explicitly check `res`,
-  # we need to replicate the C logic or rely on the Vii interpreter's behavior.
-  # For now, let's assume `eval` handles the printing if it's an ND_PRINT,
-  # and if `res` is not none/break, we print it.
-
-  # This logic is directly from main.c
-  last_stmt_was_implicit_print = 0
-  if (prog at "kind") == ND_BLOCK and len (prog at "body") > 0
-    last_stmt = (prog at "body") at (len (prog at "body") - 1)
-    if (last_stmt at "kind") == ND_PRINT
-      last_stmt_was_implicit_print = 1
-
-  if last_stmt_was_implicit_print == 0 and res != "none" and res != "break" # Assuming "none" and "break" are string representations of Value kinds
-    val_print res # Assuming val_print is available
-    "" # Newline after printing
-
-  exit 0 # Successful execution
+  # Always print the result of the program if it's not none or break.
+  if (res at "kind") != VAL_NONE and (res at "kind") != VAL_BREAK
+    val_print res
 
 # Start the compiler
 main
