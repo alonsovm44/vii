@@ -113,4 +113,80 @@ Used specifically with the compile-time `IF` macro:
 - `UNIX`: Truthy if compiling on Linux, macOS, or other Unix-like systems.
 
 ---
-*Note: Vii evaluates all expressions strictly **left-to-right**. Use intermediate variables if you need to enforce a specific order of operations.*
+Examples:
+```vii
+# a simple dev diary CLI tool
+cmd = arg at 0 
+
+do init 
+  "Making new devlog file...\n"
+  file str = "devlog.md"
+  file put "Devlog kept with diaryx. Written in Vii"
+
+do log 
+  message = arg at 1
+  file str = "devlog.md"
+  file put ("\n\n" + time + "\n") append 
+  file put message append 
+
+do main cmd->str
+  if cmd == "init"
+    init
+  else if cmd == "log"
+    log
+
+main cmd
+
+```
+```vii
+
+
+G = 0.0000000000067 
+
+do fg m1 m2 r
+  m1 * m2 * G / (r * r)
+
+m1 = 12
+m2 = 24
+r = 100
+
+fg m1 m2 r
+
+
+```
+
+```vii
+# FizzBuzz in VII
+IF WIN 
+  x = 1
+  while x < 101 
+    if x % 15 == 0
+      "FizzBuzz"
+    else if x % 3 == 0
+      "Fizz"
+    else if x % 5 == 0
+      "Buzz"
+    else
+      x
+    x = x + 1
+ELSE IF UNIX
+ 
+  do fizzbuzz 
+  ls = list
+  x = 1
+  while x < 101 
+    if x % 15 == 0
+      ls append "FizzBuzz"
+    else if x % 3 == 0
+      ls append "Fizz"
+    else if x % 5 == 0
+      ls append "Buzz"
+    else
+      ls append x
+    x = x + 1
+  ls
+   
+  fizzbuzz
+ENDIF
+
+```
