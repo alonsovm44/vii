@@ -23,6 +23,21 @@ void enable_ansi_colors(void);
 void report_error(const char *filename, const char *src, int pos, int line, const char *fmt, ...);
 char *read_file(const char *path);
 
+/* ──────────────────────── Arena ────────────────────────── */
+
+typedef struct {
+    char  *data;
+    size_t capacity;
+    size_t offset;
+} Arena;
+
+Arena* arena_create(size_t size);
+void*  arena_alloc(Arena *a, size_t size);
+char*  arena_strdup(Arena *a, const char *s);
+void   arena_reset(Arena *a);
+
+extern Arena *global_arena;
+
 /* ──────────────────────── Value ──────────────────────── */
 
 typedef enum { VAL_NUM, VAL_STR, VAL_LIST, VAL_DICT, VAL_BIT, VAL_REF, VAL_BREAK, VAL_NONE } ValKind;
@@ -68,10 +83,10 @@ typedef enum {
     TOK_NUM, TOK_STR, TOK_IDENT,
     TOK_IF, TOK_ELSE, TOK_WHILE, TOK_BREAK, TOK_DO, TOK_ASK, TOK_LIST, TOK_DICT, TOK_KEY, TOK_KEYS, TOK_AT, TOK_SET,
     TOK_PUT, TOK_ARG, TOK_PASTE, TOK_LEN, TOK_ORD, TOK_CHR, TOK_TONUM, TOK_TOSTR, TOK_SLICE, TOK_TYPE, TOK_TIME, TOK_APPEND,
-    TOK_SYS, TOK_ENV, TOK_EXIT, TOK_REF, TOK_PTR, TOK_BIT, TOK_SPLIT, TOK_TRIM, TOK_SAFE,
+    TOK_SYS, TOK_ENV, TOK_EXIT, TOK_REF, TOK_PTR, TOK_BIT, TOK_SPLIT, TOK_TRIM, TOK_REPLACE, TOK_SAFE,
     TOK_FOR, TOK_IN, TOK_EQ, TOK_EQEQ, TOK_PLUS, TOK_MINUS, TOK_STAR, TOK_SLASH, TOK_PCT, TOK_ARROW,
     TOK_LT, TOK_GT, TOK_LTE, TOK_GTE, TOK_NE, TOK_AND, TOK_OR, 
-    TOK_LPAREN, TOK_RPAREN,
+    TOK_LPAREN, TOK_RPAREN, TOK_SEMICOLON,
     TOK_NEWLINE, TOK_INDENT, TOK_DEDENT, TOK_EOF
 } TokKind;
 
@@ -95,6 +110,7 @@ typedef struct Lexer {
     Token      *tokens;
     int         tok_count;
     int         tok_cap;
+    Arena      *arena;
 } Lexer;
 
 void lex(Lexer *l, const char *filename);
@@ -106,7 +122,7 @@ typedef enum {
     ND_ASSIGN, ND_BINOP, ND_UMINUS,
     ND_IF, ND_WHILE, ND_BREAK, ND_DO,
     ND_FOR, ND_SAFE, ND_ASK, ND_ASKFILE, ND_LIST, ND_DICT, ND_KEY, ND_KEYS, ND_AT, ND_SET,
-    ND_PUT, ND_ARG, ND_LEN, ND_ORD, ND_CHR, ND_TONUM, ND_TOSTR, ND_SLICE, ND_SPLIT, ND_TRIM, ND_TYPE, ND_TIME,
+    ND_PUT, ND_ARG, ND_LEN, ND_ORD, ND_CHR, ND_TONUM, ND_TOSTR, ND_SLICE, ND_SPLIT, ND_TRIM, ND_REPLACE, ND_TYPE, ND_TIME,
     ND_SYS, ND_ENV, ND_EXIT, ND_REF,
     ND_CALL, ND_BLOCK,
     ND_PRINT
@@ -139,6 +155,7 @@ typedef struct Parser {
     const char *src;
     int    in_func;
     Node  *current_func;
+    Arena      *arena;
 } Parser;
 
 Node *parse_program(Parser *p);

@@ -5,6 +5,35 @@ char **cli_defines = NULL;
 int    cli_define_count = 0;
 static int cli_define_cap = 0;
 
+Arena *global_arena = NULL;
+
+Arena* arena_create(size_t size) {
+    Arena *a = malloc(sizeof(Arena));
+    a->capacity = size;
+    a->offset = 0;
+    a->data = malloc(size);
+    return a;
+}
+
+void* arena_alloc(Arena *a, size_t size) {
+    size_t aligned = (size + 7) & ~7;
+    if (a->offset + aligned > a->capacity) {
+        fprintf(stderr, "Arena memory exhausted\n");
+        exit(1);
+    }
+    void *ptr = a->data + a->offset;
+    a->offset += aligned;
+    memset(ptr, 0, aligned);
+    return ptr;
+}
+
+char* arena_strdup(Arena *a, const char *s) {
+    size_t len = strlen(s) + 1;
+    char *dest = arena_alloc(a, len);
+    memcpy(dest, s, len);
+    return dest;
+}
+
 static void add_define(const char *name) {
     if (cli_define_count >= cli_define_cap) {
         cli_define_cap = cli_define_cap ? cli_define_cap * 2 : 8;
@@ -15,6 +44,8 @@ static void add_define(const char *name) {
 
 int main(int argc, char **argv) {
     enable_ansi_colors();
+    global_arena = arena_create(64 * 1024 * 1024); // 64MB Arena
+
     const char *input_path = NULL;
     const char *output_name = NULL;
     bool debug_ast = false;
@@ -85,10 +116,10 @@ int main(int argc, char **argv) {
     }
 
     char *src = read_file(input_path);
-    Lexer lexer = { .src = src, .pos = 0, .filename = input_path };
+    Lexer lexer = { .src = src, .pos = 0, .filename = input_path, .arena = global_arena };
     lex(&lexer, input_path);
 
-    Parser parser = { .tokens = lexer.tokens, .pos = 0, .src = src, .filename = input_path };
+    Parser parser = { .tokens = lexer.tokens, .pos = 0, .src = src, .filename = input_path, .arena = global_arena };
     Node *prog = parse_program(&parser);
 
     if (debug_ast) {
@@ -108,7 +139,21 @@ int main(int argc, char **argv) {
 
     /* Otherwise, Interpret */
     Table *global = table_new(NULL);
-    eval(prog, global);
+    Value *res = eval(prog, global); // Evaluate the entire program
+
+    // Check if the last statement in the program was an implicit print.
+    // If so, it has already been printed by the ND_PRINT node.
+    bool last_stmt_was_implicit_print = false;
+    if (prog->kind == ND_BLOCK && prog->body_count > 0) {
+        if (prog->body[prog->body_count - 1]->kind == ND_PRINT) {
+            last_stmt_was_implicit_print = true;
+        }
+    }
+
+    if (!last_stmt_was_implicit_print && res && res->kind != VAL_NONE && res->kind != VAL_BREAK) {
+        val_print(res); // Only print if not already handled by an implicit print
+        printf("\n"); 
+    }
 
     free(src);
     return 0;

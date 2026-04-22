@@ -2,7 +2,7 @@
 #include <ctype.h>
 
 Node *nd_new(NdKind kind) {
-    Node *n = calloc(1, sizeof(Node));
+    Node *n = arena_alloc(global_arena, sizeof(Node));
     n->kind = kind;
     return n;
 }
@@ -33,7 +33,7 @@ static void track_constant(Parser *p, const char *name, int pos, int line) {
         parsed_const_cap = parsed_const_cap ? parsed_const_cap * 2 : 8;
         parsed_constants = realloc(parsed_constants, parsed_const_cap * sizeof(char*));
     }
-    parsed_constants[parsed_const_count++] = strdup(name);
+    parsed_constants[parsed_const_count++] = arena_strdup(global_arena, name);
 }
 
 /* ──────────────────────── Parser helpers ──────────────────────── */
@@ -49,7 +49,7 @@ static void expect(Parser *p, TokKind k) {
 }
 
 static void skip_newlines(Parser *p) {
-    while (peek(p)->kind == TOK_NEWLINE) advance(p);
+    while (peek(p)->kind == TOK_NEWLINE || peek(p)->kind == TOK_SEMICOLON) advance(p);
 }
 
 /* forward declarations */
@@ -111,10 +111,10 @@ static Node *parse_primary(Parser *p) {
             return n;
         }
         case TOK_NUM:   advance(p); { Node *n = nd_new(ND_NUM); n->num = t->num; return n; }
-        case TOK_STR:   advance(p); { Node *n = nd_new(ND_STR); n->str = strdup(t->text); return n; }
+        case TOK_STR:   advance(p); { Node *n = nd_new(ND_STR); n->str = arena_strdup(p->arena, t->text); return n; }
         case TOK_DICT:  advance(p); return nd_new(ND_DICT);
         case TOK_IDENT: 
-            advance(p); { Node *n = nd_new(ND_VAR); n->name = strdup(t->text); return n; }
+            advance(p); { Node *n = nd_new(ND_VAR); n->name = arena_strdup(p->arena, t->text); return n; }
         case TOK_ASK:   advance(p); return nd_new(ND_ASK);
         case TOK_ARG:   advance(p); return nd_new(ND_ARG);
         case TOK_LEN:   advance(p); { Node *n = nd_new(ND_LEN);   n->left = parse_postfix(p); return n; }
@@ -124,13 +124,23 @@ static Node *parse_primary(Parser *p) {
         case TOK_TOSTR: advance(p); { Node *n = nd_new(ND_TOSTR); n->left = parse_postfix(p); return n; }
         case TOK_SPLIT: advance(p); { Node *n = nd_new(ND_SPLIT); n->left = parse_primary(p); n->right = parse_primary(p); return n; }
         case TOK_TRIM:  advance(p); { Node *n = nd_new(ND_TRIM);  n->left = parse_primary(p); return n; }
+        case TOK_REPLACE: {
+            advance(p);
+            Node *n = nd_new(ND_REPLACE);
+            n->left = parse_primary(p);
+            n->body_cap = 2;
+            n->body = arena_alloc(p->arena, 2 * sizeof(Node*));
+            nd_push(n, parse_primary(p));
+            nd_push(n, parse_primary(p));
+            return n;
+        }
         case TOK_SAFE:  advance(p); { Node *n = nd_new(ND_SAFE);  n->left = parse_primary(p); return n; }
         case TOK_SLICE: {
             advance(p);
             Node *n = nd_new(ND_SLICE);
             n->left = parse_primary(p);
             n->body_cap = 2;
-            n->body = calloc(2, sizeof(Node*));
+            n->body = arena_alloc(p->arena, 2 * sizeof(Node*));
             nd_push(n, parse_primary(p));
             nd_push(n, parse_primary(p));
             return n;
@@ -151,23 +161,23 @@ static Node *parse_primary(Parser *p) {
             if (peek(p)->kind == TOK_ARROW) {
                 advance(p);
                 if (peek(p)->kind == TOK_IDENT || peek(p)->kind == TOK_REF || peek(p)->kind == TOK_PTR || peek(p)->kind == TOK_BIT)
-                    fn->mod_tag = strdup(advance(p)->text);
+                    fn->mod_tag = arena_strdup(p->arena, advance(p)->text);
             }
 
-            fn->name = strdup(advance(p)->text);
+            fn->name = arena_strdup(p->arena, advance(p)->text);
 
             /* check for return type: do func->type */
             if (peek(p)->kind == TOK_ARROW) {
                 advance(p);
                 if (peek(p)->kind == TOK_IDENT || peek(p)->kind == TOK_REF || peek(p)->kind == TOK_PTR || peek(p)->kind == TOK_BIT)
-                    fn->type_tag = strdup(advance(p)->text);
+                    fn->type_tag = arena_strdup(p->arena, advance(p)->text);
             }
 
             fn->body_cap = 8;
-            fn->body = calloc(fn->body_cap, sizeof(Node*));
+            fn->body = arena_alloc(p->arena, fn->body_cap * sizeof(Node*));
             while (peek(p)->kind == TOK_IDENT) {
                 Node *param = nd_new(ND_VAR);
-                param->name = strdup(advance(p)->text);
+                param->name = arena_strdup(p->arena, advance(p)->text);
                 if (is_all_caps(param->name)) {
                     /* Parameters in ALL_CAPS are immutable within the function scope */
                     track_constant(p, param->name, p->tokens[p->pos-1].pos, p->tokens[p->pos-1].line);
@@ -175,7 +185,7 @@ static Node *parse_primary(Parser *p) {
                 if (peek(p)->kind == TOK_ARROW) {
                     advance(p);
                     if (peek(p)->kind == TOK_IDENT || peek(p)->kind == TOK_REF || peek(p)->kind == TOK_PTR || peek(p)->kind == TOK_BIT)
-                        param->type_tag = strdup(advance(p)->text);
+                        param->type_tag = arena_strdup(p->arena, advance(p)->text);
                 }
                 nd_push(fn, param);
             }
@@ -224,7 +234,7 @@ static Node *parse_postfix(Parser *p) {
             Node *set = nd_new(ND_SET);
             set->left = expr;
             set->body_cap = 4;
-            set->body = calloc(set->body_cap, sizeof(Node*));
+            set->body = arena_alloc(p->arena, set->body_cap * sizeof(Node*));
             nd_push(set, parse_primary(p));
             nd_push(set, parse_primary(p));
             expr = set;
@@ -233,7 +243,7 @@ static Node *parse_postfix(Parser *p) {
             Node *key = nd_new(ND_KEY);
             key->left = expr;
             key->body_cap = 2;
-            key->body = calloc(2, sizeof(Node*));
+            key->body = arena_alloc(p->arena, 2 * sizeof(Node*));
             nd_push(key, parse_primary(p));
             nd_push(key, parse_primary(p));
             expr = key;
@@ -252,16 +262,17 @@ static Node *parse_postfix(Parser *p) {
             Node *af = nd_new(ND_ASKFILE);
             af->left = expr;
             expr = af;
-        } else if (peek(p)->kind != TOK_NEWLINE && peek(p)->kind != TOK_DEDENT && peek(p)->kind != TOK_EOF &&
-                   (peek(p)->kind == TOK_IDENT || peek(p)->kind == TOK_NUM ||
-                   peek(p)->kind == TOK_STR || peek(p)->kind == TOK_ASK ||
+        } else if (peek(p)->kind != TOK_NEWLINE && peek(p)->kind != TOK_SEMICOLON && peek(p)->kind != TOK_DEDENT && peek(p)->kind != TOK_EOF &&
+                   (peek(p)->kind == TOK_IDENT || peek(p)->kind == TOK_NUM || peek(p)->kind == TOK_LPAREN ||
+                   peek(p)->kind == TOK_MINUS || peek(p)->kind == TOK_STR || peek(p)->kind == TOK_ASK ||
                    peek(p)->kind == TOK_LIST || peek(p)->kind == TOK_ARG ||
                    peek(p)->kind == TOK_LEN || peek(p)->kind == TOK_ORD ||
                    peek(p)->kind == TOK_CHR || peek(p)->kind == TOK_TONUM ||
                    peek(p)->kind == TOK_TOSTR || peek(p)->kind == TOK_SLICE ||
+                   peek(p)->kind == TOK_SPLIT || peek(p)->kind == TOK_TRIM || peek(p)->kind == TOK_REPLACE ||
+                   peek(p)->kind == TOK_SAFE || peek(p)->kind == TOK_REF ||
                    peek(p)->kind == TOK_TYPE || peek(p)->kind == TOK_TIME ||
-                   peek(p)->kind == TOK_DICT ||
-                   peek(p)->kind == TOK_SYS ||
+                   peek(p)->kind == TOK_DICT || peek(p)->kind == TOK_SYS ||
                    peek(p)->kind == TOK_ENV || peek(p)->kind == TOK_EXIT)) {
             if (expr->kind != ND_VAR) break;
 
@@ -272,17 +283,18 @@ static Node *parse_postfix(Parser *p) {
             Node *call = nd_new(ND_CALL);
             call->left = expr;
             call->body_cap = 8;
-            call->body = calloc(call->body_cap, sizeof(Node*));
-            while (peek(p)->kind != TOK_NEWLINE && peek(p)->kind != TOK_DEDENT && peek(p)->kind != TOK_EOF &&
-                   (peek(p)->kind == TOK_IDENT || peek(p)->kind == TOK_NUM ||
-                   peek(p)->kind == TOK_STR || peek(p)->kind == TOK_ASK ||
+            call->body = arena_alloc(p->arena, call->body_cap * sizeof(Node*));
+            while (peek(p)->kind != TOK_NEWLINE && peek(p)->kind != TOK_SEMICOLON && peek(p)->kind != TOK_DEDENT && peek(p)->kind != TOK_EOF &&
+                   (peek(p)->kind == TOK_IDENT || peek(p)->kind == TOK_NUM || peek(p)->kind == TOK_LPAREN ||
+                   peek(p)->kind == TOK_MINUS || peek(p)->kind == TOK_STR || peek(p)->kind == TOK_ASK ||
                    peek(p)->kind == TOK_LIST || peek(p)->kind == TOK_ARG ||
                    peek(p)->kind == TOK_LEN || peek(p)->kind == TOK_ORD ||
                    peek(p)->kind == TOK_CHR || peek(p)->kind == TOK_TONUM ||
                    peek(p)->kind == TOK_TOSTR || peek(p)->kind == TOK_SLICE ||
+                   peek(p)->kind == TOK_SPLIT || peek(p)->kind == TOK_TRIM || peek(p)->kind == TOK_REPLACE ||
+                   peek(p)->kind == TOK_SAFE || peek(p)->kind == TOK_REF ||
                    peek(p)->kind == TOK_TYPE || peek(p)->kind == TOK_TIME ||
-                   peek(p)->kind == TOK_DICT ||
-                   peek(p)->kind == TOK_SYS ||
+                   peek(p)->kind == TOK_DICT || peek(p)->kind == TOK_SYS ||
                    peek(p)->kind == TOK_ENV || peek(p)->kind == TOK_EXIT)) {
                 nd_push(call, parse_primary(p));
             }
@@ -326,7 +338,7 @@ static Node *parse_expr(Parser *p) {
         if (is_typed) {
             if (left->kind == ND_VAR && is_all_caps(left->name))
                 track_constant(p, left->name, op->pos, op->line);
-            left->type_tag = strdup(advance(p)->text);
+            left->type_tag = arena_strdup(p->arena, advance(p)->text);
             advance(p);
         } else {
             if (left->kind == ND_VAR && is_all_caps(left->name))
@@ -467,14 +479,13 @@ static Node *parse_stmt(Parser *p) {
         if (peek(p)->kind != TOK_STR) {
             report_error(p->filename, p->src, peek(p)->pos, peek(p)->line, "paste requires a string filename");
         }
-        char *filename = strdup(peek(p)->text);
+        const char *filename = peek(p)->text;
         advance(p);
         char *src = read_file(filename);
-        Lexer sub_lex = { .src = src, .pos = 0, .filename = filename };
+        Lexer sub_lex = { .src = src, .pos = 0, .filename = filename, .arena = p->arena };
         lex(&sub_lex, filename);
-        Parser sub_p = { .tokens = sub_lex.tokens, .pos = 0, .src = src, .filename = filename };
+        Parser sub_p = { .tokens = sub_lex.tokens, .pos = 0, .src = src, .filename = filename, .arena = p->arena };
         Node *included = parse_program(&sub_p);
-        free(filename);
         free(src);
         return included;
     }
@@ -482,7 +493,7 @@ static Node *parse_stmt(Parser *p) {
     if (t->kind == TOK_FOR) {
         advance(p);
         Node *n = nd_new(ND_FOR);
-        n->name = strdup(advance(p)->text); // loop variable
+        n->name = arena_strdup(p->arena, advance(p)->text); // loop variable
         expect(p, TOK_IN);
         n->left = parse_expr(p); // the list/dict
         skip_newlines(p);
@@ -548,7 +559,7 @@ static Node *parse_stmt(Parser *p) {
 static Node *parse_block(Parser *p, bool is_function) {
     Node *block = nd_new(ND_BLOCK);
     while (peek(p)->kind != TOK_DEDENT && peek(p)->kind != TOK_EOF) {
-        if (peek(p)->kind == TOK_NEWLINE) { advance(p); continue; }
+        if (peek(p)->kind == TOK_NEWLINE || peek(p)->kind == TOK_SEMICOLON) { advance(p); continue; }
 
         Node *stmt = parse_stmt(p);
         skip_newlines(p);
@@ -569,7 +580,7 @@ static Node *parse_block(Parser *p, bool is_function) {
 Node *parse_program(Parser *p) {
     Node *prog = nd_new(ND_BLOCK);
     while (peek(p)->kind != TOK_EOF) {
-        if (peek(p)->kind == TOK_NEWLINE) { advance(p); continue; }
+        if (peek(p)->kind == TOK_NEWLINE || peek(p)->kind == TOK_SEMICOLON) { advance(p); continue; }
         nd_push(prog, parse_stmt(p));
         skip_newlines(p);
     }

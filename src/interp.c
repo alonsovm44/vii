@@ -11,7 +11,7 @@ static unsigned hash(const char *s) {
 }
 
 Table *table_new(Table *parent) {
-    Table *t = calloc(1, sizeof(Table));
+    Table *t = arena_alloc(global_arena, sizeof(Table));
     t->parent = parent;
     return t;
 }
@@ -39,8 +39,8 @@ void table_set(Table *t, const char *key, Value *val) {
             return;
         }
     }
-    Entry *e = malloc(sizeof(Entry));
-    e->key = strdup(key);
+    Entry *e = arena_alloc(global_arena, sizeof(Entry));
+    e->key = arena_strdup(global_arena, key);
     e->val = val;
     e->is_constant = is_all_caps(key);
     e->next = t->buckets[h];
@@ -48,18 +48,7 @@ void table_set(Table *t, const char *key, Value *val) {
 }
 
 void table_free(Table *t) {
-    if (!t) return;
-    for (int i = 0; i < TABLE_SIZE; i++) {
-        Entry *e = t->buckets[i];
-        while (e) {
-            Entry *next = e->next;
-            free(e->key);
-            /* Note: we don't free e->val as Values are shared and lack GC for now */
-            free(e);
-            e = next;
-        }
-    }
-    free(t);
+    /* No-op: handled by arena */
 }
 
 /* ──────────────────────── Function registry ──────────────────────── */
@@ -67,8 +56,8 @@ void table_free(Table *t) {
 static Func *funcs = NULL;
 
 static void func_register(const char *name, Node *def) {
-    Func *f = malloc(sizeof(Func));
-    f->name = strdup(name);
+    Func *f = arena_alloc(global_arena, sizeof(Func));
+    f->name = arena_strdup(global_arena, name);
     f->def = def;
     f->next = funcs;
     funcs = f;
@@ -81,14 +70,14 @@ static Func *func_find(const char *name) {
 }
 
 Value *val_dict(void) {
-    Value *v = calloc(1, sizeof(Value));
+    Value *v = arena_alloc(global_arena, sizeof(Value));
     v->kind = VAL_DICT;
     v->fields = table_new(NULL);
     return v;
 }
 
 Value *val_break(void) {
-    Value *v = calloc(1, sizeof(Value));
+    Value *v = arena_alloc(global_arena, sizeof(Value));
     v->kind = VAL_BREAK;
     return v;
 }
@@ -120,7 +109,11 @@ Value *eval(Node *n, Table *env) {
         case ND_NUM:   return val_num(n->num);
         case ND_STR:   return val_str(n->str);
         case ND_UMINUS: {
-            Value *v = eval(n->left, env);
+            Value *v = val_unwrap(eval(n->left, env));
+            if (v->kind != VAL_NUM) {
+                fprintf(stderr, "Runtime error: unary minus requires a number\n");
+                exit(1);
+            }
             return val_num(0 - v->num);
         }
         case ND_VAR:   {
@@ -210,6 +203,34 @@ Value *eval(Node *n, Table *env) {
             *(end+1) = 0;
             return val_str(s);
         }
+        case ND_REPLACE: {
+            Value *v = val_unwrap(eval(n->left, env));
+            Value *target = val_unwrap(eval(n->body[0], env));
+            Value *repl = val_unwrap(eval(n->body[1], env));
+            if (v->kind != VAL_STR || target->kind != VAL_STR || repl->kind != VAL_STR) return v;
+            
+            char *s = v->str;
+            char *t = target->str;
+            char *r = repl->str;
+            size_t t_len = strlen(t);
+            if (t_len == 0) return v;
+
+            char buffer[4096];
+            char *p = s;
+            char *out = buffer;
+            while (*p) {
+                char *found = strstr(p, t);
+                if (found == p) {
+                    strcpy(out, r);
+                    out += strlen(r);
+                    p += t_len;
+                } else {
+                    *out++ = *p++;
+                }
+            }
+            *out = '\0';
+            return val_str(buffer);
+        }
         case ND_SAFE: {
             /* Placeholder for v1.3 error recovery. 
                Currently just evaluates the branch. */
@@ -243,14 +264,15 @@ Value *eval(Node *n, Table *env) {
             }
             double a = l->num, b = r->num;
             if (n->op == TOK_PLUS && (l->kind == VAL_STR || r->kind == VAL_STR)) {
-                char buf[1024];
                 char la[512], ra[512];
                 if (l->kind == VAL_STR) snprintf(la, sizeof(la), "%s", l->str);
                 else snprintf(la, sizeof(la), "%g", l->num);
                 if (r->kind == VAL_STR) snprintf(ra, sizeof(ra), "%s", r->str);
                 else snprintf(ra, sizeof(ra), "%g", r->num);
-                snprintf(buf, sizeof(buf), "%s%s", la, ra);
-                return val_str(buf);
+                size_t total_len = strlen(la) + strlen(ra) + 1;
+                char *combined = arena_alloc(global_arena, total_len);
+                snprintf(combined, total_len, "%s%s", la, ra);
+                return val_str(combined);
             }
             switch (n->op) {
                 case TOK_PLUS:  return val_num(a + b);
@@ -540,7 +562,7 @@ Value *eval(Node *n, Table *env) {
             Func *fn = func_find(fname);
             if (!fn) { fprintf(stderr, "Runtime error: undefined function '%s'\n", fname); exit(1); }
             int argc = n->body_count;
-            Value **argv = malloc(argc * sizeof(Value*));
+            Value **argv = arena_alloc(global_arena, argc * sizeof(Value*));
             for (int i = 0; i < argc; i++) {
                 if (i < fn->def->body_count && fn->def->body[i]->type_tag && !strcmp(fn->def->body[i]->type_tag, "ptr")) {
                     if (n->body[i]->kind == ND_VAR) {
@@ -560,13 +582,13 @@ Value *eval(Node *n, Table *env) {
             /* Ensure 'break' signal doesn't escape the function into the caller's loop */
             table_free(scope);
             if (result->kind == VAL_BREAK) result = val_none();
-            free(argv);
             return result;
         }
         case ND_PRINT: {
             Value *v = eval(n->left, env);
             val_print(v);
             putchar('\n');
+            fflush(stdout);
             return v;
         }
         case ND_BLOCK:

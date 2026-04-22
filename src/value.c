@@ -1,38 +1,38 @@
 #include "vii.h"
 
 Value *val_num(double n) {
-    Value *v = calloc(1, sizeof(Value));
+    Value *v = arena_alloc(global_arena, sizeof(Value));
     v->kind = VAL_NUM; v->num = n;
     return v;
 }
 
 Value *val_str(const char *s) {
-    Value *v = calloc(1, sizeof(Value));
-    v->kind = VAL_STR; v->str = strdup(s);
+    Value *v = arena_alloc(global_arena, sizeof(Value));
+    v->kind = VAL_STR; v->str = arena_strdup(global_arena, s);
     return v;
 }
 
 Value *val_bit(bool b) {
-    Value *v = calloc(1, sizeof(Value));
+    Value *v = arena_alloc(global_arena, sizeof(Value));
     v->kind = VAL_BIT; v->num = b ? 1 : 0;
     return v;
 }
 
 Value *val_list(void) {
-    Value *v = calloc(1, sizeof(Value));
+    Value *v = arena_alloc(global_arena, sizeof(Value));
     v->kind = VAL_LIST; v->item_cap = 8;
-    v->items = calloc(v->item_cap, sizeof(Value*));
+    v->items = arena_alloc(global_arena, v->item_cap * sizeof(Value*));
     return v;
 }
 
 Value *val_ref(Value *target) {
-    Value *v = calloc(1, sizeof(Value));
+    Value *v = arena_alloc(global_arena, sizeof(Value));
     v->kind = VAL_REF; v->target = target;
     return v;
 }
 
 Value *val_none(void) {
-    Value *v = calloc(1, sizeof(Value));
+    Value *v = arena_alloc(global_arena, sizeof(Value));
     v->kind = VAL_NONE;
     return v;
 }

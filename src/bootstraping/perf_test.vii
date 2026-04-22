@@ -1,0 +1,42 @@
+# Performance & Accuracy Test for Vii Lexer
+paste "src/bootstraping/lexer.vii"
+
+TARGET_FILE = "src/bootstraping/lexer.vii"
+ITERATIONS = 50
+
+source = TARGET_FILE ask
+if len source == 0
+  "Error: Target file not found or empty"
+  exit 1
+
+"Benchmarking Lexer on: " + TARGET_FILE
+"File size: " + tostr (len source) + " bytes"
+
+start_time = time
+
+i = 0
+total_tokens = 0
+while i < ITERATIONS
+  tokens = lex source
+  total_tokens = len tokens
+  i = i + 1
+
+end_time = time
+elapsed = end_time - start_time
+
+if elapsed == 0
+  "Benchmark finished too fast to measure. Increase ITERATIONS."
+else
+  total_processed = total_tokens * ITERATIONS
+  tokens_per_sec = total_processed / elapsed
+  
+  "--- Results ---"
+  "Total Iterations: " + tostr ITERATIONS
+  "Elapsed Time:     " + tostr elapsed + " seconds"
+  "Tokens per Iter:  " + tostr total_tokens
+  "Throughput:       " + tostr tokens_per_sec + " tokens/sec"
+
+# Accuracy Check: Ensure EOF is reached
+last_tok = tokens at (len tokens - 1)
+if (last_tok at "kind") != TOK_EOF
+  "Warning: Lexer did not produce TOK_EOF"
