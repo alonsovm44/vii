@@ -9,8 +9,13 @@ Node *nd_new(NdKind kind) {
 
 void nd_push(Node *block, Node *child) {
     if (block->body_count >= block->body_cap) {
+        int old_cap = block->body_cap;
         block->body_cap = block->body_cap ? block->body_cap * 2 : 8;
-        block->body = realloc(block->body, block->body_cap * sizeof(Node*));
+        Node **new_body = arena_alloc(global_arena, block->body_cap * sizeof(Node*));
+        if (block->body) {
+            memcpy(new_body, block->body, old_cap * sizeof(Node*));
+        }
+        block->body = new_body;
     }
     block->body[block->body_count++] = child;
 }
@@ -567,7 +572,6 @@ static Node *parse_block(Parser *p, bool is_function) {
         if (is_function) {
             if (stmt->kind == ND_PRINT) {
                 Node *expr = stmt->left;
-                free(stmt);
                 stmt = expr;
             }
         }
