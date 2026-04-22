@@ -1,4 +1,3 @@
-paste "src/bootstraping/vii.vii"
 
 # ──────────────────────── AST Helpers ────────────────────────
 
@@ -151,11 +150,6 @@ do parse_primary p
     n key "str" (t at "text")
     n
 
-  else if k == TOK_IDENT
-    advance p
-    n = nd_new ND_VAR t
-    n key "name" (t at "text")
-    n
 
   else if k == TOK_ASK
     advance p
@@ -325,10 +319,6 @@ do parse_primary p
     # 3.9 - Body parsing
     n key "left" (parse_block p 1)
     
-    p key "current_func" old_func
-    p key "in_func" (p at "in_func" - 1)
-    expect p TOK_DEDENT
-
     # 3.10 Return type validation
     if type (n at "type_tag") != "none"
       block = n at "left"
@@ -340,6 +330,15 @@ do parse_primary p
           "Error in " + (p at "filename") + " on line " + tostr (do_tok at "line") + ": return type mismatch in function '" + (n at "name") + "': expected '" + expected + "', found '" + actual + "'"
           exit 1
 
+    p key "current_func" old_func
+    p key "in_func" (p at "in_func" - 1)
+    expect p TOK_DEDENT
+    n
+
+  else if k == TOK_IDENT
+    advance p
+    n = nd_new ND_VAR t
+    n key "name" (t at "text")
     n
 
   else
@@ -390,17 +389,11 @@ do parse_postfix p
       expr = n
 
     # Function calls (check if next token can start an argument)
-    else if k != TOK_NEWLINE and k != TOK_SEMICOLON and k != TOK_DEDENT and k != TOK_EOF
+    else if k < TOK_EQ and k != TOK_NEWLINE and k != TOK_SEMICOLON and k != TOK_DEDENT and k != TOK_EOF
       # Check if expr is a variable (Vii only allows calling variables directly)
       if (expr at "kind") != ND_VAR
         break
       
-      # Check for assignment lookahead (var = ...)
-      # Logic to prevent swallowing '=' as a call argument
-      next = (p at "tokens") at (p at "pos" + 1)
-      if k == TOK_IDENT and ((next at "kind") == TOK_EQ or (next at "kind") == TOK_ARROW)
-        break
-
       n = nd_new ND_CALL t
       n key "left" expr
       while (peek p at "kind") != TOK_NEWLINE and (peek p at "kind") != TOK_SEMICOLON and (peek p at "kind") != TOK_DEDENT and (peek p at "kind") != TOK_EOF

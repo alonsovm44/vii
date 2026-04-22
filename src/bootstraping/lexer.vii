@@ -1,6 +1,4 @@
 
-paste "src/bootstraping/vii.vii"
-
 # keyword list
 
 TK_KW = list
@@ -113,14 +111,15 @@ do get_kw_kind text
   else
     kind
 
-do lex src
+do lex lexer_ctx
   tokens = list
-  pos = 0
-  line = 1
+  pos = lexer_ctx at "pos" # Initial position
+  line = lexer_ctx at "line" # Initial line
   at_start = 1
   indent_stack = list
   indent_stack set 0 0
   
+  src = lexer_ctx at "src" # Source string
   source_len = len src
 
   while pos < source_len
@@ -137,7 +136,7 @@ do lex src
         t = dict
         t key "kind" TOK_NEWLINE
         t key "line" line
-        t key "pos" pos
+        t key "pos" pos # Use current pos
         tokens set (len tokens) t
       line = line + 1
       pos = pos + 1
@@ -161,8 +160,8 @@ do lex src
           indent_stack set (len indent_stack) spaces
           t = dict
           t key "kind" TOK_INDENT
-          t key "line" line
-          t key "pos" start_pos
+          t key "line" line # Use current line
+          t key "pos" start_pos # Use current start_pos
           tokens set (len tokens) t
         while spaces < (indent_stack at (len indent_stack - 1))
           # pop stack
@@ -170,7 +169,7 @@ do lex src
           t = dict
           t key "kind" TOK_DEDENT
           t key "line" line
-          t key "pos" start_pos
+          t key "pos" start_pos # Use current start_pos
           tokens set (len tokens) t
         at_start = 0
 
@@ -236,8 +235,8 @@ do lex src
       t = dict
       t key "kind" TOK_STR
       t key "text" unescaped
-      t key "line" line
-      t key "pos" start_pos
+      t key "line" line # Use current line
+      t key "pos" start_pos # Use current start_pos
       tokens set (len tokens) t
       pos = pos + 1 # consume "
 
@@ -251,8 +250,8 @@ do lex src
       t = dict
       t key "kind" (get_kw_kind text)
       t key "text" text
-      t key "line" line
-      t key "pos" start
+      t key "line" line # Use current line
+      t key "pos" start # Use current start
       tokens set (len tokens) t
 
     # 8. Operators (multi-character first)
@@ -331,27 +330,26 @@ do lex src
         t = dict
         t key "kind" op_kind
         t key "text" op_text
-        t key "line" line
-        t key "pos" start_pos
+        t key "line" line # Use current line
+        t key "pos" start_pos # Use current start_pos
         tokens set (len tokens) t
       else
-        "Unexpected character: " + char
-        exit 1
+        report_error (lexer_ctx at "filename") src pos line ("Unexpected character: " + char) # Use report_error
 
   # 9. Final Dedent Chain
   while (len indent_stack) > 1
     indent_stack = slice indent_stack 0 (len indent_stack - 1)
     t = dict
     t key "kind" TOK_DEDENT
-    t key "line" line
-    t key "pos" pos
+    t key "line" line # Use current line
+    t key "pos" pos # Use current pos
     tokens set (len tokens) t
 
   # 10. EOF Token
   t = dict
   t key "kind" TOK_EOF
-  t key "line" line
-  t key "pos" pos
+  t key "line" line # Use current line
+  t key "pos" pos # Use current pos
   tokens set (len tokens) t
 
   tokens

@@ -121,6 +121,8 @@ static Node *parse_primary(Parser *p) {
         case TOK_NUM:   advance(p); { Node *n = nd_new(ND_NUM); n->num = t->num; return n; }
         case TOK_STR:   advance(p); { Node *n = nd_new(ND_STR); n->str = arena_strdup(p->arena, t->text); return n; }
         case TOK_DICT:  advance(p); return nd_new(ND_DICT);
+        case TOK_KEYS:  advance(p); { Node *n = nd_new(ND_KEYS);  n->left = parse_postfix(p); return n; }
+        case TOK_NOT:   advance(p); { Node *n = nd_new(ND_NOT);   n->left = parse_primary(p); return n; }
         case TOK_IDENT: 
             advance(p); { Node *n = nd_new(ND_VAR); n->name = arena_strdup(p->arena, t->text); return n; }
         case TOK_ASK:   advance(p); return nd_new(ND_ASK);
@@ -538,6 +540,13 @@ static Node *parse_stmt(Parser *p) {
     if (t->kind == TOK_BREAK || (t->kind == TOK_IDENT && strcmp(t->text, "break") == 0)) {
         advance(p);
         return nd_new(ND_BREAK);
+    }
+
+    if (t->kind == TOK_OUT) {
+        advance(p);
+        Node *n = nd_new(ND_OUT);
+        n->left = parse_expr(p);
+        return n;
     }
 
     if (t->kind == TOK_WHILE) {

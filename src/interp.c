@@ -97,7 +97,7 @@ Value *eval_block(Node *block, Table *env) {
     Value *last = val_none();
     for (int i = 0; i < block->body_count; i++) {
         last = eval(block->body[i], env);
-        if (last->kind == VAL_BREAK) break;
+        if (last->kind == VAL_BREAK || last->kind == VAL_OUT) break;
     }
     return last;
 }
@@ -108,6 +108,16 @@ Value *eval(Node *n, Table *env) {
     switch (n->kind) {
         case ND_NUM:   return val_num(n->num);
         case ND_STR:   return val_str(n->str);
+        case ND_NOT: {
+            Value *v = eval(n->left, env);
+            return val_bit(!val_truthy(v));
+        }
+        case ND_OUT: {
+            Value *v = arena_alloc(global_arena, sizeof(Value));
+            v->kind = VAL_OUT;
+            v->inner = eval(n->left, env);
+            return v;
+        }
         case ND_UMINUS: {
             Value *v = val_unwrap(eval(n->left, env));
             if (v->kind != VAL_NUM) {
@@ -576,7 +586,8 @@ Value *eval(Node *n, Table *env) {
             Value *result = eval_block(fn->def->left, scope);
             /* Ensure 'break' signal doesn't escape the function into the caller's loop */
             table_free(scope);
-            if (result->kind == VAL_BREAK) result = val_none();
+            if (result->kind == VAL_BREAK) return val_none();
+            if (result->kind == VAL_OUT) return result->inner;
             return result;
         }
         case ND_PRINT: {

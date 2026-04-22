@@ -40,7 +40,7 @@ extern Arena *global_arena;
 
 /* ──────────────────────── Value ──────────────────────── */
 
-typedef enum { VAL_NUM, VAL_STR, VAL_LIST, VAL_DICT, VAL_BIT, VAL_REF, VAL_BREAK, VAL_NONE } ValKind;
+typedef enum { VAL_NUM, VAL_STR, VAL_LIST, VAL_DICT, VAL_BIT, VAL_REF, VAL_BREAK, VAL_OUT, VAL_NONE } ValKind;
 
 typedef struct Value {
     ValKind kind;
@@ -51,6 +51,7 @@ typedef struct Value {
     int    item_count;
     int    item_cap;
     struct Table *fields;
+    struct Value *inner; /* for VAL_OUT */
 } Value;
 
 Value *val_num(double n);

@@ -1,10 +1,19 @@
-paste "vii.vii"
+paste "src/bootstraping/vii.vii"
+paste "src/bootstraping/ui.vii"
+paste "src/bootstraping/lexer.vii"
+paste "src/bootstraping/parser.vii"
+paste "src/bootstraping/interp.vii"
 
 color_red = "\x1b[1;31m"
 color_grn = "\x1b[1;32m"
 color_yel = "\x1b[1;33m"
 color_rst = "\x1b[0m"
  
+
+# Shim for arena since it's not a built-in keyword
+do arena_create size
+  "Arena initialized"
+  0
 
 # Helper function for printing usage
 do print_usage
@@ -122,11 +131,12 @@ do main
     cli_args set (len cli_args) current_arg
     i = i + 1
 
-  src = INPUT_PATH ask # Read the source file
+  src_content = INPUT_PATH ask # Read the source file
   
   lexer = dict
-  lexer key "src" src
+  lexer key "src" src_content // The source string to lex
   lexer key "pos" 0
+  lexer key "line" 1 // Starting line for this lexer instance
   lexer key "filename" INPUT_PATH
   lexer key "arena" global_arena # Assuming arena is passed to lexer
 
@@ -185,3 +195,6 @@ do main
     "" # Newline after printing
 
   exit 0 # Successful execution
+
+# Start the compiler
+main

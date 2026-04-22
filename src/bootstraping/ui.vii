@@ -1,4 +1,3 @@
-paste "vii.vii"
 
 do enable_ansi_colors
   IF WIN
