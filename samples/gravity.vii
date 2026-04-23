@@ -8,5 +8,5 @@ m1 = 12
 m2 = 24
 r = 100
 
-fg m1 m2 r
+fg m1 m2 r # compute force between two masses
 

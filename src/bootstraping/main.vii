@@ -56,11 +56,11 @@ do str_contains s sub
 do main
   global_arena = arena_create(512*1024*1024) # Assuming arena_create is available from vii.vii or C runtime
   
-  input_path str = "none"
-  output_name str = "none"
-  debug_ast bit = 0
-  boot_debug bit = 0
-  keep_c bit = 0 
+  input_path = "none"
+  output_name = "none"
+  debug_ast = 0
+  boot_debug = 0
+  keep_c = 0 
   
   argc = len arg
   
@@ -70,7 +70,7 @@ do main
   
   # Argument Parsing
   # Start at 0 to be robust across different host interpreter arg-passing styles
-  i num = 0 
+  i = 0 
   while i < argc
     current_arg = arg at i
     if current_arg == "--debug"
@@ -78,18 +78,30 @@ do main
     else if current_arg == "--bootdebug"
       boot_debug = 1
     else if current_arg == "-o"
-      if i + 1 < argc
-        output_name = arg at (i + 1)
-        i = i + 1
+      next_i = i + 1
+      if next_i < argc
+        output_name = arg at next_i
+        i = next_i
       else
         color_red + "Error: -o requires a filename" + color_rst
         exit 1
-    else if current_arg == "-k" or current_arg == "--keep"
+    else if current_arg == "-k"
       keep_c = 1
-    else if current_arg == "-D" or current_arg == "--define"
-      if i + 1 < argc
-        add_define arg at (i + 1)
-        i = i + 1
+    else if current_arg == "--keep"
+      keep_c = 1
+    else if current_arg == "-D"
+      next_i = i + 1
+      if next_i < argc
+        add_define arg at next_i
+        i = next_i
+      else
+        color_red + "Error: -D requires a name" + color_rst
+        exit 1
+    else if current_arg == "--define"
+      next_i = i + 1
+      if next_i < argc
+        add_define arg at next_i
+        i = next_i
       else
         color_red + "Error: -D requires a name" + color_rst
         exit 1
@@ -99,17 +111,19 @@ do main
     else if current_arg == "--help"
       print_usage
     else if str_contains current_arg "main.vii"
-      # Skip the bootstrap script itself
       ""
-    else if current_arg == "vii" or current_arg == "vii.exe"
-      # Skip the binary if it's in the list
+    else if current_arg == "vii"
       ""
-    else if (current_arg at 0) == "-"
-      "Warning: Ignoring unknown flag: " + current_arg
-    else if input_path == "none"
-      input_path = current_arg
+    else if current_arg == "vii.exe"
+      ""
     else
-      "Warning: Ignoring unknown positional argument: " + current_arg
+      first_char = current_arg at 0
+      if first_char == "-"
+        "Warning: Ignoring unknown flag: " + current_arg
+      else if input_path == "none"
+        input_path = current_arg
+      else
+        "Warning: Ignoring unknown positional argument: " + current_arg
 
     # Ensure the pointer always advances to avoid infinite loops
     i = i + 1
@@ -118,9 +132,11 @@ do main
     print_usage
 
   # Windows .exe handling
-  IF WIN # Compile-time conditional
-    if output_name != "none"
-      if (str_contains output_name ".exe") == 0 and (str_contains output_name ".EXE") == 0
+  if output_name != "none"
+    has_exe = str_contains output_name ".exe"
+    has_EXE = str_contains output_name ".EXE"
+    if has_exe == 0
+      if has_EXE == 0
         output_name = output_name + ".exe"
   
   # Build CLI arg list for the Vii program itself
@@ -134,16 +150,22 @@ do main
       i = i + 1 # Skip bootstrapping debug flag
     else if current_arg == "-o"
       i = i + 2 # Skip -o and its value
-    else if current_arg == "-k" or current_arg == "--keep"
-      i = i + 1 # Skip -k or --keep
-    else if current_arg == "-D" or current_arg == "--define"
-      i = i + 2 # Skip -D and its value
+    else if current_arg == "-k"
+      i = i + 1
+    else if current_arg == "--keep"
+      i = i + 1
+    else if current_arg == "-D"
+      i = i + 2
+    else if current_arg == "--define"
+      i = i + 2
     else if current_arg == input_path
       i = i + 1 # Skip input path
     else if str_contains current_arg "main.vii"
       i = i + 1 # Skip the bootstrap script name
-    else if current_arg == "vii" or current_arg == "vii.exe"
-      i = i + 1 # Skip the binary name
+    else if current_arg == "vii"
+      i = i + 1
+    else if current_arg == "vii.exe"
+      i = i + 1
     else # Fallback for unknown flags and input files
       cli_args set (len cli_args) current_arg
       i = i + 1
@@ -176,7 +198,7 @@ do main
   parser key "current_func" "none" # Initialize current_func
   parser key "constants" list # Initialize constants
   parser key "pasted_files" pasted_files # Pass tracking list to parser
-  parser key "once_registry" (dict) # Global registry for ONCE 1 macros
+  parser key "once_registry" dict
 
   prog = parse_program parser # Call the parser
 
@@ -194,10 +216,12 @@ do main
   global = dict # Create a new global scope table
   # Set cli_args in the global scope for the interpreted program
   global key "arg" cli_args
-  global key "BOOT_DEBUG" (val_bit boot_debug)
+  global key "BOOT_DEBUG" boot_debug
   
 
-  res = val_unwrap (eval prog global) # Evaluate and unwrap final signals
+  global_table = table_new global
+  eval_result = eval prog global_table
+  res = val_unwrap eval_result
 
   # The implicit print logic is handled by the Vii interpreter's ND_PRINT node.
   # If the last statement was an implicit print, it's already printed.
@@ -206,8 +230,17 @@ do main
   # In Vii, the `eval` function should return the final value, and the top-level
   # `main` function in Vii would implicitly print it if it's the last expression.
   # Always print the result of the program if it's not none or break.
-  if (res at "kind") != VAL_NONE and (res at "kind") != VAL_BREAK
-    "" put (val_print res + "\n")
+  res_kind = res at "kind"
+  is_none = res_kind == VAL_NONE
+  is_break = res_kind == VAL_BREAK
+  if is_none
+    ""
+  else if is_break
+    ""
+  else
+    printed = val_print res
+    msg = printed + "\n"
+    "" put msg
   res
 
 # Start the compiler
