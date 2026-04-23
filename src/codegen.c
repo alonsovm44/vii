@@ -58,7 +58,7 @@ static void emit_c_header(FILE *f) {
     /* Builtin Operations */
     fprintf(f, "static Value* val_unwrap(Value* v) { while(v && (v->kind == VAL_REF || v->kind == VAL_OUT)) v = (v->kind == VAL_REF ? v->target : v->inner); return v; }\n");
     fprintf(f, "static bool val_truthy(Value *v) { v = val_unwrap(v); if(!v) return false; if(v->kind==VAL_NUM) return v->num != 0; if(v->kind==VAL_STR) return v->str[0]!='\\0'; if(v->kind==VAL_LIST||v->kind==VAL_DICT) return v->item_count > 0 || (v->kind==VAL_DICT && v->fields); return false; }\n");
-    fprintf(f, "static void val_print(Value *v) { v = val_unwrap(v); if(!v) return; if(v->kind==VAL_NUM) printf(v->num==(long long)v->num?\"%%lld\":\"%%g\",(long long)v->num); else if(v->kind==VAL_STR) printf(\"%%s\",v->str); else if(v->kind==VAL_LIST){ printf(\"[\"); for(int i=0;i<v->item_count;i++){ if(i)printf(\", \"); val_print(v->items[i]); } printf(\"]\"); } else if(v->kind==VAL_DICT){ printf(\"{\"); bool f=1; for(int i=0;i<256;i++) for(Entry *e=v->fields->buckets[i];e;e=e->next){ if(!f)printf(\", \"); printf(\"%%s: \", e->key); val_print(e->val); f=0; } printf(\"}\"); } else if(v->kind==VAL_FUNC) printf(\"<func>\"); else if(v->kind==VAL_BIT) printf(\"%%lld\",(long long)v->num); fflush(stdout); }\n");
+    fprintf(f, "static Value* val_print(Value *v) { v = val_unwrap(v); if(!v) return val_none(); if(v->kind==VAL_NUM) printf(v->num==(long long)v->num?\"%%lld\":\"%%g\",(long long)v->num); else if(v->kind==VAL_STR) printf(\"%%s\",v->str); else if(v->kind==VAL_LIST){ printf(\"[\"); for(int i=0;i<v->item_count;i++){ if(i)printf(\", \"); val_print(v->items[i]); } printf(\"]\"); } else if(v->kind==VAL_DICT){ printf(\"{\"); bool f=1; for(int i=0;i<256;i++) for(Entry *e=v->fields->buckets[i];e;e=e->next){ if(!f)printf(\", \"); printf(\"%%s: \", e->key); val_print(e->val); f=0; } printf(\"}\"); } else if(v->kind==VAL_FUNC) printf(\"<func>\"); else if(v->kind==VAL_BIT) printf(\"%%lld\",(long long)v->num); printf(\"\\n\"); fflush(stdout); return v; }\n");
     fprintf(f, "static Value* runtime_binop(int op, Value* l, Value* r) {\n");
     fprintf(f, "  l = val_unwrap(l); r = val_unwrap(r);\n");
     fprintf(f, "  if(op==%d && (l->kind==VAL_STR||r->kind==VAL_STR)){ char b[2048]; sprintf(b, \"%%s%%s\", l->kind==VAL_STR?l->str:\"\", r->kind==VAL_STR?r->str:\"\"); return val_str(b); }\n", TOK_PLUS);
@@ -389,6 +389,15 @@ static void emit_c_functions(Node *n, FILE *f) {
     }
 }
 
+static void emit_c_func_registrations(Node *n, FILE *f) {
+    if (!n) return;
+    if (n->kind == ND_BLOCK) {
+        for (int i = 0; i < n->body_count; i++) emit_c_func_registrations(n->body[i], f);
+    } else if (n->kind == ND_DO) {
+        fprintf(f, "  table_set(env, \"%s\", val_func(io_func_%s));\n", n->name, n->name);
+    }
+}
+
 void compile_to_bin(Node *prog, const char *out_name, bool keep_c) {
     size_t c_path_len = strlen(out_name) + 8;
     char *c_file = arena_alloc(global_arena, c_path_len);
@@ -410,6 +419,8 @@ void compile_to_bin(Node *prog, const char *out_name, bool keep_c) {
     fprintf(f, "  table_set(env, \"global\", val_dict());\n");
     fprintf(f, "  table_set(env, \"arg\", io_args);\n");
     fprintf(f, "  table_set(env, \"argv\", io_args);\n");
+    // Register all functions in the environment so they can be called by name
+    emit_c_func_registrations(prog, f);
     // The main Vii program is expected to have a 'do main' function.
     // We need to explicitly call this function as the entry point.
     fprintf(f, "  Value *program_result = io_func_main(env, 0, NULL);\n");

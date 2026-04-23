@@ -66,8 +66,8 @@ Value *val_skip(void);
 Value *val_none(void);
 void   val_list_grow(Value *v);
 bool   val_truthy(Value *v);
-void   val_print_to(Value *v, FILE *f);
-void   val_print(Value *v);
+Value* val_print_to(Value *v, FILE *f);
+Value* val_print(Value *v);
 
 /* ──────────────────────── ALL_CAPS helper ──────────────────────── */
 

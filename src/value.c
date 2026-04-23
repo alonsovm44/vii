@@ -52,13 +52,15 @@ bool val_truthy(Value *v) {
         case VAL_LIST: return v->item_count > 0;
         case VAL_BIT:  return v->num != 0;
         case VAL_REF:  return val_truthy(v->target);
+        case VAL_OUT:  return val_truthy(v->inner);
         default:       return false;
     }
 }
 
-void val_print_to(Value *v, FILE *f) {
-    if (!v) return;
-    if (v->kind == VAL_REF) { val_print_to(v->target, f); return; }
+Value* val_print_to(Value *v, FILE *f) {
+    if (!v) return val_none();
+    if (v->kind == VAL_REF) { val_print_to(v->target, f); return v; }
+    if (v->kind == VAL_OUT) { val_print_to(v->inner, f); return v; }
     switch (v->kind) {
         case VAL_NUM:
             if (v->num == (long long)v->num)
@@ -78,8 +80,10 @@ void val_print_to(Value *v, FILE *f) {
         case VAL_BIT:  fprintf(f, v->num ? "1" : "0"); break;
         case VAL_NONE: break;
     }
+    return v;
 }
 
-void val_print(Value *v) {
+Value* val_print(Value *v) {
     val_print_to(v, stdout);
+    return v;
 }

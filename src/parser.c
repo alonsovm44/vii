@@ -599,9 +599,11 @@ static Node *parse_stmt(Parser *p) {
 
     /* expression statement (with implicit print outside function bodies) */
     Node *expr = parse_expr(p);
-    if (p->in_func == 0 && expr->kind != ND_ASSIGN && expr->kind != ND_DO && 
+    if (expr->kind != ND_ASSIGN && expr->kind != ND_DO && 
         expr->kind != ND_SET && expr->kind != ND_KEY && expr->kind != ND_PUT && 
-        expr->kind != ND_EXIT && expr->kind != ND_BLOCK && expr->kind != ND_BREAK) {
+        expr->kind != ND_EXIT && expr->kind != ND_BLOCK && expr->kind != ND_BREAK &&
+        expr->kind != ND_OUT && expr->kind != ND_SKIP && expr->kind != ND_IF &&
+        expr->kind != ND_WHILE && expr->kind != ND_FOR) {
         Node *print = nd_new(ND_PRINT);
         print->left = expr;
         return print;

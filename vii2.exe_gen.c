@@ -31,8 +31,8 @@ static bool is_all_caps(const char *s) { if(!s||!*s)return false; bool h=false; 
 static void table_set(Table *t, const char *k, Value *v) { unsigned h = hash(k); for(Entry *e=t->buckets[h];e;e=e->next) if(!strcmp(e->key,k)){ if(e->is_constant){fprintf(stderr,"Runtime error: cannot reassign constant '%s'\n",k);exit(1);} if(e->val->kind == VAL_REF) { Value *trg = e->val->target; trg->kind=v->kind; trg->num=v->num; trg->str=v->str; trg->items=v->items; trg->item_count=v->item_count; trg->fields=v->fields; return; } e->val=v;return;} Entry *e=malloc(sizeof(Entry)); e->key=strdup(k); e->val=v; e->is_constant=is_all_caps(k); e->next=t->buckets[h]; t->buckets[h]=e; }
 
 static Value* val_unwrap(Value* v) { while(v && (v->kind == VAL_REF || v->kind == VAL_OUT)) v = (v->kind == VAL_REF ? v->target : v->inner); return v; }
-static bool val_truthy(Value *v) { v = val_unwrap(v); if(!v) return false; if(v->kind==VAL_NUM) return v->num != 0; if(v->kind==VAL_STR) return v->str[0]!='\0'; return v->item_count > 0; }
-static void val_print(Value *v) { v = val_unwrap(v); if(!v) return; if(v->kind==VAL_NUM) printf(v->num==(long long)v->num?"%lld":"%g",(long long)v->num); else if(v->kind==VAL_STR) printf("%s",v->str); else if(v->kind==VAL_LIST){ printf("["); for(int i=0;i<v->item_count;i++){ if(i)printf(", "); val_print(v->items[i]); } printf("]"); } }
+static bool val_truthy(Value *v) { v = val_unwrap(v); if(!v) return false; if(v->kind==VAL_NUM) return v->num != 0; if(v->kind==VAL_STR) return v->str[0]!='\0'; if(v->kind==VAL_LIST||v->kind==VAL_DICT) return v->item_count > 0 || (v->kind==VAL_DICT && v->fields); return false; }
+static Value* val_print(Value *v) { v = val_unwrap(v); if(!v) return val_none(); if(v->kind==VAL_NUM) printf(v->num==(long long)v->num?"%lld":"%g",(long long)v->num); else if(v->kind==VAL_STR) printf("%s",v->str); else if(v->kind==VAL_LIST){ printf("["); for(int i=0;i<v->item_count;i++){ if(i)printf(", "); val_print(v->items[i]); } printf("]"); } else if(v->kind==VAL_DICT){ printf("{"); bool f=1; for(int i=0;i<256;i++) for(Entry *e=v->fields->buckets[i];e;e=e->next){ if(!f)printf(", "); printf("%s: ", e->key); val_print(e->val); f=0; } printf("}"); } else if(v->kind==VAL_FUNC) printf("<func>"); else if(v->kind==VAL_BIT) printf("%lld",(long long)v->num); printf("\n"); fflush(stdout); return v; }
 static Value* runtime_binop(int op, Value* l, Value* r) {
   l = val_unwrap(l); r = val_unwrap(r);
   if(op==41 && (l->kind==VAL_STR||r->kind==VAL_STR)){ char b[2048]; sprintf(b, "%s%s", l->kind==VAL_STR?l->str:"", r->kind==VAL_STR?r->str:""); return val_str(b); }
@@ -61,7 +61,7 @@ static Value* runtime_chr(Value* v) { v = val_unwrap(v); char b[2]={v->num,0}; r
 static Value* runtime_tonum(Value* v) { v = val_unwrap(v); if(v->kind==VAL_STR){ char*e; double d=strtod(v->str,&e); return val_num(*e==0&&e!=v->str?d:0); } if(v->kind==VAL_NUM) return v; return val_num(0); }
 static Value* runtime_str_concat(const char* a, const char* b) { char buf[2048]; snprintf(buf, 2048, "%s%s", a, b); return val_str(buf); }
 static Value* runtime_put(Value* p, Value* d, int a) { p = val_unwrap(p); d = val_unwrap(d); if(p->kind!=VAL_STR) return val_none(); FILE* f; if(p->str[0]=='\0') f=stdout; else f=fopen(p->str, a?"a":"w"); if(!f) return val_none(); if(d->kind==VAL_STR) fprintf(f,"%s",d->str); else { if(d->kind==VAL_NUM) fprintf(f,d->num==(long long)d->num?"%lld":"%g",(long long)d->num); } if(f!=stdout) fclose(f); return val_none(); }
-static Value* runtime_tostr(Value* v) { v = val_unwrap(v); char b[64]; if(v->kind==VAL_NUM){ if(v->num==(long long)v->num) snprintf(b,64,"%%lld",(long long)v->num); else snprintf(b,64,"%%g",v->num); return val_str(b); } if(v->kind==VAL_STR) return v; return val_str(""); }
+static Value* runtime_tostr(Value* v) { v = val_unwrap(v); char b[64]; if(v->kind==VAL_NUM){ if(v->num==(long long)v->num) snprintf(b,64,"%lld",(long long)v->num); else snprintf(b,64,"%g",v->num); return val_str(b); } if(v->kind==VAL_STR) return v; return val_str(""); }
 static Value* runtime_slice(Value* v, Value* sv, Value* ev) { v = val_unwrap(v); sv = val_unwrap(sv); ev = val_unwrap(ev); int s=(int)sv->num, e=(int)ev->num; if(v->kind==VAL_STR){ int l=strlen(v->str); if(s<0)s+=l; if(e<0)e+=l; if(s<0)s=0; if(e>l)e=l; if(s>=e)return val_str(""); int n=e-s; char *b=malloc(n+1); memcpy(b,v->str+s,n); b[n]=0; Value *res=val_str(b); free(b); return res; } if(v->kind==VAL_LIST){ int l=v->item_count; if(s<0)s+=l; if(e<0)e+=l; if(s<0)s=0; if(e>l)e=l; Value *res=val_list(); if(s>=e)return res; for(int i=s;i<e;i++){ if(res->item_count>=res->item_cap){ res->item_cap*=2; res->items=realloc(res->items,res->item_cap*sizeof(Value*)); } res->items[res->item_count++]=v->items[i]; } return res; } return val_none(); }
 static Value* runtime_type(Value* v) { v = val_unwrap(v); switch(v->kind){ case VAL_NUM: return val_str("num"); case VAL_STR: return val_str("str"); case VAL_LIST: return val_str("list"); case VAL_DICT: return val_str("dict"); case VAL_BIT: return val_str("bit"); default: return val_str("none"); } }
 static Value* runtime_sys(Value* v) { v = val_unwrap(v); if(v->kind!=VAL_STR) return val_num(-1); return val_num((double)system(v->str)); }
@@ -2497,6 +2497,58 @@ int main(int argc, char **argv) {
   table_set(env, "global", val_dict());
   table_set(env, "arg", io_args);
   table_set(env, "argv", io_args);
+  table_set(env, "enable_ansi_colors", val_func(io_func_enable_ansi_colors));
+  table_set(env, "read_file", val_func(io_func_read_file));
+  table_set(env, "report_error", val_func(io_func_report_error));
+  table_set(env, "is_digit", val_func(io_func_is_digit));
+  table_set(env, "is_alpha", val_func(io_func_is_alpha));
+  table_set(env, "is_alnum", val_func(io_func_is_alnum));
+  table_set(env, "get_kw_kind", val_func(io_func_get_kw_kind));
+  table_set(env, "lex", val_func(io_func_lex));
+  table_set(env, "nd_new", val_func(io_func_nd_new));
+  table_set(env, "nd_push", val_func(io_func_nd_push));
+  table_set(env, "is_all_caps", val_func(io_func_is_all_caps));
+  table_set(env, "track_constant", val_func(io_func_track_constant));
+  table_set(env, "peek", val_func(io_func_peek));
+  table_set(env, "advance", val_func(io_func_advance));
+  table_set(env, "expect", val_func(io_func_expect));
+  table_set(env, "skip_newlines", val_func(io_func_skip_newlines));
+  table_set(env, "infer_node_type", val_func(io_func_infer_node_type));
+  table_set(env, "parse_primary", val_func(io_func_parse_primary));
+  table_set(env, "parse_postfix", val_func(io_func_parse_postfix));
+  table_set(env, "parse_expr", val_func(io_func_parse_expr));
+  table_set(env, "skip_block_body", val_func(io_func_skip_block_body));
+  table_set(env, "resolve_condition", val_func(io_func_resolve_condition));
+  table_set(env, "parse_when_stmt", val_func(io_func_parse_when_stmt));
+  table_set(env, "parse_stmt", val_func(io_func_parse_stmt));
+  table_set(env, "parse_block", val_func(io_func_parse_block));
+  table_set(env, "parse_program", val_func(io_func_parse_program));
+  table_set(env, "val_num", val_func(io_func_val_num));
+  table_set(env, "val_str", val_func(io_func_val_str));
+  table_set(env, "val_none", val_func(io_func_val_none));
+  table_set(env, "val_break", val_func(io_func_val_break));
+  table_set(env, "val_skip", val_func(io_func_val_skip));
+  table_set(env, "val_out", val_func(io_func_val_out));
+  table_set(env, "val_bit", val_func(io_func_val_bit));
+  table_set(env, "val_print", val_func(io_func_val_print));
+  table_set(env, "val_truthy", val_func(io_func_val_truthy));
+  table_set(env, "val_unwrap", val_func(io_func_val_unwrap));
+  table_set(env, "table_get", val_func(io_func_table_get));
+  table_set(env, "table_set", val_func(io_func_table_set));
+  table_set(env, "eval_block", val_func(io_func_eval_block));
+  table_set(env, "eval", val_func(io_func_eval));
+  table_set(env, "init_indent_cache", val_func(io_func_init_indent_cache));
+  table_set(env, "emit", val_func(io_func_emit));
+  table_set(env, "hoist_vars", val_func(io_func_hoist_vars));
+  table_set(env, "emit_expr", val_func(io_func_emit_expr));
+  table_set(env, "emit_stmt", val_func(io_func_emit_stmt));
+  table_set(env, "compile_to_c", val_func(io_func_compile_to_c));
+  table_set(env, "compile_to_bin", val_func(io_func_compile_to_bin));
+  table_set(env, "arena_create", val_func(io_func_arena_create));
+  table_set(env, "print_usage", val_func(io_func_print_usage));
+  table_set(env, "add_define", val_func(io_func_add_define));
+  table_set(env, "str_contains", val_func(io_func_str_contains));
+  table_set(env, "main", val_func(io_func_main));
   Value *program_result = io_func_main(env, 0, NULL);
   if (program_result->kind != VAL_NONE && program_result->kind != VAL_BREAK) {
     val_print(program_result);
