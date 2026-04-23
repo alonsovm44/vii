@@ -122,22 +122,17 @@ do main
     current_arg = arg at i
     if current_arg == "--debug"
       i = i + 1 # Skip debug flag
-      continue
-    if current_arg == "-o"
+    else if current_arg == "-o"
       i = i + 2 # Skip -o and its value
-      continue
-    if current_arg == "-k" or current_arg == "--keep"
+    else if current_arg == "-k" or current_arg == "--keep"
       i = i + 1 # Skip -k or --keep
-      continue
-    if current_arg == "-D" or current_arg == "--define"
+    else if current_arg == "-D" or current_arg == "--define"
       i = i + 2 # Skip -D and its value
-      continue
-    if current_arg == input_path
+    else if current_arg == input_path
       i = i + 1 # Skip input path
-      continue
-    
-    cli_args set (len cli_args) current_arg
-    i = i + 1
+    else
+      cli_args set (len cli_args) current_arg
+      i = i + 1
 
   src_content = input_path ask # Read the source file
   

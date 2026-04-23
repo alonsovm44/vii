@@ -125,11 +125,11 @@ do lex lexer_ctx
   while pos < source_len
     char = src at pos
 
-    # 0. Skip \r (CRLF)
-    if char == "\r"
+    # 1. Skip non-structural whitespace (Spaces, Tabs, CRLF)
+    if (char == " " or char == "\t" or char == "\r") and at_start == 0
       pos = pos + 1
 
-    # 1. Newlines & Deduplication
+    # 2. Newlines & Deduplication
     else if char == "\n"
       # Push TOK_NEWLINE if last wasn't newline
       if len tokens == 0 or (tokens at (len tokens - 1) at "kind") != TOK_NEWLINE
@@ -142,7 +142,7 @@ do lex lexer_ctx
       pos = pos + 1
       at_start = 1
     
-    # 2. Indentation logic
+    # 3. Indentation logic
     else if at_start
       start_pos = pos
       spaces = 0
@@ -151,9 +151,10 @@ do lex lexer_ctx
         pos = pos + 1
       
       next = src at pos
+      at_start = 0 # Ensure we transition out of start-of-line mode immediately
       # Skip indentation for empty lines, CRLF, EOF, or comments
       if next == "\n" or next == "\r" or next == "#" or next == "" or type next == "none"
-        at_start = 0
+        "" # No action needed, next iteration handles these
       else
         top = indent_stack at (len indent_stack - 1)
         if spaces > top
@@ -171,11 +172,6 @@ do lex lexer_ctx
           t key "line" line
           t key "pos" start_pos # Use current start_pos
           tokens set (len tokens) t
-        at_start = 0
-
-    # 3. Skip whitespace
-    else if char == " " or char == "\t"
-      pos = pos + 1
 
     # 4. Comments
     else if char == "#"

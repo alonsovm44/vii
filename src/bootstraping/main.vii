@@ -61,11 +61,12 @@ do main
   argc = len arg
   
   # Check for basic usage/help/version before full parsing
-  if argc < 1
+  if argc < 2
     print_usage
   
   # Argument Parsing
-  i num = 0 
+  # Start at 1 to skip the vii executable itself
+  i num = 1 
   while i < argc
     current_arg = arg at i
     if current_arg == "--debug"
@@ -110,30 +111,24 @@ do main
   
   # Build CLI arg list for the Vii program itself
   cli_args = list
-  i = 0 # Reset i for building cli_args
+  i = 1 # Start at 1 to skip the vii executable
   while i < argc
     current_arg = arg at i
     if current_arg == "--debug"
       i = i + 1 # Skip debug flag
-      continue
-    if current_arg == "-o"
+    else if current_arg == "-o"
       i = i + 2 # Skip -o and its value
-      continue
-    if current_arg == "-k" or current_arg == "--keep"
+    else if current_arg == "-k" or current_arg == "--keep"
       i = i + 1 # Skip -k or --keep
-      continue
-    if current_arg == "-D" or current_arg == "--define"
+    else if current_arg == "-D" or current_arg == "--define"
       i = i + 2 # Skip -D and its value
-      continue
-    if current_arg == input_path
+    else if current_arg == input_path
       i = i + 1 # Skip input path
-      continue
-    if str_contains current_arg "main.vii"
+    else if str_contains current_arg "main.vii"
       i = i + 1 # Skip the bootstrap script name
-      continue
-    
-    cli_args set (len cli_args) current_arg
-    i = i + 1
+    else
+      cli_args set (len cli_args) current_arg
+      i = i + 1
 
   src_content = input_path ask # Read the source file
   
