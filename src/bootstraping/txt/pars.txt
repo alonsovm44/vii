@@ -1,4 +1,4 @@
-
+#! ONCE
 # ──────────────────────── AST Helpers ────────────────────────
 
 do nd_new kind t
@@ -6,6 +6,7 @@ do nd_new kind t
   n key "kind" kind
   n key "body" list
   n key "line" (t at "line")
+  n key "filename" (t at "filename")
   n key "pos" (t at "pos")
   n
 
@@ -97,8 +98,7 @@ do infer_node_type n fn_ctx
     op = n at "op"
     if op >= TOK_LT and op <= TOK_OR
       out "bit"
-    else
-      out "num"
+    out "num"
   else if k == ND_NOT
     out "bit"
   else if k == ND_LEN or k == ND_ORD or k == ND_TONUM or k == ND_TIME
@@ -356,7 +356,7 @@ do parse_postfix p
       advance p
       n = nd_new ND_AT t
       n key "left" expr
-      n key "right" (parse_primary p)
+      n key "right" (parse_postfix p)
       expr = n
 
     else if k == TOK_SET
@@ -364,15 +364,15 @@ do parse_postfix p
       n = nd_new ND_SET t
       n key "left" expr
       nd_push n (parse_primary p)
-      nd_push n (parse_primary p)
+      nd_push n (parse_expr p)
       expr = n
 
     else if k == TOK_KEY
       advance p
       n = nd_new ND_KEY t
       n key "left" expr
-      nd_push n (parse_primary p)
-      nd_push n (parse_primary p)
+      nd_push n (parse_postfix p)
+      nd_push n (parse_postfix p)
       expr = n
 
     else if k == TOK_PUT
@@ -411,7 +411,7 @@ do parse_expr p
   # Binary operators
   t = peek p
   k = t at "kind"
-  while k >= TOK_PLUS and k <= TOK_OR
+  while k >= TOK_EQEQ and k <= TOK_OR
     advance p
     right = parse_postfix p
     n = nd_new ND_BINOP t
@@ -519,13 +519,38 @@ do parse_stmt p
       exit 1
     filename = t at "text"
     advance p
+
+    # 6.2 - Guard against circular dependencies and redundant pasting
+    p_files = p at "pasted_files"
+    already_done = 0
+    i = 0
+    if type p_files == "none"
+      p key "pasted_files" (list)
+      p_files = p at "pasted_files"
+    while i < len p_files
+      if (p_files at i) == filename
+        already_done = 1
+      i = i + 1
+    
+    if already_done
+      out nd_new ND_BLOCK t # Return an empty block for already processed files
+
+    if p at "boot_debug"
+      "Paste trace: inclusion of '" + filename + "' from '" + (p at "filename") + "'"
+
+    p_files set (len p_files) filename
+
     # 6.2 - File inclusion with sub-lexer/sub-parser
     src = filename ask
-    sub_tokens = lex src
+    l_ctx = dict
+    l_ctx key "src" src; l_ctx key "pos" 0; l_ctx key "line" 1; l_ctx key "filename" filename
+    sub_tokens = lex l_ctx
+
     sub_p = dict
     sub_p key "tokens" sub_tokens; sub_p key "pos" 0; sub_p key "filename" filename; sub_p key "src" src
     sub_p key "in_func" (p at "in_func"); sub_p key "current_func" (p at "current_func")
     sub_p key "constants" (p at "constants")
+    sub_p key "pasted_files" p_files
     out parse_program sub_p
 
   if k == TOK_FOR
@@ -574,6 +599,11 @@ do parse_stmt p
     advance p
     out nd_new ND_BREAK t
 
+  if k == TOK_SKIP
+    advance p
+    out nd_new ND_SKIP t
+
+
   if k == TOK_OUT
     advance p
     n = nd_new ND_OUT t
@@ -613,6 +643,17 @@ do parse_block p is_func
 
 do parse_program p
   prog = nd_new ND_BLOCK (peek p)
+  
+  # Check for #! ONCE shebang at the very beginning of the program
+  t1 = peek p
+  if (t1 at "kind") == TOK_SHEBANG
+    advance p # consume shebang
+    once_registry = p at "once_registry"
+    fname = p at "filename"
+    if (once_registry at fname) == 1
+      out prog # Return empty block, we've already parsed this file
+    once_registry key fname 1
+
   while (peek p at "kind") != TOK_EOF
     k = peek p at "kind"
     if k == TOK_NEWLINE or k == TOK_SEMICOLON

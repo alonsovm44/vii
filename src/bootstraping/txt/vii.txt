@@ -1,8 +1,9 @@
+#! ONCE
 # vii.vii - Central definitions for the Vii self-hosted compiler
 
 # Value Kinds (VAL_*)
-VAL_NUM   = 0; VAL_STR   = 1; VAL_LIST  = 2; VAL_DICT  = 3
-VAL_BIT   = 4; VAL_REF   = 5; VAL_BREAK = 6; VAL_NONE  = 7
+VAL_NUM   = 0; VAL_STR   = 1; VAL_LIST  = 2; VAL_DICT  = 3; VAL_BIT = 4
+VAL_REF   = 5; VAL_BREAK = 6; VAL_OUT   = 7; VAL_SKIP  = 8; VAL_NONE = 9
 
 # Token Kinds (TOK_*)
 TOK_NUM     = 0;  TOK_STR     = 1;  TOK_IDENT   = 2
@@ -16,17 +17,16 @@ TOK_SPLIT   = 33; TOK_TRIM    = 34; TOK_REPLACE = 35; TOK_SAFE    = 36
 TOK_FOR     = 37; TOK_IN      = 38
 TOK_EQ      = 39; TOK_EQEQ    = 40; TOK_PLUS    = 41; TOK_MINUS   = 42; TOK_STAR    = 43; TOK_SLASH = 44; TOK_PCT = 45; TOK_ARROW = 46
 TOK_LT      = 47; TOK_GT      = 48; TOK_LTE     = 49; TOK_GTE     = 50; TOK_NE      = 51; TOK_AND   = 52; TOK_OR    = 53
-TOK_LPAREN  = 54; TOK_RPAREN  = 55; TOK_SEMICOLON = 56
-TOK_NEWLINE = 57; TOK_INDENT  = 58; TOK_DEDENT  = 59; TOK_EOF     = 60; TOK_OUT     = 61; TOK_NOT   = 62
+TOK_LPAREN  = 54; TOK_RPAREN  = 55; TOK_SEMICOLON = 56; TOK_NEWLINE = 57; TOK_INDENT = 58; TOK_DEDENT = 59; TOK_EOF = 60; TOK_OUT = 61; TOK_NOT = 62; TOK_SKIP = 63; TOK_SHEBANG = 64
 
 # Node Kinds (ND_*)
 ND_NUM     = 0;  ND_STR     = 1;  ND_VAR     = 2;  ND_ASSIGN  = 3;  ND_BINOP   = 4;  ND_UMINUS  = 5
-ND_IF      = 6;  ND_WHILE   = 7;  ND_BREAK   = 8;  ND_DO      = 9;  ND_FOR     = 10; ND_SAFE    = 11
-ND_ASK     = 12; ND_ASKFILE = 13; ND_LIST    = 14; ND_DICT    = 15; ND_KEY     = 16; ND_KEYS    = 17
-ND_AT      = 18; ND_SET     = 19; ND_PUT     = 20; ND_ARG     = 21; ND_LEN     = 22; ND_ORD     = 23
-ND_CHR     = 24; ND_TONUM   = 25; ND_TOSTR   = 26; ND_SLICE   = 27; ND_SPLIT   = 28; ND_TRIM    = 29; ND_REPLACE = 30
-ND_TYPE    = 31; ND_TIME    = 32; ND_SYS     = 33; ND_ENV     = 34; ND_EXIT    = 35; ND_REF     = 36; ND_OUT     = 37
-ND_NOT     = 38; ND_CALL    = 39; ND_BLOCK   = 40; ND_PRINT   = 41
+ND_IF      = 6;  ND_WHILE   = 7;  ND_BREAK   = 8;  ND_DO      = 9;  ND_SKIP    = 10; ND_FOR     = 11; ND_SAFE    = 12
+ND_ASK     = 13; ND_ASKFILE = 14; ND_LIST    = 15; ND_DICT    = 16; ND_KEY     = 17; ND_KEYS    = 18; ND_AT      = 19
+ND_SET     = 20; ND_PUT     = 21; ND_ARG     = 22; ND_LEN     = 23; ND_ORD     = 24; ND_CHR     = 25
+ND_TONUM   = 26; ND_TOSTR   = 27; ND_SLICE   = 28; ND_SPLIT   = 29; ND_TRIM    = 30; ND_REPLACE = 31; ND_TYPE    = 32
+ND_TIME    = 33; ND_SYS     = 34; ND_ENV     = 35; ND_EXIT    = 36; ND_REF     = 37; ND_OUT     = 38; ND_NOT     = 39
+ND_CALL    = 40; ND_BLOCK   = 41; ND_PRINT   = 42
 
 # Other constants
 TABLE_SIZE = 256

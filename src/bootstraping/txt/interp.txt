@@ -1,3 +1,8 @@
+#! ONCE
+
+# Global cache to store and reuse unique string values
+STRING_CACHE = dict
+
 # ──────────────────────── Value Constructors ────────────────────────
 
 do val_num n
@@ -7,9 +12,15 @@ do val_num n
   v
 
 do val_str s
+  # Check if we already have a VAL_STR object for this string data
+  res = STRING_CACHE at s
+  if type res != "none"
+    out res
+
   v = dict
   v key "kind" VAL_STR
   v key "str" s
+  STRING_CACHE key s v
   v
 
 do val_none
@@ -20,6 +31,11 @@ do val_none
 do val_break
   v = dict
   v key "kind" VAL_BREAK
+  v
+
+do val_skip
+  v = dict
+  v key "kind" VAL_SKIP
   v
 
 do val_out val
@@ -61,18 +77,24 @@ do val_truthy v
   k = v at "kind"
   if k == VAL_NUM
     out (v at "num") != 0
-  if k == VAL_STR
+  else if k == VAL_STR
     out len (v at "str") > 0
-  if k == VAL_LIST
+  else if k == VAL_LIST
     out len (v at "items") > 0
-  if k == VAL_BIT
+  else if k == VAL_BIT
     out v at "num"
   0
 
 do val_unwrap v
-  if v at "kind" == VAL_REF
-    out val_unwrap (v at "target")
-  v
+  curr = v
+  depth = 0
+  while type curr != "none" and (curr at "kind") == VAL_REF
+    curr = curr at "target"
+    depth = depth + 1
+    if depth > 100
+      "Runtime error: circular reference in unwrap"
+      exit 1
+  curr
 
 # ──────────────────────── Scope / Table Logic ────────────────────────
 
@@ -104,8 +126,8 @@ do eval_block block env_
   i = 0
   while i < len body
     last = eval (body at i) env_
-    k = last at "kind"
-    if k == VAL_BREAK or k == VAL_OUT
+    k = last at "kind" # Get the kind of the evaluated value
+    if k == VAL_BREAK or k == VAL_OUT or k == VAL_SKIP # Check for VAL_SKIP as well
       out last
     i = i + 1
   last
@@ -138,9 +160,12 @@ do eval n env_
         if (res at "kind") == VAL_OUT
           out res at "inner"
         out res
-      "Runtime error: undefined variable " + (n at "name")
+      "Runtime error: undefined variable " + (n at "name") + " in " + (n at "filename") + " on line " + tostr (n at "line")
       exit 1
     out res
+
+  if k == ND_SKIP
+    out val_skip
 
   if k == ND_ASSIGN
     val = eval (n at "right") env_
@@ -248,6 +273,8 @@ do eval n env_
       res = eval_block (n at "body" at 0) env_
       if (res at "kind") == VAL_BREAK
         break
+      if (res at "kind") == VAL_SKIP
+        skip # This will continue the while loop
       if (res at "kind") == VAL_OUT
         out res
     out val_none
@@ -261,6 +288,8 @@ do eval n env_
       res = eval_block (n at "body" at 0) env_
       if (res at "kind") == VAL_BREAK
         break
+      if (res at "kind") == VAL_SKIP
+        break
       if (res at "kind") == VAL_OUT
         out res
       i = i + 1
@@ -273,7 +302,7 @@ do eval n env_
   if k == ND_CALL
     fn = FUNCS at (n at "left" at "name")
     if type fn == "none"
-      "Runtime error: undefined function " + (n at "left" at "name")
+      "Runtime error: undefined function " + (n at "left" at "name") + " in " + (n at "filename") + " on line " + tostr (n at "line")
       exit 1
     
     args = n at "body"
@@ -321,7 +350,8 @@ do eval n env_
 
   if k == ND_PRINT
     v = eval (n at "left") env_
-    out val_str (val_print v + "\n")
+    "" put (val_print v + "\n")
+    out v
 
   if k == ND_ASK
     out val_str ask

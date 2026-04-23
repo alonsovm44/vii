@@ -5,3 +5,16 @@ I left trying to fix test_slice.vii not outputing anything.
 20/04/2026 10:41 pm
 I left pondering about what original new features to add
 i have to finish the expanded std lib 
+
+22/04/2026 10:15 pm
+I left almost finishing bootstrapping, i pushed the changes to the Hub.
+in total Vii is 2102 lines of Vii code, according to tokei
+right now running the interpreter with the interpreter yields this
+PS C:\Users\diego\.projects\vii\vii> vii src/bootstraping/main.vii test.vii --debug --bootdebug 
+AST dumped to debug_ast.json
+DEBUG: Arena initialized
+none
+
+we have to fix that
+
+End of Line.

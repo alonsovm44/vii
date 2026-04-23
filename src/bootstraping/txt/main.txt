@@ -1,8 +1,11 @@
+#! ONCE
+# ^ this is basically # pragma once but it is a shebang that does the same
 paste "src/bootstraping/vii.vii"
 paste "src/bootstraping/ui.vii"
 paste "src/bootstraping/lexer.vii"
 paste "src/bootstraping/parser.vii"
 paste "src/bootstraping/interp.vii"
+paste "src/bootstraping/codegen.vii"
 
 color_red = "\x1b[1;31m"
 color_grn = "\x1b[1;32m"
@@ -12,21 +15,21 @@ color_rst = "\x1b[0m"
 
 # Shim for arena since it's not a built-in keyword
 do arena_create size
-  "Arena initialized"
+  "DEBUG: Arena initialized"
   0
 
 # Helper function for printing usage
 do print_usage
-   "vii - a minimalist programming language"
-   "Usage: vii <file.vii> [-o program] [args...]"
-   "       vii --version"
-   "       vii --help"
-   "       vii --debug <file.vii>"
-   ""
-   "Options:"
-   "  -o <name>      Compile to executable"
-   "  -k, --keep     Keep transpiled .c source"
-   "  -D <name>      Define compile-time flag for IF macros"
+  "vii - a minimalist programming language"
+  "Usage: vii <file.vii> [-o program] [args...]"
+  "       vii --version"
+  "       vii --help"
+  "       vii --debug <file.vii>"
+  ""
+  "Options:"
+  "  -o <name>      Compile to executable"
+  "  -k, --keep     Keep transpiled .c source"
+  "  -D <name>      Define compile-time flag for IF macros"
   exit 1 # Exit with error code for usage
 
 
@@ -41,50 +44,40 @@ do str_contains s sub
   len_sub = len sub
   if len_sub == 0
     out 1
-  if len_s < len_sub
-    out 0
   i = 0
-  while i <= len_s - len_sub
-    if slice s i (i + len_sub) == sub
-      out 1
+  first_char = slice sub 0 1
+  while i <= (len_s - len_sub)
+    # Only slice if the first character matches to save Arena memory
+    if (slice s i (i + 1)) == first_char
+      if (slice s i (i + len_sub)) == sub
+        out 1
     i = i + 1
   out 0
 
 do main
-  global_arena = arena_create(64*1024*1024) # Assuming arena_create is available from vii.vii or C runtime
+  global_arena = arena_create(512*1024*1024) # Assuming arena_create is available from vii.vii or C runtime
   
   input_path str = "none"
   output_name str = "none"
   debug_ast bit = 0
+  boot_debug bit = 0
   keep_c bit = 0 
   
   argc = len arg
   
-  # When running 'vii main.vii test.vii', arg at 1 is 'main.vii'.
-  # The self-hosted compiler needs to start looking for its own arguments 
-  # after its own filename.
-  start_index = 1
-  if argc > 1
-    if str_contains (arg at 1) "main.vii"
-      start_index = 2
-  
-  # Check for basic usage/help/version before full parsing
-  if argc < 2
-    print_usage
-  
-  if arg at 1 == "--version"
-    "vii 1.2.6"
-    exit 0
-  
-  if arg at 1 == "--help"
+  # Ensure we have at least one argument (the input file)
+  if argc < 1
     print_usage
   
   # Argument Parsing
-  i num = start_index 
+  # Start at 0 to be robust across different host interpreter arg-passing styles
+  i num = 0 
   while i < argc
     current_arg = arg at i
     if current_arg == "--debug"
       debug_ast = 1
+    else if current_arg == "--bootdebug"
+      boot_debug = 1
     else if current_arg == "-o"
       if i + 1 < argc
         output_name = arg at (i + 1)
@@ -101,10 +94,25 @@ do main
       else
         color_red + "Error: -D requires a name" + color_rst
         exit 1
-    else if current_arg at 0 != "-" # Not an option, must be input file
-      if input_path == "none"
-        input_path = current_arg
-      # else: ignore extra positional arguments for now, or handle as error
+    else if current_arg == "--version"
+      "vii 1.2.6"
+      exit 0
+    else if current_arg == "--help"
+      print_usage
+    else if str_contains current_arg "main.vii"
+      # Skip the bootstrap script itself
+      ""
+    else if current_arg == "vii" or current_arg == "vii.exe"
+      # Skip the binary if it's in the list
+      ""
+    else if (current_arg at 0) == "-"
+      "Warning: Ignoring unknown flag: " + current_arg
+    else if input_path == "none"
+      input_path = current_arg
+    else
+      "Warning: Ignoring unknown positional argument: " + current_arg
+
+    # Ensure the pointer always advances to avoid infinite loops
     i = i + 1
 
   if input_path == "none"
@@ -112,16 +120,19 @@ do main
 
   # Windows .exe handling
   IF WIN # Compile-time conditional
-    if output_name != "none" and str_contains output_name ".exe" == 0 and str_contains output_name ".EXE" == 0
-      output_name = output_name + ".exe"
+    if output_name != "none"
+      if str_contains output_name ".exe" == 0 and str_contains output_name ".EXE" == 0
+        output_name = output_name + ".exe"
   
   # Build CLI arg list for the Vii program itself
   cli_args = list
-  i = 1 # Reset i for building cli_args
+  i = 0 
   while i < argc
     current_arg = arg at i
     if current_arg == "--debug"
       i = i + 1 # Skip debug flag
+    else if current_arg == "--bootdebug"
+      i = i + 1 # Skip bootstrapping debug flag
     else if current_arg == "-o"
       i = i + 2 # Skip -o and its value
     else if current_arg == "-k" or current_arg == "--keep"
@@ -130,7 +141,11 @@ do main
       i = i + 2 # Skip -D and its value
     else if current_arg == input_path
       i = i + 1 # Skip input path
-    else
+    else if str_contains current_arg "main.vii"
+      i = i + 1 # Skip the bootstrap script name
+    else if current_arg == "vii" or current_arg == "vii.exe"
+      i = i + 1 # Skip the binary name
+    else # Fallback for unknown flags and input files
       cli_args set (len cli_args) current_arg
       i = i + 1
 
@@ -141,7 +156,12 @@ do main
   lexer key "pos" 0
   lexer key "line" 1 # Starting line for this lexer instance
   lexer key "filename" input_path
+  lexer key "boot_debug" boot_debug
   lexer key "arena" global_arena # Assuming arena is passed to lexer
+
+  # Initialize the list of pasted files to track dependencies
+  pasted_files = list
+  pasted_files set 0 input_path
 
   tokens = lex lexer # Call the lexer
 
@@ -152,9 +172,12 @@ do main
   parser key "filename" input_path
   parser key "arena" global_arena # Assuming arena is passed to parser
   parser key "defines" CLI_DEFINES # Pass CLI defines to the parser
+  parser key "boot_debug" boot_debug
   parser key "in_func" 0 # Initialize in_func
   parser key "current_func" "none" # Initialize current_func
   parser key "constants" list # Initialize constants
+  parser key "pasted_files" pasted_files # Pass tracking list to parser
+  parser key "once_registry" (dict) # Global registry for ONCE 1 macros
 
   prog = parse_program parser # Call the parser
 
@@ -183,7 +206,12 @@ do main
   # `main` function in Vii would implicitly print it if it's the last expression.
   # Always print the result of the program if it's not none or break.
   if (res at "kind") != VAL_NONE and (res at "kind") != VAL_BREAK
-    val_print res + "\n"
+    "" put (val_print res + "\n")
 
 # Start the compiler
 main
+
+
+# Note: The above code assumes that the lexer, parser, interpreter, and code generator
+# LMAO i almost achieve self-bootstrapping in Vii itself in 6 days from start to finish,
+# good for a hobby project

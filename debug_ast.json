@@ -24,11 +24,6 @@
             { "kind": 0, "val": 3 } },
         { "kind": 3,
           "left": 
-            { "kind": 2, "name": "VAL_SKIP" },
-          "right": 
-            { "kind": 0, "val": 8 } },
-        { "kind": 3,
-          "left": 
             { "kind": 2, "name": "VAL_BIT" },
           "right": 
             { "kind": 0, "val": 4 } },
@@ -44,9 +39,19 @@
             { "kind": 0, "val": 6 } },
         { "kind": 3,
           "left": 
-            { "kind": 2, "name": "VAL_NONE" },
+            { "kind": 2, "name": "VAL_OUT" },
           "right": 
             { "kind": 0, "val": 7 } },
+        { "kind": 3,
+          "left": 
+            { "kind": 2, "name": "VAL_SKIP" },
+          "right": 
+            { "kind": 0, "val": 8 } },
+        { "kind": 3,
+          "left": 
+            { "kind": 2, "name": "VAL_NONE" },
+          "right": 
+            { "kind": 0, "val": 9 } },
         { "kind": 3,
           "left": 
             { "kind": 2, "name": "TOK_NUM" },
@@ -364,12 +369,12 @@
             { "kind": 0, "val": 62 } },
         { "kind": 3,
           "left": 
-            { "kind": 2, "name": "TOK_SHEBANG" },
+            { "kind": 2, "name": "TOK_SKIP" },
           "right": 
             { "kind": 0, "val": 63 } },
         { "kind": 3,
           "left": 
-            { "kind": 2, "name": "TOK_SKIP" },
+            { "kind": 2, "name": "TOK_SHEBANG" },
           "right": 
             { "kind": 0, "val": 64 } },
         { "kind": 3,
@@ -471,122 +476,122 @@
           "left": 
             { "kind": 2, "name": "ND_AT" },
           "right": 
-            { "kind": 0, "val": 18 } },
+            { "kind": 0, "val": 19 } },
         { "kind": 3,
           "left": 
             { "kind": 2, "name": "ND_SET" },
           "right": 
-            { "kind": 0, "val": 19 } },
+            { "kind": 0, "val": 20 } },
         { "kind": 3,
           "left": 
             { "kind": 2, "name": "ND_PUT" },
           "right": 
-            { "kind": 0, "val": 20 } },
+            { "kind": 0, "val": 21 } },
         { "kind": 3,
           "left": 
             { "kind": 2, "name": "ND_ARG" },
           "right": 
-            { "kind": 0, "val": 21 } },
+            { "kind": 0, "val": 22 } },
         { "kind": 3,
           "left": 
             { "kind": 2, "name": "ND_LEN" },
           "right": 
-            { "kind": 0, "val": 22 } },
+            { "kind": 0, "val": 23 } },
         { "kind": 3,
           "left": 
             { "kind": 2, "name": "ND_ORD" },
           "right": 
-            { "kind": 0, "val": 23 } },
+            { "kind": 0, "val": 24 } },
         { "kind": 3,
           "left": 
             { "kind": 2, "name": "ND_CHR" },
           "right": 
-            { "kind": 0, "val": 24 } },
+            { "kind": 0, "val": 25 } },
         { "kind": 3,
           "left": 
             { "kind": 2, "name": "ND_TONUM" },
           "right": 
-            { "kind": 0, "val": 25 } },
+            { "kind": 0, "val": 26 } },
         { "kind": 3,
           "left": 
             { "kind": 2, "name": "ND_TOSTR" },
           "right": 
-            { "kind": 0, "val": 26 } },
+            { "kind": 0, "val": 27 } },
         { "kind": 3,
           "left": 
             { "kind": 2, "name": "ND_SLICE" },
           "right": 
-            { "kind": 0, "val": 27 } },
+            { "kind": 0, "val": 28 } },
         { "kind": 3,
           "left": 
             { "kind": 2, "name": "ND_SPLIT" },
           "right": 
-            { "kind": 0, "val": 28 } },
+            { "kind": 0, "val": 29 } },
         { "kind": 3,
           "left": 
             { "kind": 2, "name": "ND_TRIM" },
           "right": 
-            { "kind": 0, "val": 29 } },
+            { "kind": 0, "val": 30 } },
         { "kind": 3,
           "left": 
             { "kind": 2, "name": "ND_REPLACE" },
           "right": 
-            { "kind": 0, "val": 30 } },
+            { "kind": 0, "val": 31 } },
         { "kind": 3,
           "left": 
             { "kind": 2, "name": "ND_TYPE" },
           "right": 
-            { "kind": 0, "val": 31 } },
+            { "kind": 0, "val": 32 } },
         { "kind": 3,
           "left": 
             { "kind": 2, "name": "ND_TIME" },
           "right": 
-            { "kind": 0, "val": 32 } },
+            { "kind": 0, "val": 33 } },
         { "kind": 3,
           "left": 
             { "kind": 2, "name": "ND_SYS" },
           "right": 
-            { "kind": 0, "val": 33 } },
+            { "kind": 0, "val": 34 } },
         { "kind": 3,
           "left": 
             { "kind": 2, "name": "ND_ENV" },
           "right": 
-            { "kind": 0, "val": 34 } },
+            { "kind": 0, "val": 35 } },
         { "kind": 3,
           "left": 
             { "kind": 2, "name": "ND_EXIT" },
           "right": 
-            { "kind": 0, "val": 35 } },
+            { "kind": 0, "val": 36 } },
         { "kind": 3,
           "left": 
             { "kind": 2, "name": "ND_REF" },
           "right": 
-            { "kind": 0, "val": 36 } },
+            { "kind": 0, "val": 37 } },
         { "kind": 3,
           "left": 
             { "kind": 2, "name": "ND_OUT" },
           "right": 
-            { "kind": 0, "val": 37 } },
+            { "kind": 0, "val": 38 } },
         { "kind": 3,
           "left": 
             { "kind": 2, "name": "ND_NOT" },
           "right": 
-            { "kind": 0, "val": 38 } },
+            { "kind": 0, "val": 39 } },
         { "kind": 3,
           "left": 
             { "kind": 2, "name": "ND_CALL" },
           "right": 
-            { "kind": 0, "val": 39 } },
+            { "kind": 0, "val": 40 } },
         { "kind": 3,
           "left": 
             { "kind": 2, "name": "ND_BLOCK" },
           "right": 
-            { "kind": 0, "val": 40 } },
+            { "kind": 0, "val": 41 } },
         { "kind": 3,
           "left": 
             { "kind": 2, "name": "ND_PRINT" },
           "right": 
-            { "kind": 0, "val": 41 } },
+            { "kind": 0, "val": 42 } },
         { "kind": 3,
           "left": 
             { "kind": 2, "name": "TABLE_SIZE" },

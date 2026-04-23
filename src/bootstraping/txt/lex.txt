@@ -1,4 +1,4 @@
-
+#! ONCE
 # keyword list
 
 TK_KW = list
@@ -42,6 +42,7 @@ TK_KW set 36 "and"
 TK_KW set 37 "or"
 TK_KW set 38 "out"
 TK_KW set 39 "not"
+TK_KW set 40 "skip"
 
 KW_KIND = list
 KW_KIND set 0 TOK_IF
@@ -84,6 +85,7 @@ KW_KIND set 36 TOK_AND
 KW_KIND set 37 TOK_OR
 KW_KIND set 38 TOK_OUT
 KW_KIND set 39 TOK_NOT
+KW_KIND set 40 TOK_SKIP
 
 # Build O(1) Keyword Map
 KW_MAP = dict
@@ -115,26 +117,35 @@ do lex lexer_ctx
   tokens = list
   pos = lexer_ctx at "pos" # Initial position
   line = lexer_ctx at "line" # Initial line
+  boot_debug = lexer_ctx at "boot_debug"
   at_start = 1
   indent_stack = list
   indent_stack set 0 0
   
   src = lexer_ctx at "src" # Source string
   source_len = len src
+  filename = lexer_ctx at "filename"
 
+  last_heartbeat = -1
   while pos < source_len
+    t_count = len tokens
+    if boot_debug and (t_count % 1000 == 0) and t_count != last_heartbeat
+      "Lexer heartbeat: " + tostr t_count + " tokens generated..."
+      last_heartbeat = t_count
+
     char = src at pos
 
-    # 0. Skip \r (CRLF)
-    if char == "\r"
+    # 1. Skip non-structural whitespace (Spaces, Tabs, CRLF)
+    if at_start == 0 and (char == " " or char == "\t" or char == "\r")
       pos = pos + 1
 
-    # 1. Newlines & Deduplication
+    # 2. Newlines & Deduplication
     else if char == "\n"
       # Push TOK_NEWLINE if last wasn't newline
       if len tokens == 0 or (tokens at (len tokens - 1) at "kind") != TOK_NEWLINE
         t = dict
         t key "kind" TOK_NEWLINE
+        t key "filename" filename
         t key "line" line
         t key "pos" pos # Use current pos
         tokens set (len tokens) t
@@ -142,7 +153,7 @@ do lex lexer_ctx
       pos = pos + 1
       at_start = 1
     
-    # 2. Indentation logic
+    # 3. Indentation logic
     else if at_start
       start_pos = pos
       spaces = 0
@@ -151,9 +162,10 @@ do lex lexer_ctx
         pos = pos + 1
       
       next = src at pos
+      at_start = 0 # Ensure we transition out of start-of-line mode immediately
       # Skip indentation for empty lines, CRLF, EOF, or comments
       if next == "\n" or next == "\r" or next == "#" or next == "" or type next == "none"
-        at_start = 0
+        "" # No action needed, next iteration handles these
       else
         top = indent_stack at (len indent_stack - 1)
         if spaces > top
@@ -171,16 +183,19 @@ do lex lexer_ctx
           t key "line" line
           t key "pos" start_pos # Use current start_pos
           tokens set (len tokens) t
-        at_start = 0
 
-    # 3. Skip whitespace
-    else if char == " " or char == "\t"
-      pos = pos + 1
-
-    # 4. Comments
+    # 4. Comments (and Shebang Header Guard)
     else if char == "#"
-      while pos < source_len and (src at pos) != "\n"
-        pos = pos + 1
+      if (slice src pos (pos + 7)) == "#! ONCE"
+        t = dict
+        t key "kind" TOK_SHEBANG
+        t key "line" line
+        t key "pos" pos
+        tokens set (len tokens) t
+        pos = pos + 7
+      else
+        while pos < source_len and (src at pos) != "\n"
+          pos = pos + 1
 
     # 5. Numbers
     else if is_digit char
@@ -259,8 +274,8 @@ do lex lexer_ctx
       op_kind = -1
       op_text = ""
       start_pos = pos
-      next = src at (pos + 1)
-      
+      next = src at (pos + 1) # Peek one ahead
+
       if char == "=" and next == "="
         op_kind = TOK_EQEQ
         op_text = "=="
@@ -333,8 +348,10 @@ do lex lexer_ctx
         t key "line" line # Use current line
         t key "pos" start_pos # Use current start_pos
         tokens set (len tokens) t
-      else
-        report_error (lexer_ctx at "filename") src pos line ("Unexpected character: " + char) # Use report_error
+      
+      if op_kind == -1
+        report_error (lexer_ctx at "filename") src pos line ("Unexpected character: " + char)
+        pos = pos + 1 # Ensure advancement on unknown characters
 
   # 9. Final Dedent Chain
   while (len indent_stack) > 1
