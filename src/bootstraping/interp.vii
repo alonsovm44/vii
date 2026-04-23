@@ -1,5 +1,8 @@
 #! ONCE
 
+# Global cache to store and reuse unique string values
+STRING_CACHE = dict
+
 # ──────────────────────── Value Constructors ────────────────────────
 
 do val_num n
@@ -9,9 +12,15 @@ do val_num n
   v
 
 do val_str s
+  # Check if we already have a VAL_STR object for this string data
+  res = STRING_CACHE at s
+  if type res != "none"
+    out res
+
   v = dict
   v key "kind" VAL_STR
   v key "str" s
+  STRING_CACHE key s v
   v
 
 do val_none
@@ -68,22 +77,24 @@ do val_truthy v
   k = v at "kind"
   if k == VAL_NUM
     out (v at "num") != 0
-  if k == VAL_STR
+  else if k == VAL_STR
     out len (v at "str") > 0
-  if k == VAL_LIST
+  else if k == VAL_LIST
     out len (v at "items") > 0
-  if k == VAL_BIT
+  else if k == VAL_BIT
     out v at "num"
   0
 
 do val_unwrap v
-  if v at "kind" == VAL_REF
-    target = v at "target"
-    if target == v
+  curr = v
+  depth = 0
+  while type curr != "none" and (curr at "kind") == VAL_REF
+    curr = curr at "target"
+    depth = depth + 1
+    if depth > 100
       "Runtime error: circular reference in unwrap"
       exit 1
-    out val_unwrap target
-  v
+  curr
 
 # ──────────────────────── Scope / Table Logic ────────────────────────
 

@@ -318,11 +318,10 @@ Value *eval(Node *n, Table *env) {
                 if (r->kind == VAL_STR) snprintf(ra, sizeof(ra), "%s", r->str);
                 else snprintf(ra, sizeof(ra), "%g", r->num);
                 size_t total_len = strlen(la) + strlen(ra) + 1;
-                /* Use a temporary buffer instead of the Arena for the join */
-                char *combined = malloc(total_len);
-                snprintf(combined, total_len, "%s%s", la, ra);
-                Value *res = val_str(combined);
-                free(combined);
+                char *combined = arena_alloc(global_arena, total_len);
+                memcpy(combined, la, strlen(la));
+                memcpy(combined + strlen(la), ra, strlen(ra) + 1);
+                Value *res = val_num(0); res->kind = VAL_STR; res->str = combined;
                 return res;
             }
             switch (n->op) {
@@ -554,11 +553,10 @@ Value *eval(Node *n, Table *env) {
                 if (e > l) e = l;
                 if (s >= e) return val_str("");
                 int len = e - s;
-                char *b = malloc(len + 1);
+                char *b = arena_alloc(global_arena, len + 1);
                 memcpy(b, v->str + s, len);
                 b[len] = 0;
-                Value *res = val_str(b);
-                free(b);
+                Value *res = val_num(0); res->kind = VAL_STR; res->str = b;
                 return res;
             }
             if (v->kind == VAL_LIST) {

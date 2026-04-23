@@ -98,8 +98,7 @@ do infer_node_type n fn_ctx
     op = n at "op"
     if op >= TOK_LT and op <= TOK_OR
       out "bit"
-    else
-      out "num"
+    out "num"
   else if k == ND_NOT
     out "bit"
   else if k == ND_LEN or k == ND_ORD or k == ND_TONUM or k == ND_TIME
@@ -357,7 +356,7 @@ do parse_postfix p
       advance p
       n = nd_new ND_AT t
       n key "left" expr
-      n key "right" (parse_primary p)
+      n key "right" (parse_postfix p)
       expr = n
 
     else if k == TOK_SET
@@ -365,15 +364,15 @@ do parse_postfix p
       n = nd_new ND_SET t
       n key "left" expr
       nd_push n (parse_primary p)
-      nd_push n (parse_primary p)
+      nd_push n (parse_expr p)
       expr = n
 
     else if k == TOK_KEY
       advance p
       n = nd_new ND_KEY t
       n key "left" expr
-      nd_push n (parse_primary p)
-      nd_push n (parse_primary p)
+      nd_push n (parse_postfix p)
+      nd_push n (parse_postfix p)
       expr = n
 
     else if k == TOK_PUT
@@ -412,7 +411,7 @@ do parse_expr p
   # Binary operators
   t = peek p
   k = t at "kind"
-  while k >= TOK_PLUS and k <= TOK_OR
+  while k >= TOK_EQEQ and k <= TOK_OR
     advance p
     right = parse_postfix p
     n = nd_new ND_BINOP t

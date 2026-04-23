@@ -334,16 +334,6 @@
             { "kind": 0, "val": 56 } },
         { "kind": 3,
           "left": 
-            { "kind": 2, "name": "TOK_SHEBANG" },
-          "right": 
-            { "kind": 0, "val": 63 } },
-        { "kind": 3,
-          "left": 
-            { "kind": 2, "name": "TOK_SKIP" },
-          "right": 
-            { "kind": 0, "val": 64 } },
-        { "kind": 3,
-          "left": 
             { "kind": 2, "name": "TOK_NEWLINE" },
           "right": 
             { "kind": 0, "val": 57 } },
@@ -372,6 +362,16 @@
             { "kind": 2, "name": "TOK_NOT" },
           "right": 
             { "kind": 0, "val": 62 } },
+        { "kind": 3,
+          "left": 
+            { "kind": 2, "name": "TOK_SHEBANG" },
+          "right": 
+            { "kind": 0, "val": 63 } },
+        { "kind": 3,
+          "left": 
+            { "kind": 2, "name": "TOK_SKIP" },
+          "right": 
+            { "kind": 0, "val": 64 } },
         { "kind": 3,
           "left": 
             { "kind": 2, "name": "ND_NUM" },
@@ -424,44 +424,49 @@
             { "kind": 0, "val": 9 } },
         { "kind": 3,
           "left": 
-            { "kind": 2, "name": "ND_FOR" },
+            { "kind": 2, "name": "ND_SKIP" },
           "right": 
             { "kind": 0, "val": 10 } },
         { "kind": 3,
           "left": 
-            { "kind": 2, "name": "ND_SAFE" },
+            { "kind": 2, "name": "ND_FOR" },
           "right": 
             { "kind": 0, "val": 11 } },
         { "kind": 3,
           "left": 
-            { "kind": 2, "name": "ND_ASK" },
+            { "kind": 2, "name": "ND_SAFE" },
           "right": 
             { "kind": 0, "val": 12 } },
         { "kind": 3,
           "left": 
-            { "kind": 2, "name": "ND_ASKFILE" },
+            { "kind": 2, "name": "ND_ASK" },
           "right": 
             { "kind": 0, "val": 13 } },
         { "kind": 3,
           "left": 
-            { "kind": 2, "name": "ND_LIST" },
+            { "kind": 2, "name": "ND_ASKFILE" },
           "right": 
             { "kind": 0, "val": 14 } },
         { "kind": 3,
           "left": 
-            { "kind": 2, "name": "ND_DICT" },
+            { "kind": 2, "name": "ND_LIST" },
           "right": 
             { "kind": 0, "val": 15 } },
         { "kind": 3,
           "left": 
-            { "kind": 2, "name": "ND_KEY" },
+            { "kind": 2, "name": "ND_DICT" },
           "right": 
             { "kind": 0, "val": 16 } },
         { "kind": 3,
           "left": 
-            { "kind": 2, "name": "ND_KEYS" },
+            { "kind": 2, "name": "ND_KEY" },
           "right": 
             { "kind": 0, "val": 17 } },
+        { "kind": 3,
+          "left": 
+            { "kind": 2, "name": "ND_KEYS" },
+          "right": 
+            { "kind": 0, "val": 18 } },
         { "kind": 3,
           "left": 
             { "kind": 2, "name": "ND_AT" },
@@ -562,11 +567,6 @@
             { "kind": 2, "name": "ND_OUT" },
           "right": 
             { "kind": 0, "val": 37 } },
-        { "kind": 3,
-          "left": 
-            { "kind": 2, "name": "ND_SKIP" },
-          "right": 
-            { "kind": 0, "val": 42 } },
         { "kind": 3,
           "left": 
             { "kind": 2, "name": "ND_NOT" },
@@ -4627,14 +4627,10 @@
                                               "right": 
                                                 { "kind": 2, "name": "op" } },
                                           "right": 
-                                            { "kind": 2, "name": "TOK_OR" } },
-                                      "right": 
-                                        { "kind": 41,
-                                          "body": [
-                                            { "kind": 38,
-                                              "left": 
-                                                { "kind": 1, "str": "num" } }
-                                          ] } }
+                                            { "kind": 2, "name": "TOK_OR" } } },
+                                    { "kind": 38,
+                                      "left": 
+                                        { "kind": 1, "str": "num" } }
                                   ] }
                               ],
                               "left": 
@@ -6720,7 +6716,7 @@
                                         { "kind": 2, "name": "p" }
                                       ],
                                       "left": 
-                                        { "kind": 2, "name": "parse_primary" } }
+                                        { "kind": 2, "name": "parse_postfix" } }
                                   ],
                                   "left": 
                                     { "kind": 2, "name": "n" } },
@@ -6792,7 +6788,7 @@
                                                 { "kind": 2, "name": "p" }
                                               ],
                                               "left": 
-                                                { "kind": 2, "name": "parse_primary" } }
+                                                { "kind": 2, "name": "parse_expr" } }
                                           ],
                                           "left": 
                                             { "kind": 2, "name": "nd_push" } } },
@@ -6850,7 +6846,7 @@
                                                     { "kind": 2, "name": "p" }
                                                   ],
                                                   "left": 
-                                                    { "kind": 2, "name": "parse_primary" } }
+                                                    { "kind": 2, "name": "parse_postfix" } }
                                               ],
                                               "left": 
                                                 { "kind": 2, "name": "nd_push" } } },
@@ -6864,7 +6860,7 @@
                                                     { "kind": 2, "name": "p" }
                                                   ],
                                                   "left": 
-                                                    { "kind": 2, "name": "parse_primary" } }
+                                                    { "kind": 2, "name": "parse_postfix" } }
                                               ],
                                               "left": 
                                                 { "kind": 2, "name": "nd_push" } } },
@@ -7300,7 +7296,7 @@
                               "left": 
                                 { "kind": 2, "name": "k" },
                               "right": 
-                                { "kind": 2, "name": "TOK_PLUS" } },
+                                { "kind": 2, "name": "TOK_EQEQ" } },
                           "right": 
                             { "kind": 2, "name": "k" } },
                       "right": 
@@ -9425,6 +9421,11 @@
       ] },
     { "kind": 41,
       "body": [
+        { "kind": 3,
+          "left": 
+            { "kind": 2, "name": "STRING_CACHE" },
+          "right": 
+            { "kind": 16 } },
         { "kind": 9, "name": "val_num",
           "body": [
             { "kind": 2, "name": "n" }
@@ -9462,6 +9463,32 @@
               "body": [
                 { "kind": 3,
                   "left": 
+                    { "kind": 2, "name": "res" },
+                  "right": 
+                    { "kind": 19,
+                      "left": 
+                        { "kind": 2, "name": "STRING_CACHE" },
+                      "right": 
+                        { "kind": 2, "name": "s" } } },
+                { "kind": 6,
+                  "body": [
+                    { "kind": 41,
+                      "body": [
+                        { "kind": 38,
+                          "left": 
+                            { "kind": 2, "name": "res" } }
+                      ] }
+                  ],
+                  "left": 
+                    { "kind": 4,
+                      "left": 
+                        { "kind": 32,
+                          "left": 
+                            { "kind": 2, "name": "res" } },
+                      "right": 
+                        { "kind": 1, "str": "none" } } },
+                { "kind": 3,
+                  "left": 
                     { "kind": 2, "name": "v" },
                   "right": 
                     { "kind": 16 } },
@@ -9479,6 +9506,13 @@
                   ],
                   "left": 
                     { "kind": 2, "name": "v" } },
+                { "kind": 17,
+                  "body": [
+                    { "kind": 2, "name": "s" },
+                    { "kind": 2, "name": "v" }
+                  ],
+                  "left": 
+                    { "kind": 2, "name": "STRING_CACHE" } },
                 { "kind": 2, "name": "v" }
               ] } },
         { "kind": 9, "name": "val_none",
@@ -9848,76 +9882,79 @@
                       "left": 
                         { "kind": 2, "name": "k" },
                       "right": 
-                        { "kind": 2, "name": "VAL_NUM" } } },
-                { "kind": 6,
-                  "body": [
-                    { "kind": 41,
+                        { "kind": 2, "name": "VAL_NUM" } },
+                  "right": 
+                    { "kind": 6,
                       "body": [
-                        { "kind": 38,
+                        { "kind": 41,
+                          "body": [
+                            { "kind": 38,
+                              "left": 
+                                { "kind": 4,
+                                  "left": 
+                                    { "kind": 23,
+                                      "left": 
+                                        { "kind": 19,
+                                          "left": 
+                                            { "kind": 2, "name": "v" },
+                                          "right": 
+                                            { "kind": 1, "str": "str" } } },
+                                  "right": 
+                                    { "kind": 0, "val": 0 } } }
+                          ] }
+                      ],
+                      "left": 
+                        { "kind": 4,
+                          "left": 
+                            { "kind": 2, "name": "k" },
+                          "right": 
+                            { "kind": 2, "name": "VAL_STR" } },
+                      "right": 
+                        { "kind": 6,
+                          "body": [
+                            { "kind": 41,
+                              "body": [
+                                { "kind": 38,
+                                  "left": 
+                                    { "kind": 4,
+                                      "left": 
+                                        { "kind": 23,
+                                          "left": 
+                                            { "kind": 19,
+                                              "left": 
+                                                { "kind": 2, "name": "v" },
+                                              "right": 
+                                                { "kind": 1, "str": "items" } } },
+                                      "right": 
+                                        { "kind": 0, "val": 0 } } }
+                              ] }
+                          ],
                           "left": 
                             { "kind": 4,
                               "left": 
-                                { "kind": 23,
-                                  "left": 
-                                    { "kind": 19,
+                                { "kind": 2, "name": "k" },
+                              "right": 
+                                { "kind": 2, "name": "VAL_LIST" } },
+                          "right": 
+                            { "kind": 6,
+                              "body": [
+                                { "kind": 41,
+                                  "body": [
+                                    { "kind": 38,
                                       "left": 
-                                        { "kind": 2, "name": "v" },
-                                      "right": 
-                                        { "kind": 1, "str": "str" } } },
-                              "right": 
-                                { "kind": 0, "val": 0 } } }
-                      ] }
-                  ],
-                  "left": 
-                    { "kind": 4,
-                      "left": 
-                        { "kind": 2, "name": "k" },
-                      "right": 
-                        { "kind": 2, "name": "VAL_STR" } } },
-                { "kind": 6,
-                  "body": [
-                    { "kind": 41,
-                      "body": [
-                        { "kind": 38,
-                          "left": 
-                            { "kind": 4,
+                                        { "kind": 19,
+                                          "left": 
+                                            { "kind": 2, "name": "v" },
+                                          "right": 
+                                            { "kind": 1, "str": "num" } } }
+                                  ] }
+                              ],
                               "left": 
-                                { "kind": 23,
+                                { "kind": 4,
                                   "left": 
-                                    { "kind": 19,
-                                      "left": 
-                                        { "kind": 2, "name": "v" },
-                                      "right": 
-                                        { "kind": 1, "str": "items" } } },
-                              "right": 
-                                { "kind": 0, "val": 0 } } }
-                      ] }
-                  ],
-                  "left": 
-                    { "kind": 4,
-                      "left": 
-                        { "kind": 2, "name": "k" },
-                      "right": 
-                        { "kind": 2, "name": "VAL_LIST" } } },
-                { "kind": 6,
-                  "body": [
-                    { "kind": 41,
-                      "body": [
-                        { "kind": 38,
-                          "left": 
-                            { "kind": 19,
-                              "left": 
-                                { "kind": 2, "name": "v" },
-                              "right": 
-                                { "kind": 1, "str": "num" } } }
-                      ] }
-                  ],
-                  "left": 
-                    { "kind": 4,
-                      "left": 
-                        { "kind": 2, "name": "k" },
-                      "right": 
-                        { "kind": 2, "name": "VAL_BIT" } } },
+                                    { "kind": 2, "name": "k" },
+                                  "right": 
+                                    { "kind": 2, "name": "VAL_BIT" } } } } } },
                 { "kind": 0, "val": 0 }
               ] } },
         { "kind": 9, "name": "val_unwrap",
@@ -9927,19 +9964,38 @@
           "left": 
             { "kind": 41,
               "body": [
-                { "kind": 6,
+                { "kind": 3,
+                  "left": 
+                    { "kind": 2, "name": "curr" },
+                  "right": 
+                    { "kind": 2, "name": "v" } },
+                { "kind": 3,
+                  "left": 
+                    { "kind": 2, "name": "depth" },
+                  "right": 
+                    { "kind": 0, "val": 0 } },
+                { "kind": 7,
                   "body": [
                     { "kind": 41,
                       "body": [
                         { "kind": 3,
                           "left": 
-                            { "kind": 2, "name": "target" },
+                            { "kind": 2, "name": "curr" },
                           "right": 
                             { "kind": 19,
                               "left": 
-                                { "kind": 2, "name": "v" },
+                                { "kind": 2, "name": "curr" },
                               "right": 
                                 { "kind": 1, "str": "target" } } },
+                        { "kind": 3,
+                          "left": 
+                            { "kind": 2, "name": "depth" },
+                          "right": 
+                            { "kind": 4,
+                              "left": 
+                                { "kind": 2, "name": "depth" },
+                              "right": 
+                                { "kind": 0, "val": 1 } } },
                         { "kind": 6,
                           "body": [
                             { "kind": 41,
@@ -9955,30 +10011,32 @@
                           "left": 
                             { "kind": 4,
                               "left": 
-                                { "kind": 2, "name": "target" },
+                                { "kind": 2, "name": "depth" },
                               "right": 
-                                { "kind": 2, "name": "v" } } },
-                        { "kind": 38,
-                          "left": 
-                            { "kind": 40,
-                              "body": [
-                                { "kind": 2, "name": "target" }
-                              ],
-                              "left": 
-                                { "kind": 2, "name": "val_unwrap" } } }
+                                { "kind": 0, "val": 100 } } }
                       ] }
                   ],
                   "left": 
                     { "kind": 4,
                       "left": 
-                        { "kind": 19,
+                        { "kind": 4,
                           "left": 
-                            { "kind": 2, "name": "v" },
+                            { "kind": 4,
+                              "left": 
+                                { "kind": 32,
+                                  "left": 
+                                    { "kind": 2, "name": "curr" } },
+                              "right": 
+                                { "kind": 1, "str": "none" } },
                           "right": 
-                            { "kind": 1, "str": "kind" } },
+                            { "kind": 19,
+                              "left": 
+                                { "kind": 2, "name": "curr" },
+                              "right": 
+                                { "kind": 1, "str": "kind" } } },
                       "right": 
                         { "kind": 2, "name": "VAL_REF" } } },
-                { "kind": 2, "name": "v" }
+                { "kind": 2, "name": "curr" }
               ] } },
         { "kind": 3,
           "left": 
@@ -13802,6 +13860,2533 @@
                 { "kind": 2, "name": "val_none" }
               ] } }
       ] },
+    { "kind": 41,
+      "body": [
+        { "kind": 3,
+          "left": 
+            { "kind": 2, "name": "c_lines" },
+          "right": 
+            { "kind": 15 } },
+        { "kind": 3,
+          "left": 
+            { "kind": 2, "name": "indent_lvl" },
+          "right": 
+            { "kind": 0, "val": 0 } },
+        { "kind": 3,
+          "left": 
+            { "kind": 2, "name": "declared_vars" },
+          "right": 
+            { "kind": 16 } },
+        { "kind": 3,
+          "left": 
+            { "kind": 2, "name": "indent_cache" },
+          "right": 
+            { "kind": 16 } },
+        { "kind": 9, "name": "init_indent_cache",
+          "left": 
+            { "kind": 41,
+              "body": [
+                { "kind": 3,
+                  "left": 
+                    { "kind": 2, "name": "i" },
+                  "right": 
+                    { "kind": 0, "val": 0 } },
+                { "kind": 7,
+                  "body": [
+                    { "kind": 41,
+                      "body": [
+                        { "kind": 3,
+                          "left": 
+                            { "kind": 2, "name": "s" },
+                          "right": 
+                            { "kind": 1, "str": "" } },
+                        { "kind": 3,
+                          "left": 
+                            { "kind": 2, "name": "j" },
+                          "right": 
+                            { "kind": 0, "val": 0 } },
+                        { "kind": 7,
+                          "body": [
+                            { "kind": 41,
+                              "body": [
+                                { "kind": 3,
+                                  "left": 
+                                    { "kind": 2, "name": "s" },
+                                  "right": 
+                                    { "kind": 4,
+                                      "left": 
+                                        { "kind": 2, "name": "s" },
+                                      "right": 
+                                        { "kind": 1, "str": "  " } } },
+                                { "kind": 3,
+                                  "left": 
+                                    { "kind": 2, "name": "j" },
+                                  "right": 
+                                    { "kind": 4,
+                                      "left": 
+                                        { "kind": 2, "name": "j" },
+                                      "right": 
+                                        { "kind": 0, "val": 1 } } }
+                              ] }
+                          ],
+                          "left": 
+                            { "kind": 4,
+                              "left": 
+                                { "kind": 2, "name": "j" },
+                              "right": 
+                                { "kind": 2, "name": "i" } } },
+                        { "kind": 17,
+                          "body": [
+                            { "kind": 27,
+                              "left": 
+                                { "kind": 2, "name": "i" } },
+                            { "kind": 2, "name": "s" }
+                          ],
+                          "left": 
+                            { "kind": 2, "name": "indent_cache" } },
+                        { "kind": 3,
+                          "left": 
+                            { "kind": 2, "name": "i" },
+                          "right": 
+                            { "kind": 4,
+                              "left": 
+                                { "kind": 2, "name": "i" },
+                              "right": 
+                                { "kind": 0, "val": 1 } } }
+                      ] }
+                  ],
+                  "left": 
+                    { "kind": 4,
+                      "left": 
+                        { "kind": 2, "name": "i" },
+                      "right": 
+                        { "kind": 0, "val": 32 } } }
+              ] } },
+        { "kind": 9, "name": "emit",
+          "body": [
+            { "kind": 2, "name": "line" }
+          ],
+          "left": 
+            { "kind": 41,
+              "body": [
+                { "kind": 3,
+                  "left": 
+                    { "kind": 2, "name": "indent_str" },
+                  "right": 
+                    { "kind": 19,
+                      "left": 
+                        { "kind": 2, "name": "indent_cache" },
+                      "right": 
+                        { "kind": 27,
+                          "left": 
+                            { "kind": 2, "name": "indent_lvl" } } } },
+                { "kind": 6,
+                  "body": [
+                    { "kind": 41,
+                      "body": [
+                        { "kind": 3,
+                          "left": 
+                            { "kind": 2, "name": "indent_str" },
+                          "right": 
+                            { "kind": 1, "str": "" } }
+                      ] }
+                  ],
+                  "left": 
+                    { "kind": 4,
+                      "left": 
+                        { "kind": 32,
+                          "left": 
+                            { "kind": 2, "name": "indent_str" } },
+                      "right": 
+                        { "kind": 1, "str": "none" } } },
+                { "kind": 20,
+                  "body": [
+                    { "kind": 23,
+                      "left": 
+                        { "kind": 2, "name": "c_lines" } },
+                    { "kind": 4,
+                      "left": 
+                        { "kind": 2, "name": "indent_str" },
+                      "right": 
+                        { "kind": 2, "name": "line" } }
+                  ],
+                  "left": 
+                    { "kind": 2, "name": "c_lines" } }
+              ] } },
+        { "kind": 9, "name": "hoist_vars",
+          "body": [
+            { "kind": 2, "name": "node" }
+          ],
+          "left": 
+            { "kind": 41,
+              "body": [
+                { "kind": 6,
+                  "body": [
+                    { "kind": 41,
+                      "body": [
+                        { "kind": 38,
+                          "left": 
+                            { "kind": 0, "val": 0 } }
+                      ] }
+                  ],
+                  "left": 
+                    { "kind": 4,
+                      "left": 
+                        { "kind": 32,
+                          "left": 
+                            { "kind": 2, "name": "node" } },
+                      "right": 
+                        { "kind": 1, "str": "none" } } },
+                { "kind": 3,
+                  "left": 
+                    { "kind": 2, "name": "k" },
+                  "right": 
+                    { "kind": 19,
+                      "left": 
+                        { "kind": 2, "name": "node" },
+                      "right": 
+                        { "kind": 1, "str": "kind" } } },
+                { "kind": 6,
+                  "body": [
+                    { "kind": 41,
+                      "body": [
+                        { "kind": 3,
+                          "left": 
+                            { "kind": 2, "name": "left" },
+                          "right": 
+                            { "kind": 19,
+                              "left": 
+                                { "kind": 2, "name": "node" },
+                              "right": 
+                                { "kind": 1, "str": "left" } } },
+                        { "kind": 6,
+                          "body": [
+                            { "kind": 41,
+                              "body": [
+                                { "kind": 17,
+                                  "body": [
+                                    { "kind": 19,
+                                      "left": 
+                                        { "kind": 2, "name": "left" },
+                                      "right": 
+                                        { "kind": 1, "str": "name" } },
+                                    { "kind": 0, "val": 1 }
+                                  ],
+                                  "left": 
+                                    { "kind": 2, "name": "declared_vars" } }
+                              ] }
+                          ],
+                          "left": 
+                            { "kind": 4,
+                              "left": 
+                                { "kind": 19,
+                                  "left": 
+                                    { "kind": 2, "name": "left" },
+                                  "right": 
+                                    { "kind": 1, "str": "kind" } },
+                              "right": 
+                                { "kind": 2, "name": "ND_VAR" } } },
+                        { "kind": 42,
+                          "left": 
+                            { "kind": 40,
+                              "body": [
+                                { "kind": 19,
+                                  "left": 
+                                    { "kind": 2, "name": "node" },
+                                  "right": 
+                                    { "kind": 1, "str": "right" } }
+                              ],
+                              "left": 
+                                { "kind": 2, "name": "hoist_vars" } } }
+                      ] }
+                  ],
+                  "left": 
+                    { "kind": 4,
+                      "left": 
+                        { "kind": 2, "name": "k" },
+                      "right": 
+                        { "kind": 2, "name": "ND_ASSIGN" } },
+                  "right": 
+                    { "kind": 6,
+                      "body": [
+                        { "kind": 41,
+                          "body": [
+                            { "kind": 42,
+                              "left": 
+                                { "kind": 40,
+                                  "body": [
+                                    { "kind": 19,
+                                      "left": 
+                                        { "kind": 2, "name": "node" },
+                                      "right": 
+                                        { "kind": 1, "str": "left" } }
+                                  ],
+                                  "left": 
+                                    { "kind": 2, "name": "hoist_vars" } } },
+                            { "kind": 42,
+                              "left": 
+                                { "kind": 40,
+                                  "body": [
+                                    { "kind": 19,
+                                      "left": 
+                                        { "kind": 2, "name": "node" },
+                                      "right": 
+                                        { "kind": 1, "str": "right" } }
+                                  ],
+                                  "left": 
+                                    { "kind": 2, "name": "hoist_vars" } } }
+                          ] }
+                      ],
+                      "left": 
+                        { "kind": 4,
+                          "left": 
+                            { "kind": 2, "name": "k" },
+                          "right": 
+                            { "kind": 2, "name": "ND_BINOP" } },
+                      "right": 
+                        { "kind": 6,
+                          "body": [
+                            { "kind": 41,
+                              "body": [
+                                { "kind": 42,
+                                  "left": 
+                                    { "kind": 40,
+                                      "body": [
+                                        { "kind": 19,
+                                          "left": 
+                                            { "kind": 2, "name": "node" },
+                                          "right": 
+                                            { "kind": 1, "str": "left" } }
+                                      ],
+                                      "left": 
+                                        { "kind": 2, "name": "hoist_vars" } } },
+                                { "kind": 3,
+                                  "left": 
+                                    { "kind": 2, "name": "body" },
+                                  "right": 
+                                    { "kind": 19,
+                                      "left": 
+                                        { "kind": 2, "name": "node" },
+                                      "right": 
+                                        { "kind": 1, "str": "body" } } },
+                                { "kind": 6,
+                                  "body": [
+                                    { "kind": 41,
+                                      "body": [
+                                        { "kind": 42,
+                                          "left": 
+                                            { "kind": 40,
+                                              "body": [
+                                                { "kind": 19,
+                                                  "left": 
+                                                    { "kind": 2, "name": "body" },
+                                                  "right": 
+                                                    { "kind": 0, "val": 0 } }
+                                              ],
+                                              "left": 
+                                                { "kind": 2, "name": "hoist_vars" } } }
+                                      ] }
+                                  ],
+                                  "left": 
+                                    { "kind": 4,
+                                      "left": 
+                                        { "kind": 23,
+                                          "left": 
+                                            { "kind": 2, "name": "body" } },
+                                      "right": 
+                                        { "kind": 0, "val": 0 } } },
+                                { "kind": 6,
+                                  "body": [
+                                    { "kind": 41,
+                                      "body": [
+                                        { "kind": 42,
+                                          "left": 
+                                            { "kind": 40,
+                                              "body": [
+                                                { "kind": 19,
+                                                  "left": 
+                                                    { "kind": 2, "name": "node" },
+                                                  "right": 
+                                                    { "kind": 1, "str": "right" } }
+                                              ],
+                                              "left": 
+                                                { "kind": 2, "name": "hoist_vars" } } }
+                                      ] }
+                                  ],
+                                  "left": 
+                                    { "kind": 4,
+                                      "left": 
+                                        { "kind": 32,
+                                          "left": 
+                                            { "kind": 19,
+                                              "left": 
+                                                { "kind": 2, "name": "node" },
+                                              "right": 
+                                                { "kind": 1, "str": "right" } } },
+                                      "right": 
+                                        { "kind": 1, "str": "none" } } }
+                              ] }
+                          ],
+                          "left": 
+                            { "kind": 4,
+                              "left": 
+                                { "kind": 2, "name": "k" },
+                              "right": 
+                                { "kind": 2, "name": "ND_IF" } },
+                          "right": 
+                            { "kind": 6,
+                              "body": [
+                                { "kind": 41,
+                                  "body": [
+                                    { "kind": 42,
+                                      "left": 
+                                        { "kind": 40,
+                                          "body": [
+                                            { "kind": 19,
+                                              "left": 
+                                                { "kind": 2, "name": "node" },
+                                              "right": 
+                                                { "kind": 1, "str": "left" } }
+                                          ],
+                                          "left": 
+                                            { "kind": 2, "name": "hoist_vars" } } },
+                                    { "kind": 3,
+                                      "left": 
+                                        { "kind": 2, "name": "body" },
+                                      "right": 
+                                        { "kind": 19,
+                                          "left": 
+                                            { "kind": 2, "name": "node" },
+                                          "right": 
+                                            { "kind": 1, "str": "body" } } },
+                                    { "kind": 6,
+                                      "body": [
+                                        { "kind": 41,
+                                          "body": [
+                                            { "kind": 42,
+                                              "left": 
+                                                { "kind": 40,
+                                                  "body": [
+                                                    { "kind": 19,
+                                                      "left": 
+                                                        { "kind": 2, "name": "body" },
+                                                      "right": 
+                                                        { "kind": 0, "val": 0 } }
+                                                  ],
+                                                  "left": 
+                                                    { "kind": 2, "name": "hoist_vars" } } }
+                                          ] }
+                                      ],
+                                      "left": 
+                                        { "kind": 4,
+                                          "left": 
+                                            { "kind": 23,
+                                              "left": 
+                                                { "kind": 2, "name": "body" } },
+                                          "right": 
+                                            { "kind": 0, "val": 0 } } }
+                                  ] }
+                              ],
+                              "left": 
+                                { "kind": 4,
+                                  "left": 
+                                    { "kind": 4,
+                                      "left": 
+                                        { "kind": 4,
+                                          "left": 
+                                            { "kind": 2, "name": "k" },
+                                          "right": 
+                                            { "kind": 2, "name": "ND_WHILE" } },
+                                      "right": 
+                                        { "kind": 2, "name": "k" } },
+                                  "right": 
+                                    { "kind": 2, "name": "ND_FOR" } },
+                              "right": 
+                                { "kind": 6,
+                                  "body": [
+                                    { "kind": 41,
+                                      "body": [
+                                        { "kind": 3,
+                                          "left": 
+                                            { "kind": 2, "name": "body" },
+                                          "right": 
+                                            { "kind": 19,
+                                              "left": 
+                                                { "kind": 2, "name": "node" },
+                                              "right": 
+                                                { "kind": 1, "str": "body" } } },
+                                        { "kind": 3,
+                                          "left": 
+                                            { "kind": 2, "name": "i" },
+                                          "right": 
+                                            { "kind": 0, "val": 0 } },
+                                        { "kind": 7,
+                                          "body": [
+                                            { "kind": 41,
+                                              "body": [
+                                                { "kind": 42,
+                                                  "left": 
+                                                    { "kind": 40,
+                                                      "body": [
+                                                        { "kind": 19,
+                                                          "left": 
+                                                            { "kind": 2, "name": "body" },
+                                                          "right": 
+                                                            { "kind": 2, "name": "i" } }
+                                                      ],
+                                                      "left": 
+                                                        { "kind": 2, "name": "hoist_vars" } } },
+                                                { "kind": 3,
+                                                  "left": 
+                                                    { "kind": 2, "name": "i" },
+                                                  "right": 
+                                                    { "kind": 4,
+                                                      "left": 
+                                                        { "kind": 2, "name": "i" },
+                                                      "right": 
+                                                        { "kind": 0, "val": 1 } } }
+                                              ] }
+                                          ],
+                                          "left": 
+                                            { "kind": 4,
+                                              "left": 
+                                                { "kind": 2, "name": "i" },
+                                              "right": 
+                                                { "kind": 23,
+                                                  "left": 
+                                                    { "kind": 2, "name": "body" } } } }
+                                      ] }
+                                  ],
+                                  "left": 
+                                    { "kind": 4,
+                                      "left": 
+                                        { "kind": 2, "name": "k" },
+                                      "right": 
+                                        { "kind": 2, "name": "ND_BLOCK" } },
+                                  "right": 
+                                    { "kind": 6,
+                                      "body": [
+                                        { "kind": 41,
+                                          "body": [
+                                            { "kind": 42,
+                                              "left": 
+                                                { "kind": 40,
+                                                  "body": [
+                                                    { "kind": 19,
+                                                      "left": 
+                                                        { "kind": 2, "name": "node" },
+                                                      "right": 
+                                                        { "kind": 1, "str": "left" } }
+                                                  ],
+                                                  "left": 
+                                                    { "kind": 2, "name": "hoist_vars" } } }
+                                          ] }
+                                      ],
+                                      "left": 
+                                        { "kind": 4,
+                                          "left": 
+                                            { "kind": 4,
+                                              "left": 
+                                                { "kind": 4,
+                                                  "left": 
+                                                    { "kind": 4,
+                                                      "left": 
+                                                        { "kind": 4,
+                                                          "left": 
+                                                            { "kind": 4,
+                                                              "left": 
+                                                                { "kind": 4,
+                                                                  "left": 
+                                                                    { "kind": 4,
+                                                                      "left": 
+                                                                        { "kind": 4,
+                                                                          "left": 
+                                                                            { "kind": 2, "name": "k" },
+                                                                          "right": 
+                                                                            { "kind": 2, "name": "ND_OUT" } },
+                                                                      "right": 
+                                                                        { "kind": 2, "name": "k" } },
+                                                                  "right": 
+                                                                    { "kind": 2, "name": "ND_PRINT" } },
+                                                              "right": 
+                                                                { "kind": 2, "name": "k" } },
+                                                          "right": 
+                                                            { "kind": 2, "name": "ND_LEN" } },
+                                                      "right": 
+                                                        { "kind": 2, "name": "k" } },
+                                                  "right": 
+                                                    { "kind": 2, "name": "ND_TONUM" } },
+                                              "right": 
+                                                { "kind": 2, "name": "k" } },
+                                          "right": 
+                                            { "kind": 2, "name": "ND_TOSTR" } } } } } } } }
+              ] } },
+        { "kind": 9, "name": "emit_expr",
+          "body": [
+            { "kind": 2, "name": "n" }
+          ],
+          "left": 
+            { "kind": 41,
+              "body": [
+                { "kind": 6,
+                  "body": [
+                    { "kind": 41,
+                      "body": [
+                        { "kind": 38,
+                          "left": 
+                            { "kind": 1, "str": "val_none()" } }
+                      ] }
+                  ],
+                  "left": 
+                    { "kind": 4,
+                      "left": 
+                        { "kind": 32,
+                          "left": 
+                            { "kind": 2, "name": "n" } },
+                      "right": 
+                        { "kind": 1, "str": "none" } } },
+                { "kind": 3,
+                  "left": 
+                    { "kind": 2, "name": "k" },
+                  "right": 
+                    { "kind": 19,
+                      "left": 
+                        { "kind": 2, "name": "n" },
+                      "right": 
+                        { "kind": 1, "str": "kind" } } },
+                { "kind": 6,
+                  "body": [
+                    { "kind": 41,
+                      "body": [
+                        { "kind": 38,
+                          "left": 
+                            { "kind": 4,
+                              "left": 
+                                { "kind": 4,
+                                  "left": 
+                                    { "kind": 1, "str": "val_num(" },
+                                  "right": 
+                                    { "kind": 27,
+                                      "left": 
+                                        { "kind": 19,
+                                          "left": 
+                                            { "kind": 2, "name": "n" },
+                                          "right": 
+                                            { "kind": 1, "str": "num" } } } },
+                              "right": 
+                                { "kind": 1, "str": ")" } } }
+                      ] }
+                  ],
+                  "left": 
+                    { "kind": 4,
+                      "left": 
+                        { "kind": 2, "name": "k" },
+                      "right": 
+                        { "kind": 2, "name": "ND_NUM" } } },
+                { "kind": 6,
+                  "body": [
+                    { "kind": 41,
+                      "body": [
+                        { "kind": 38,
+                          "left": 
+                            { "kind": 4,
+                              "left": 
+                                { "kind": 4,
+                                  "left": 
+                                    { "kind": 1, "str": "val_str("" },
+                                  "right": 
+                                    { "kind": 19,
+                                      "left": 
+                                        { "kind": 2, "name": "n" },
+                                      "right": 
+                                        { "kind": 1, "str": "str" } } },
+                              "right": 
+                                { "kind": 1, "str": "")" } } }
+                      ] }
+                  ],
+                  "left": 
+                    { "kind": 4,
+                      "left": 
+                        { "kind": 2, "name": "k" },
+                      "right": 
+                        { "kind": 2, "name": "ND_STR" } } },
+                { "kind": 6,
+                  "body": [
+                    { "kind": 41,
+                      "body": [
+                        { "kind": 38,
+                          "left": 
+                            { "kind": 19,
+                              "left": 
+                                { "kind": 2, "name": "n" },
+                              "right": 
+                                { "kind": 1, "str": "name" } } }
+                      ] }
+                  ],
+                  "left": 
+                    { "kind": 4,
+                      "left": 
+                        { "kind": 2, "name": "k" },
+                      "right": 
+                        { "kind": 2, "name": "ND_VAR" } } },
+                { "kind": 6,
+                  "body": [
+                    { "kind": 41,
+                      "body": [
+                        { "kind": 38,
+                          "left": 
+                            { "kind": 4,
+                              "left": 
+                                { "kind": 4,
+                                  "left": 
+                                    { "kind": 1, "str": "val_not(" },
+                                  "right": 
+                                    { "kind": 40,
+                                      "body": [
+                                        { "kind": 19,
+                                          "left": 
+                                            { "kind": 2, "name": "n" },
+                                          "right": 
+                                            { "kind": 1, "str": "left" } }
+                                      ],
+                                      "left": 
+                                        { "kind": 2, "name": "emit_expr" } } },
+                              "right": 
+                                { "kind": 1, "str": ")" } } }
+                      ] }
+                  ],
+                  "left": 
+                    { "kind": 4,
+                      "left": 
+                        { "kind": 2, "name": "k" },
+                      "right": 
+                        { "kind": 2, "name": "ND_NOT" } } },
+                { "kind": 6,
+                  "body": [
+                    { "kind": 41,
+                      "body": [
+                        { "kind": 38,
+                          "left": 
+                            { "kind": 4,
+                              "left": 
+                                { "kind": 4,
+                                  "left": 
+                                    { "kind": 1, "str": "val_len(" },
+                                  "right": 
+                                    { "kind": 40,
+                                      "body": [
+                                        { "kind": 19,
+                                          "left": 
+                                            { "kind": 2, "name": "n" },
+                                          "right": 
+                                            { "kind": 1, "str": "left" } }
+                                      ],
+                                      "left": 
+                                        { "kind": 2, "name": "emit_expr" } } },
+                              "right": 
+                                { "kind": 1, "str": ")" } } }
+                      ] }
+                  ],
+                  "left": 
+                    { "kind": 4,
+                      "left": 
+                        { "kind": 2, "name": "k" },
+                      "right": 
+                        { "kind": 2, "name": "ND_LEN" } } },
+                { "kind": 6,
+                  "body": [
+                    { "kind": 41,
+                      "body": [
+                        { "kind": 38,
+                          "left": 
+                            { "kind": 4,
+                              "left": 
+                                { "kind": 4,
+                                  "left": 
+                                    { "kind": 1, "str": "val_tonum(" },
+                                  "right": 
+                                    { "kind": 40,
+                                      "body": [
+                                        { "kind": 19,
+                                          "left": 
+                                            { "kind": 2, "name": "n" },
+                                          "right": 
+                                            { "kind": 1, "str": "left" } }
+                                      ],
+                                      "left": 
+                                        { "kind": 2, "name": "emit_expr" } } },
+                              "right": 
+                                { "kind": 1, "str": ")" } } }
+                      ] }
+                  ],
+                  "left": 
+                    { "kind": 4,
+                      "left": 
+                        { "kind": 2, "name": "k" },
+                      "right": 
+                        { "kind": 2, "name": "ND_TONUM" } } },
+                { "kind": 6,
+                  "body": [
+                    { "kind": 41,
+                      "body": [
+                        { "kind": 38,
+                          "left": 
+                            { "kind": 4,
+                              "left": 
+                                { "kind": 4,
+                                  "left": 
+                                    { "kind": 1, "str": "val_tostr(" },
+                                  "right": 
+                                    { "kind": 40,
+                                      "body": [
+                                        { "kind": 19,
+                                          "left": 
+                                            { "kind": 2, "name": "n" },
+                                          "right": 
+                                            { "kind": 1, "str": "left" } }
+                                      ],
+                                      "left": 
+                                        { "kind": 2, "name": "emit_expr" } } },
+                              "right": 
+                                { "kind": 1, "str": ")" } } }
+                      ] }
+                  ],
+                  "left": 
+                    { "kind": 4,
+                      "left": 
+                        { "kind": 2, "name": "k" },
+                      "right": 
+                        { "kind": 2, "name": "ND_TOSTR" } } },
+                { "kind": 6,
+                  "body": [
+                    { "kind": 41,
+                      "body": [
+                        { "kind": 38,
+                          "left": 
+                            { "kind": 4,
+                              "left": 
+                                { "kind": 4,
+                                  "left": 
+                                    { "kind": 1, "str": "val_type(" },
+                                  "right": 
+                                    { "kind": 40,
+                                      "body": [
+                                        { "kind": 19,
+                                          "left": 
+                                            { "kind": 2, "name": "n" },
+                                          "right": 
+                                            { "kind": 1, "str": "left" } }
+                                      ],
+                                      "left": 
+                                        { "kind": 2, "name": "emit_expr" } } },
+                              "right": 
+                                { "kind": 1, "str": ")" } } }
+                      ] }
+                  ],
+                  "left": 
+                    { "kind": 4,
+                      "left": 
+                        { "kind": 2, "name": "k" },
+                      "right": 
+                        { "kind": 2, "name": "ND_TYPE" } } },
+                { "kind": 6,
+                  "body": [
+                    { "kind": 41,
+                      "body": [
+                        { "kind": 38,
+                          "left": 
+                            { "kind": 1, "str": "val_list()" } }
+                      ] }
+                  ],
+                  "left": 
+                    { "kind": 4,
+                      "left": 
+                        { "kind": 2, "name": "k" },
+                      "right": 
+                        { "kind": 2, "name": "ND_LIST" } } },
+                { "kind": 6,
+                  "body": [
+                    { "kind": 41,
+                      "body": [
+                        { "kind": 38,
+                          "left": 
+                            { "kind": 1, "str": "val_dict()" } }
+                      ] }
+                  ],
+                  "left": 
+                    { "kind": 4,
+                      "left": 
+                        { "kind": 2, "name": "k" },
+                      "right": 
+                        { "kind": 2, "name": "ND_DICT" } } },
+                { "kind": 6,
+                  "body": [
+                    { "kind": 41,
+                      "body": [
+                        { "kind": 38,
+                          "left": 
+                            { "kind": 4,
+                              "left": 
+                                { "kind": 4,
+                                  "left": 
+                                    { "kind": 4,
+                                      "left": 
+                                        { "kind": 4,
+                                          "left": 
+                                            { "kind": 1, "str": "val_at(" },
+                                          "right": 
+                                            { "kind": 40,
+                                              "body": [
+                                                { "kind": 19,
+                                                  "left": 
+                                                    { "kind": 2, "name": "n" },
+                                                  "right": 
+                                                    { "kind": 1, "str": "left" } }
+                                              ],
+                                              "left": 
+                                                { "kind": 2, "name": "emit_expr" } } },
+                                      "right": 
+                                        { "kind": 1, "str": ", " } },
+                                  "right": 
+                                    { "kind": 40,
+                                      "body": [
+                                        { "kind": 19,
+                                          "left": 
+                                            { "kind": 2, "name": "n" },
+                                          "right": 
+                                            { "kind": 1, "str": "right" } }
+                                      ],
+                                      "left": 
+                                        { "kind": 2, "name": "emit_expr" } } },
+                              "right": 
+                                { "kind": 1, "str": ")" } } }
+                      ] }
+                  ],
+                  "left": 
+                    { "kind": 4,
+                      "left": 
+                        { "kind": 2, "name": "k" },
+                      "right": 
+                        { "kind": 2, "name": "ND_AT" } } },
+                { "kind": 6,
+                  "body": [
+                    { "kind": 41,
+                      "body": [
+                        { "kind": 3,
+                          "left": 
+                            { "kind": 2, "name": "body" },
+                          "right": 
+                            { "kind": 19,
+                              "left": 
+                                { "kind": 2, "name": "n" },
+                              "right": 
+                                { "kind": 1, "str": "body" } } },
+                        { "kind": 38,
+                          "left": 
+                            { "kind": 4,
+                              "left": 
+                                { "kind": 4,
+                                  "left": 
+                                    { "kind": 4,
+                                      "left": 
+                                        { "kind": 4,
+                                          "left": 
+                                            { "kind": 4,
+                                              "left": 
+                                                { "kind": 4,
+                                                  "left": 
+                                                    { "kind": 1, "str": "val_slice(" },
+                                                  "right": 
+                                                    { "kind": 40,
+                                                      "body": [
+                                                        { "kind": 19,
+                                                          "left": 
+                                                            { "kind": 2, "name": "n" },
+                                                          "right": 
+                                                            { "kind": 1, "str": "left" } }
+                                                      ],
+                                                      "left": 
+                                                        { "kind": 2, "name": "emit_expr" } } },
+                                              "right": 
+                                                { "kind": 1, "str": ", " } },
+                                          "right": 
+                                            { "kind": 40,
+                                              "body": [
+                                                { "kind": 19,
+                                                  "left": 
+                                                    { "kind": 2, "name": "body" },
+                                                  "right": 
+                                                    { "kind": 0, "val": 0 } }
+                                              ],
+                                              "left": 
+                                                { "kind": 2, "name": "emit_expr" } } },
+                                      "right": 
+                                        { "kind": 1, "str": ", " } },
+                                  "right": 
+                                    { "kind": 40,
+                                      "body": [
+                                        { "kind": 19,
+                                          "left": 
+                                            { "kind": 2, "name": "body" },
+                                          "right": 
+                                            { "kind": 0, "val": 1 } }
+                                      ],
+                                      "left": 
+                                        { "kind": 2, "name": "emit_expr" } } },
+                              "right": 
+                                { "kind": 1, "str": ")" } } }
+                      ] }
+                  ],
+                  "left": 
+                    { "kind": 4,
+                      "left": 
+                        { "kind": 2, "name": "k" },
+                      "right": 
+                        { "kind": 2, "name": "ND_SLICE" } } },
+                { "kind": 6,
+                  "body": [
+                    { "kind": 41,
+                      "body": [
+                        { "kind": 3,
+                          "left": 
+                            { "kind": 2, "name": "l" },
+                          "right": 
+                            { "kind": 40,
+                              "body": [
+                                { "kind": 19,
+                                  "left": 
+                                    { "kind": 2, "name": "n" },
+                                  "right": 
+                                    { "kind": 1, "str": "left" } }
+                              ],
+                              "left": 
+                                { "kind": 2, "name": "emit_expr" } } },
+                        { "kind": 3,
+                          "left": 
+                            { "kind": 2, "name": "r" },
+                          "right": 
+                            { "kind": 40,
+                              "body": [
+                                { "kind": 19,
+                                  "left": 
+                                    { "kind": 2, "name": "n" },
+                                  "right": 
+                                    { "kind": 1, "str": "right" } }
+                              ],
+                              "left": 
+                                { "kind": 2, "name": "emit_expr" } } },
+                        { "kind": 3,
+                          "left": 
+                            { "kind": 2, "name": "op" },
+                          "right": 
+                            { "kind": 19,
+                              "left": 
+                                { "kind": 2, "name": "n" },
+                              "right": 
+                                { "kind": 1, "str": "op" } } },
+                        { "kind": 38,
+                          "left": 
+                            { "kind": 4,
+                              "left": 
+                                { "kind": 4,
+                                  "left": 
+                                    { "kind": 4,
+                                      "left": 
+                                        { "kind": 4,
+                                          "left": 
+                                            { "kind": 4,
+                                              "left": 
+                                                { "kind": 4,
+                                                  "left": 
+                                                    { "kind": 1, "str": "runtime_binop(" },
+                                                  "right": 
+                                                    { "kind": 2, "name": "l" } },
+                                              "right": 
+                                                { "kind": 1, "str": ", " } },
+                                          "right": 
+                                            { "kind": 27,
+                                              "left": 
+                                                { "kind": 2, "name": "op" } } },
+                                      "right": 
+                                        { "kind": 1, "str": ", " } },
+                                  "right": 
+                                    { "kind": 2, "name": "r" } },
+                              "right": 
+                                { "kind": 1, "str": ")" } } }
+                      ] }
+                  ],
+                  "left": 
+                    { "kind": 4,
+                      "left": 
+                        { "kind": 2, "name": "k" },
+                      "right": 
+                        { "kind": 2, "name": "ND_BINOP" } } },
+                { "kind": 6,
+                  "body": [
+                    { "kind": 41,
+                      "body": [
+                        { "kind": 3,
+                          "left": 
+                            { "kind": 2, "name": "name" },
+                          "right": 
+                            { "kind": 19,
+                              "left": 
+                                { "kind": 19,
+                                  "left": 
+                                    { "kind": 2, "name": "n" },
+                                  "right": 
+                                    { "kind": 1, "str": "left" } },
+                              "right": 
+                                { "kind": 1, "str": "name" } } },
+                        { "kind": 3,
+                          "left": 
+                            { "kind": 2, "name": "args" },
+                          "right": 
+                            { "kind": 19,
+                              "left": 
+                                { "kind": 2, "name": "n" },
+                              "right": 
+                                { "kind": 1, "str": "body" } } },
+                        { "kind": 3,
+                          "left": 
+                            { "kind": 2, "name": "s" },
+                          "right": 
+                            { "kind": 4,
+                              "left": 
+                                { "kind": 4,
+                                  "left": 
+                                    { "kind": 4,
+                                      "left": 
+                                        { "kind": 1, "str": "val_call(" },
+                                      "right": 
+                                        { "kind": 2, "name": "name" } },
+                                  "right": 
+                                    { "kind": 1, "str": ", " } },
+                              "right": 
+                                { "kind": 27,
+                                  "left": 
+                                    { "kind": 23,
+                                      "left": 
+                                        { "kind": 2, "name": "args" } } } } },
+                        { "kind": 3,
+                          "left": 
+                            { "kind": 2, "name": "i" },
+                          "right": 
+                            { "kind": 0, "val": 0 } },
+                        { "kind": 7,
+                          "body": [
+                            { "kind": 41,
+                              "body": [
+                                { "kind": 3,
+                                  "left": 
+                                    { "kind": 2, "name": "s" },
+                                  "right": 
+                                    { "kind": 4,
+                                      "left": 
+                                        { "kind": 4,
+                                          "left": 
+                                            { "kind": 2, "name": "s" },
+                                          "right": 
+                                            { "kind": 1, "str": ", " } },
+                                      "right": 
+                                        { "kind": 40,
+                                          "body": [
+                                            { "kind": 19,
+                                              "left": 
+                                                { "kind": 2, "name": "args" },
+                                              "right": 
+                                                { "kind": 2, "name": "i" } }
+                                          ],
+                                          "left": 
+                                            { "kind": 2, "name": "emit_expr" } } } },
+                                { "kind": 3,
+                                  "left": 
+                                    { "kind": 2, "name": "i" },
+                                  "right": 
+                                    { "kind": 4,
+                                      "left": 
+                                        { "kind": 2, "name": "i" },
+                                      "right": 
+                                        { "kind": 0, "val": 1 } } }
+                              ] }
+                          ],
+                          "left": 
+                            { "kind": 4,
+                              "left": 
+                                { "kind": 2, "name": "i" },
+                              "right": 
+                                { "kind": 23,
+                                  "left": 
+                                    { "kind": 2, "name": "args" } } } },
+                        { "kind": 38,
+                          "left": 
+                            { "kind": 4,
+                              "left": 
+                                { "kind": 2, "name": "s" },
+                              "right": 
+                                { "kind": 1, "str": ")" } } }
+                      ] }
+                  ],
+                  "left": 
+                    { "kind": 4,
+                      "left": 
+                        { "kind": 2, "name": "k" },
+                      "right": 
+                        { "kind": 2, "name": "ND_CALL" } } },
+                { "kind": 6,
+                  "body": [
+                    { "kind": 41,
+                      "body": [
+                        { "kind": 3,
+                          "left": 
+                            { "kind": 2, "name": "old_lines" },
+                          "right": 
+                            { "kind": 2, "name": "c_lines" } },
+                        { "kind": 3,
+                          "left": 
+                            { "kind": 2, "name": "c_lines" },
+                          "right": 
+                            { "kind": 15 } },
+                        { "kind": 3,
+                          "left": 
+                            { "kind": 2, "name": "IND_OLD" },
+                          "right": 
+                            { "kind": 2, "name": "indent_lvl" } },
+                        { "kind": 3,
+                          "left": 
+                            { "kind": 2, "name": "indent_lvl" },
+                          "right": 
+                            { "kind": 0, "val": 0 } },
+                        { "kind": 42,
+                          "left": 
+                            { "kind": 40,
+                              "body": [
+                                { "kind": 1, "str": "({ Value* _res = val_none(); " }
+                              ],
+                              "left": 
+                                { "kind": 2, "name": "emit" } } },
+                        { "kind": 3,
+                          "left": 
+                            { "kind": 2, "name": "indent_lvl" },
+                          "right": 
+                            { "kind": 0, "val": 1 } },
+                        { "kind": 42,
+                          "left": 
+                            { "kind": 40,
+                              "body": [
+                                { "kind": 2, "name": "n" }
+                              ],
+                              "left": 
+                                { "kind": 2, "name": "emit_stmt" } } },
+                        { "kind": 42,
+                          "left": 
+                            { "kind": 40,
+                              "body": [
+                                { "kind": 1, "str": "_res; " }
+                              ],
+                              "left": 
+                                { "kind": 2, "name": "emit" } } },
+                        { "kind": 42,
+                          "left": 
+                            { "kind": 40,
+                              "body": [
+                                { "kind": 1, "str": "})" }
+                              ],
+                              "left": 
+                                { "kind": 2, "name": "emit" } } },
+                        { "kind": 3,
+                          "left": 
+                            { "kind": 2, "name": "block_str" },
+                          "right": 
+                            { "kind": 1, "str": "" } },
+                        { "kind": 3,
+                          "left": 
+                            { "kind": 2, "name": "i" },
+                          "right": 
+                            { "kind": 0, "val": 0 } },
+                        { "kind": 7,
+                          "body": [
+                            { "kind": 41,
+                              "body": [
+                                { "kind": 3,
+                                  "left": 
+                                    { "kind": 2, "name": "block_str" },
+                                  "right": 
+                                    { "kind": 4,
+                                      "left": 
+                                        { "kind": 4,
+                                          "left": 
+                                            { "kind": 2, "name": "block_str" },
+                                          "right": 
+                                            { "kind": 19,
+                                              "left": 
+                                                { "kind": 2, "name": "c_lines" },
+                                              "right": 
+                                                { "kind": 2, "name": "i" } } },
+                                      "right": 
+                                        { "kind": 1, "str": " " } } },
+                                { "kind": 3,
+                                  "left": 
+                                    { "kind": 2, "name": "i" },
+                                  "right": 
+                                    { "kind": 4,
+                                      "left": 
+                                        { "kind": 2, "name": "i" },
+                                      "right": 
+                                        { "kind": 0, "val": 1 } } }
+                              ] }
+                          ],
+                          "left": 
+                            { "kind": 4,
+                              "left": 
+                                { "kind": 2, "name": "i" },
+                              "right": 
+                                { "kind": 23,
+                                  "left": 
+                                    { "kind": 2, "name": "c_lines" } } } },
+                        { "kind": 3,
+                          "left": 
+                            { "kind": 2, "name": "c_lines" },
+                          "right": 
+                            { "kind": 2, "name": "old_lines" } },
+                        { "kind": 3,
+                          "left": 
+                            { "kind": 2, "name": "indent_lvl" },
+                          "right": 
+                            { "kind": 2, "name": "IND_OLD" } },
+                        { "kind": 38,
+                          "left": 
+                            { "kind": 2, "name": "block_str" } }
+                      ] }
+                  ],
+                  "left": 
+                    { "kind": 4,
+                      "left": 
+                        { "kind": 4,
+                          "left": 
+                            { "kind": 4,
+                              "left": 
+                                { "kind": 4,
+                                  "left": 
+                                    { "kind": 4,
+                                      "left": 
+                                        { "kind": 2, "name": "k" },
+                                      "right": 
+                                        { "kind": 2, "name": "ND_IF" } },
+                                  "right": 
+                                    { "kind": 2, "name": "k" } },
+                              "right": 
+                                { "kind": 2, "name": "ND_WHILE" } },
+                          "right": 
+                            { "kind": 2, "name": "k" } },
+                      "right": 
+                        { "kind": 2, "name": "ND_BLOCK" } } },
+                { "kind": 38,
+                  "left": 
+                    { "kind": 1, "str": "val_none()" } }
+              ] } },
+        { "kind": 9, "name": "emit_stmt",
+          "body": [
+            { "kind": 2, "name": "n" }
+          ],
+          "left": 
+            { "kind": 41,
+              "body": [
+                { "kind": 6,
+                  "body": [
+                    { "kind": 41,
+                      "body": [
+                        { "kind": 38,
+                          "left": 
+                            { "kind": 2, "name": "val_none" } }
+                      ] }
+                  ],
+                  "left": 
+                    { "kind": 4,
+                      "left": 
+                        { "kind": 32,
+                          "left": 
+                            { "kind": 2, "name": "n" } },
+                      "right": 
+                        { "kind": 1, "str": "none" } } },
+                { "kind": 3,
+                  "left": 
+                    { "kind": 2, "name": "k" },
+                  "right": 
+                    { "kind": 19,
+                      "left": 
+                        { "kind": 2, "name": "n" },
+                      "right": 
+                        { "kind": 1, "str": "kind" } } },
+                { "kind": 6,
+                  "body": [
+                    { "kind": 41,
+                      "body": [
+                        { "kind": 3,
+                          "left": 
+                            { "kind": 2, "name": "body" },
+                          "right": 
+                            { "kind": 19,
+                              "left": 
+                                { "kind": 2, "name": "n" },
+                              "right": 
+                                { "kind": 1, "str": "body" } } },
+                        { "kind": 3,
+                          "left": 
+                            { "kind": 2, "name": "i" },
+                          "right": 
+                            { "kind": 0, "val": 0 } },
+                        { "kind": 7,
+                          "body": [
+                            { "kind": 41,
+                              "body": [
+                                { "kind": 6,
+                                  "body": [
+                                    { "kind": 41,
+                                      "body": [
+                                        { "kind": 42,
+                                          "left": 
+                                            { "kind": 4,
+                                              "left": 
+                                                { "kind": 4,
+                                                  "left": 
+                                                    { "kind": 40,
+                                                      "body": [
+                                                        { "kind": 1, "str": "_res = " }
+                                                      ],
+                                                      "left": 
+                                                        { "kind": 2, "name": "emit" } },
+                                                  "right": 
+                                                    { "kind": 40,
+                                                      "body": [
+                                                        { "kind": 19,
+                                                          "left": 
+                                                            { "kind": 2, "name": "body" },
+                                                          "right": 
+                                                            { "kind": 2, "name": "i" } }
+                                                      ],
+                                                      "left": 
+                                                        { "kind": 2, "name": "emit_expr" } } },
+                                              "right": 
+                                                { "kind": 1, "str": ";" } } }
+                                      ] }
+                                  ],
+                                  "left": 
+                                    { "kind": 4,
+                                      "left": 
+                                        { "kind": 4,
+                                          "left": 
+                                            { "kind": 4,
+                                              "left": 
+                                                { "kind": 2, "name": "i" },
+                                              "right": 
+                                                { "kind": 4,
+                                                  "left": 
+                                                    { "kind": 23,
+                                                      "left": 
+                                                        { "kind": 2, "name": "body" } },
+                                                  "right": 
+                                                    { "kind": 0, "val": 1 } } },
+                                          "right": 
+                                            { "kind": 2, "name": "indent_lvl" } },
+                                      "right": 
+                                        { "kind": 0, "val": 0 } },
+                                  "right": 
+                                    { "kind": 41,
+                                      "body": [
+                                        { "kind": 42,
+                                          "left": 
+                                            { "kind": 40,
+                                              "body": [
+                                                { "kind": 19,
+                                                  "left": 
+                                                    { "kind": 2, "name": "body" },
+                                                  "right": 
+                                                    { "kind": 2, "name": "i" } }
+                                              ],
+                                              "left": 
+                                                { "kind": 2, "name": "emit_stmt" } } }
+                                      ] } },
+                                { "kind": 3,
+                                  "left": 
+                                    { "kind": 2, "name": "i" },
+                                  "right": 
+                                    { "kind": 4,
+                                      "left": 
+                                        { "kind": 2, "name": "i" },
+                                      "right": 
+                                        { "kind": 0, "val": 1 } } }
+                              ] }
+                          ],
+                          "left": 
+                            { "kind": 4,
+                              "left": 
+                                { "kind": 2, "name": "i" },
+                              "right": 
+                                { "kind": 23,
+                                  "left": 
+                                    { "kind": 2, "name": "body" } } } }
+                      ] }
+                  ],
+                  "left": 
+                    { "kind": 4,
+                      "left": 
+                        { "kind": 2, "name": "k" },
+                      "right": 
+                        { "kind": 2, "name": "ND_BLOCK" } },
+                  "right": 
+                    { "kind": 6,
+                      "body": [
+                        { "kind": 41,
+                          "body": [
+                            { "kind": 3,
+                              "left": 
+                                { "kind": 2, "name": "left" },
+                              "right": 
+                                { "kind": 19,
+                                  "left": 
+                                    { "kind": 2, "name": "n" },
+                                  "right": 
+                                    { "kind": 1, "str": "left" } } },
+                            { "kind": 42,
+                              "left": 
+                                { "kind": 4,
+                                  "left": 
+                                    { "kind": 4,
+                                      "left": 
+                                        { "kind": 4,
+                                          "left": 
+                                            { "kind": 40,
+                                              "body": [
+                                                { "kind": 19,
+                                                  "left": 
+                                                    { "kind": 2, "name": "left" },
+                                                  "right": 
+                                                    { "kind": 1, "str": "name" } }
+                                              ],
+                                              "left": 
+                                                { "kind": 2, "name": "emit" } },
+                                          "right": 
+                                            { "kind": 1, "str": " = " } },
+                                      "right": 
+                                        { "kind": 40,
+                                          "body": [
+                                            { "kind": 19,
+                                              "left": 
+                                                { "kind": 2, "name": "n" },
+                                              "right": 
+                                                { "kind": 1, "str": "right" } }
+                                          ],
+                                          "left": 
+                                            { "kind": 2, "name": "emit_expr" } } },
+                                  "right": 
+                                    { "kind": 1, "str": ";" } } }
+                          ] }
+                      ],
+                      "left": 
+                        { "kind": 4,
+                          "left": 
+                            { "kind": 2, "name": "k" },
+                          "right": 
+                            { "kind": 2, "name": "ND_ASSIGN" } },
+                      "right": 
+                        { "kind": 6,
+                          "body": [
+                            { "kind": 41,
+                              "body": [
+                                { "kind": 42,
+                                  "left": 
+                                    { "kind": 4,
+                                      "left": 
+                                        { "kind": 4,
+                                          "left": 
+                                            { "kind": 40,
+                                              "body": [
+                                                { "kind": 1, "str": "if (val_truthy(" }
+                                              ],
+                                              "left": 
+                                                { "kind": 2, "name": "emit" } },
+                                          "right": 
+                                            { "kind": 40,
+                                              "body": [
+                                                { "kind": 19,
+                                                  "left": 
+                                                    { "kind": 2, "name": "n" },
+                                                  "right": 
+                                                    { "kind": 1, "str": "left" } }
+                                              ],
+                                              "left": 
+                                                { "kind": 2, "name": "emit_expr" } } },
+                                      "right": 
+                                        { "kind": 1, "str": ")) {" } } },
+                                { "kind": 3,
+                                  "left": 
+                                    { "kind": 2, "name": "indent_lvl" },
+                                  "right": 
+                                    { "kind": 4,
+                                      "left": 
+                                        { "kind": 2, "name": "indent_lvl" },
+                                      "right": 
+                                        { "kind": 0, "val": 1 } } },
+                                { "kind": 42,
+                                  "left": 
+                                    { "kind": 40,
+                                      "body": [
+                                        { "kind": 19,
+                                          "left": 
+                                            { "kind": 19,
+                                              "left": 
+                                                { "kind": 2, "name": "n" },
+                                              "right": 
+                                                { "kind": 1, "str": "body" } },
+                                          "right": 
+                                            { "kind": 0, "val": 0 } }
+                                      ],
+                                      "left": 
+                                        { "kind": 2, "name": "emit_stmt" } } },
+                                { "kind": 3,
+                                  "left": 
+                                    { "kind": 2, "name": "indent_lvl" },
+                                  "right": 
+                                    { "kind": 4,
+                                      "left": 
+                                        { "kind": 2, "name": "indent_lvl" },
+                                      "right": 
+                                        { "kind": 0, "val": 1 } } },
+                                { "kind": 42,
+                                  "left": 
+                                    { "kind": 40,
+                                      "body": [
+                                        { "kind": 1, "str": "}" }
+                                      ],
+                                      "left": 
+                                        { "kind": 2, "name": "emit" } } },
+                                { "kind": 6,
+                                  "body": [
+                                    { "kind": 41,
+                                      "body": [
+                                        { "kind": 42,
+                                          "left": 
+                                            { "kind": 40,
+                                              "body": [
+                                                { "kind": 1, "str": "else {" }
+                                              ],
+                                              "left": 
+                                                { "kind": 2, "name": "emit" } } },
+                                        { "kind": 3,
+                                          "left": 
+                                            { "kind": 2, "name": "indent_lvl" },
+                                          "right": 
+                                            { "kind": 4,
+                                              "left": 
+                                                { "kind": 2, "name": "indent_lvl" },
+                                              "right": 
+                                                { "kind": 0, "val": 1 } } },
+                                        { "kind": 42,
+                                          "left": 
+                                            { "kind": 40,
+                                              "body": [
+                                                { "kind": 19,
+                                                  "left": 
+                                                    { "kind": 2, "name": "n" },
+                                                  "right": 
+                                                    { "kind": 1, "str": "right" } }
+                                              ],
+                                              "left": 
+                                                { "kind": 2, "name": "emit_stmt" } } },
+                                        { "kind": 3,
+                                          "left": 
+                                            { "kind": 2, "name": "indent_lvl" },
+                                          "right": 
+                                            { "kind": 4,
+                                              "left": 
+                                                { "kind": 2, "name": "indent_lvl" },
+                                              "right": 
+                                                { "kind": 0, "val": 1 } } },
+                                        { "kind": 42,
+                                          "left": 
+                                            { "kind": 40,
+                                              "body": [
+                                                { "kind": 1, "str": "}" }
+                                              ],
+                                              "left": 
+                                                { "kind": 2, "name": "emit" } } }
+                                      ] }
+                                  ],
+                                  "left": 
+                                    { "kind": 4,
+                                      "left": 
+                                        { "kind": 32,
+                                          "left": 
+                                            { "kind": 19,
+                                              "left": 
+                                                { "kind": 2, "name": "n" },
+                                              "right": 
+                                                { "kind": 1, "str": "right" } } },
+                                      "right": 
+                                        { "kind": 1, "str": "none" } } }
+                              ] }
+                          ],
+                          "left": 
+                            { "kind": 4,
+                              "left": 
+                                { "kind": 2, "name": "k" },
+                              "right": 
+                                { "kind": 2, "name": "ND_IF" } },
+                          "right": 
+                            { "kind": 6,
+                              "body": [
+                                { "kind": 41,
+                                  "body": [
+                                    { "kind": 42,
+                                      "left": 
+                                        { "kind": 4,
+                                          "left": 
+                                            { "kind": 4,
+                                              "left": 
+                                                { "kind": 40,
+                                                  "body": [
+                                                    { "kind": 1, "str": "while (val_truthy(" }
+                                                  ],
+                                                  "left": 
+                                                    { "kind": 2, "name": "emit" } },
+                                              "right": 
+                                                { "kind": 40,
+                                                  "body": [
+                                                    { "kind": 19,
+                                                      "left": 
+                                                        { "kind": 2, "name": "n" },
+                                                      "right": 
+                                                        { "kind": 1, "str": "left" } }
+                                                  ],
+                                                  "left": 
+                                                    { "kind": 2, "name": "emit_expr" } } },
+                                          "right": 
+                                            { "kind": 1, "str": ")) {" } } },
+                                    { "kind": 3,
+                                      "left": 
+                                        { "kind": 2, "name": "indent_lvl" },
+                                      "right": 
+                                        { "kind": 4,
+                                          "left": 
+                                            { "kind": 2, "name": "indent_lvl" },
+                                          "right": 
+                                            { "kind": 0, "val": 1 } } },
+                                    { "kind": 42,
+                                      "left": 
+                                        { "kind": 40,
+                                          "body": [
+                                            { "kind": 19,
+                                              "left": 
+                                                { "kind": 19,
+                                                  "left": 
+                                                    { "kind": 2, "name": "n" },
+                                                  "right": 
+                                                    { "kind": 1, "str": "body" } },
+                                              "right": 
+                                                { "kind": 0, "val": 0 } }
+                                          ],
+                                          "left": 
+                                            { "kind": 2, "name": "emit_stmt" } } },
+                                    { "kind": 3,
+                                      "left": 
+                                        { "kind": 2, "name": "indent_lvl" },
+                                      "right": 
+                                        { "kind": 4,
+                                          "left": 
+                                            { "kind": 2, "name": "indent_lvl" },
+                                          "right": 
+                                            { "kind": 0, "val": 1 } } },
+                                    { "kind": 42,
+                                      "left": 
+                                        { "kind": 40,
+                                          "body": [
+                                            { "kind": 1, "str": "}" }
+                                          ],
+                                          "left": 
+                                            { "kind": 2, "name": "emit" } } }
+                                  ] }
+                              ],
+                              "left": 
+                                { "kind": 4,
+                                  "left": 
+                                    { "kind": 2, "name": "k" },
+                                  "right": 
+                                    { "kind": 2, "name": "ND_WHILE" } },
+                              "right": 
+                                { "kind": 6,
+                                  "body": [
+                                    { "kind": 41,
+                                      "body": [
+                                        { "kind": 42,
+                                          "left": 
+                                            { "kind": 40,
+                                              "body": [
+                                                { "kind": 1, "str": "break;" }
+                                              ],
+                                              "left": 
+                                                { "kind": 2, "name": "emit" } } }
+                                      ] }
+                                  ],
+                                  "left": 
+                                    { "kind": 4,
+                                      "left": 
+                                        { "kind": 2, "name": "k" },
+                                      "right": 
+                                        { "kind": 2, "name": "ND_BREAK" } },
+                                  "right": 
+                                    { "kind": 6,
+                                      "body": [
+                                        { "kind": 41,
+                                          "body": [
+                                            { "kind": 42,
+                                              "left": 
+                                                { "kind": 40,
+                                                  "body": [
+                                                    { "kind": 1, "str": "continue;" }
+                                                  ],
+                                                  "left": 
+                                                    { "kind": 2, "name": "emit" } } }
+                                          ] }
+                                      ],
+                                      "left": 
+                                        { "kind": 4,
+                                          "left": 
+                                            { "kind": 2, "name": "k" },
+                                          "right": 
+                                            { "kind": 2, "name": "ND_SKIP" } },
+                                      "right": 
+                                        { "kind": 6,
+                                          "body": [
+                                            { "kind": 41,
+                                              "body": [
+                                                { "kind": 42,
+                                                  "left": 
+                                                    { "kind": 4,
+                                                      "left": 
+                                                        { "kind": 4,
+                                                          "left": 
+                                                            { "kind": 40,
+                                                              "body": [
+                                                                { "kind": 1, "str": "val_print(" }
+                                                              ],
+                                                              "left": 
+                                                                { "kind": 2, "name": "emit" } },
+                                                          "right": 
+                                                            { "kind": 40,
+                                                              "body": [
+                                                                { "kind": 19,
+                                                                  "left": 
+                                                                    { "kind": 2, "name": "n" },
+                                                                  "right": 
+                                                                    { "kind": 1, "str": "left" } }
+                                                              ],
+                                                              "left": 
+                                                                { "kind": 2, "name": "emit_expr" } } },
+                                                      "right": 
+                                                        { "kind": 1, "str": "); printf("\n");" } } }
+                                              ] }
+                                          ],
+                                          "left": 
+                                            { "kind": 4,
+                                              "left": 
+                                                { "kind": 2, "name": "k" },
+                                              "right": 
+                                                { "kind": 2, "name": "ND_PRINT" } },
+                                          "right": 
+                                            { "kind": 6,
+                                              "body": [
+                                                { "kind": 41,
+                                                  "body": [
+                                                    { "kind": 42,
+                                                      "left": 
+                                                        { "kind": 4,
+                                                          "left": 
+                                                            { "kind": 4,
+                                                              "left": 
+                                                                { "kind": 40,
+                                                                  "body": [
+                                                                    { "kind": 1, "str": "return " }
+                                                                  ],
+                                                                  "left": 
+                                                                    { "kind": 2, "name": "emit" } },
+                                                              "right": 
+                                                                { "kind": 40,
+                                                                  "body": [
+                                                                    { "kind": 19,
+                                                                      "left": 
+                                                                        { "kind": 2, "name": "n" },
+                                                                      "right": 
+                                                                        { "kind": 1, "str": "left" } }
+                                                                  ],
+                                                                  "left": 
+                                                                    { "kind": 2, "name": "emit_expr" } } },
+                                                          "right": 
+                                                            { "kind": 1, "str": ";" } } }
+                                                  ] }
+                                              ],
+                                              "left": 
+                                                { "kind": 4,
+                                                  "left": 
+                                                    { "kind": 2, "name": "k" },
+                                                  "right": 
+                                                    { "kind": 2, "name": "ND_OUT" } },
+                                              "right": 
+                                                { "kind": 6,
+                                                  "body": [
+                                                    { "kind": 41,
+                                                      "body": [
+                                                        { "kind": 3,
+                                                          "left": 
+                                                            { "kind": 2, "name": "OLD_VARS" },
+                                                          "right": 
+                                                            { "kind": 2, "name": "declared_vars" } },
+                                                        { "kind": 3,
+                                                          "left": 
+                                                            { "kind": 2, "name": "declared_vars" },
+                                                          "right": 
+                                                            { "kind": 16 } },
+                                                        { "kind": 3,
+                                                          "left": 
+                                                            { "kind": 2, "name": "params" },
+                                                          "right": 
+                                                            { "kind": 19,
+                                                              "left": 
+                                                                { "kind": 2, "name": "n" },
+                                                              "right": 
+                                                                { "kind": 1, "str": "body" } } },
+                                                        { "kind": 3,
+                                                          "left": 
+                                                            { "kind": 2, "name": "j" },
+                                                          "right": 
+                                                            { "kind": 0, "val": 0 } },
+                                                        { "kind": 7,
+                                                          "body": [
+                                                            { "kind": 41,
+                                                              "body": [
+                                                                { "kind": 17,
+                                                                  "body": [
+                                                                    { "kind": 19,
+                                                                      "left": 
+                                                                        { "kind": 19,
+                                                                          "left": 
+                                                                            { "kind": 2, "name": "params" },
+                                                                          "right": 
+                                                                            { "kind": 2, "name": "j" } },
+                                                                      "right": 
+                                                                        { "kind": 1, "str": "name" } },
+                                                                    { "kind": 0, "val": 1 }
+                                                                  ],
+                                                                  "left": 
+                                                                    { "kind": 2, "name": "declared_vars" } },
+                                                                { "kind": 3,
+                                                                  "left": 
+                                                                    { "kind": 2, "name": "j" },
+                                                                  "right": 
+                                                                    { "kind": 4,
+                                                                      "left": 
+                                                                        { "kind": 2, "name": "j" },
+                                                                      "right": 
+                                                                        { "kind": 0, "val": 1 } } }
+                                                              ] }
+                                                          ],
+                                                          "left": 
+                                                            { "kind": 4,
+                                                              "left": 
+                                                                { "kind": 2, "name": "j" },
+                                                              "right": 
+                                                                { "kind": 23,
+                                                                  "left": 
+                                                                    { "kind": 2, "name": "params" } } } },
+                                                        { "kind": 42,
+                                                          "left": 
+                                                            { "kind": 40,
+                                                              "body": [
+                                                                { "kind": 19,
+                                                                  "left": 
+                                                                    { "kind": 2, "name": "n" },
+                                                                  "right": 
+                                                                    { "kind": 1, "str": "left" } }
+                                                              ],
+                                                              "left": 
+                                                                { "kind": 2, "name": "hoist_vars" } } },
+                                                        { "kind": 42,
+                                                          "left": 
+                                                            { "kind": 4,
+                                                              "left": 
+                                                                { "kind": 4,
+                                                                  "left": 
+                                                                    { "kind": 40,
+                                                                      "body": [
+                                                                        { "kind": 1, "str": "Value* " }
+                                                                      ],
+                                                                      "left": 
+                                                                        { "kind": 2, "name": "emit" } },
+                                                                  "right": 
+                                                                    { "kind": 19,
+                                                                      "left": 
+                                                                        { "kind": 2, "name": "n" },
+                                                                      "right": 
+                                                                        { "kind": 1, "str": "name" } } },
+                                                              "right": 
+                                                                { "kind": 1, "str": "() {" } } },
+                                                        { "kind": 3,
+                                                          "left": 
+                                                            { "kind": 2, "name": "indent_lvl" },
+                                                          "right": 
+                                                            { "kind": 4,
+                                                              "left": 
+                                                                { "kind": 2, "name": "indent_lvl" },
+                                                              "right": 
+                                                                { "kind": 0, "val": 1 } } },
+                                                        { "kind": 3,
+                                                          "left": 
+                                                            { "kind": 2, "name": "vnames" },
+                                                          "right": 
+                                                            { "kind": 18,
+                                                              "left": 
+                                                                { "kind": 2, "name": "declared_vars" } } },
+                                                        { "kind": 3,
+                                                          "left": 
+                                                            { "kind": 2, "name": "i" },
+                                                          "right": 
+                                                            { "kind": 0, "val": 0 } },
+                                                        { "kind": 7,
+                                                          "body": [
+                                                            { "kind": 41,
+                                                              "body": [
+                                                                { "kind": 3,
+                                                                  "left": 
+                                                                    { "kind": 2, "name": "is_param" },
+                                                                  "right": 
+                                                                    { "kind": 0, "val": 0 } },
+                                                                { "kind": 3,
+                                                                  "left": 
+                                                                    { "kind": 2, "name": "p_check" },
+                                                                  "right": 
+                                                                    { "kind": 0, "val": 0 } },
+                                                                { "kind": 7,
+                                                                  "body": [
+                                                                    { "kind": 41,
+                                                                      "body": [
+                                                                        { "kind": 6,
+                                                                          "body": [
+                                                                            { "kind": 41,
+                                                                              "body": [
+                                                                                { "kind": 3,
+                                                                                  "left": 
+                                                                                    { "kind": 2, "name": "is_param" },
+                                                                                  "right": 
+                                                                                    { "kind": 0, "val": 1 } }
+                                                                              ] }
+                                                                          ],
+                                                                          "left": 
+                                                                            { "kind": 4,
+                                                                              "left": 
+                                                                                { "kind": 19,
+                                                                                  "left": 
+                                                                                    { "kind": 2, "name": "vnames" },
+                                                                                  "right": 
+                                                                                    { "kind": 2, "name": "i" } },
+                                                                              "right": 
+                                                                                { "kind": 19,
+                                                                                  "left": 
+                                                                                    { "kind": 19,
+                                                                                      "left": 
+                                                                                        { "kind": 2, "name": "params" },
+                                                                                      "right": 
+                                                                                        { "kind": 2, "name": "p_check" } },
+                                                                                  "right": 
+                                                                                    { "kind": 1, "str": "name" } } } },
+                                                                        { "kind": 3,
+                                                                          "left": 
+                                                                            { "kind": 2, "name": "p_check" },
+                                                                          "right": 
+                                                                            { "kind": 4,
+                                                                              "left": 
+                                                                                { "kind": 2, "name": "p_check" },
+                                                                              "right": 
+                                                                                { "kind": 0, "val": 1 } } }
+                                                                      ] }
+                                                                  ],
+                                                                  "left": 
+                                                                    { "kind": 4,
+                                                                      "left": 
+                                                                        { "kind": 2, "name": "p_check" },
+                                                                      "right": 
+                                                                        { "kind": 23,
+                                                                          "left": 
+                                                                            { "kind": 2, "name": "params" } } } },
+                                                                { "kind": 6,
+                                                                  "body": [
+                                                                    { "kind": 41,
+                                                                      "body": [
+                                                                        { "kind": 42,
+                                                                          "left": 
+                                                                            { "kind": 4,
+                                                                              "left": 
+                                                                                { "kind": 4,
+                                                                                  "left": 
+                                                                                    { "kind": 40,
+                                                                                      "body": [
+                                                                                        { "kind": 1, "str": "Value* " }
+                                                                                      ],
+                                                                                      "left": 
+                                                                                        { "kind": 2, "name": "emit" } },
+                                                                                  "right": 
+                                                                                    { "kind": 19,
+                                                                                      "left": 
+                                                                                        { "kind": 2, "name": "vnames" },
+                                                                                      "right": 
+                                                                                        { "kind": 2, "name": "i" } } },
+                                                                              "right": 
+                                                                                { "kind": 1, "str": " = val_none();" } } }
+                                                                      ] }
+                                                                  ],
+                                                                  "left": 
+                                                                    { "kind": 4,
+                                                                      "left": 
+                                                                        { "kind": 2, "name": "is_param" },
+                                                                      "right": 
+                                                                        { "kind": 0, "val": 0 } } },
+                                                                { "kind": 3,
+                                                                  "left": 
+                                                                    { "kind": 2, "name": "i" },
+                                                                  "right": 
+                                                                    { "kind": 4,
+                                                                      "left": 
+                                                                        { "kind": 2, "name": "i" },
+                                                                      "right": 
+                                                                        { "kind": 0, "val": 1 } } }
+                                                              ] }
+                                                          ],
+                                                          "left": 
+                                                            { "kind": 4,
+                                                              "left": 
+                                                                { "kind": 2, "name": "i" },
+                                                              "right": 
+                                                                { "kind": 23,
+                                                                  "left": 
+                                                                    { "kind": 2, "name": "vnames" } } } },
+                                                        { "kind": 42,
+                                                          "left": 
+                                                            { "kind": 40,
+                                                              "body": [
+                                                                { "kind": 19,
+                                                                  "left": 
+                                                                    { "kind": 2, "name": "n" },
+                                                                  "right": 
+                                                                    { "kind": 1, "str": "left" } }
+                                                              ],
+                                                              "left": 
+                                                                { "kind": 2, "name": "emit_stmt" } } },
+                                                        { "kind": 3,
+                                                          "left": 
+                                                            { "kind": 2, "name": "indent_lvl" },
+                                                          "right": 
+                                                            { "kind": 4,
+                                                              "left": 
+                                                                { "kind": 2, "name": "indent_lvl" },
+                                                              "right": 
+                                                                { "kind": 0, "val": 1 } } },
+                                                        { "kind": 42,
+                                                          "left": 
+                                                            { "kind": 40,
+                                                              "body": [
+                                                                { "kind": 1, "str": "}" }
+                                                              ],
+                                                              "left": 
+                                                                { "kind": 2, "name": "emit" } } },
+                                                        { "kind": 3,
+                                                          "left": 
+                                                            { "kind": 2, "name": "declared_vars" },
+                                                          "right": 
+                                                            { "kind": 2, "name": "OLD_VARS" } }
+                                                      ] }
+                                                  ],
+                                                  "left": 
+                                                    { "kind": 4,
+                                                      "left": 
+                                                        { "kind": 2, "name": "k" },
+                                                      "right": 
+                                                        { "kind": 2, "name": "ND_DO" } } } } } } } } } } }
+              ] } },
+        { "kind": 9, "name": "compile_to_c",
+          "body": [
+            { "kind": 2, "name": "prog" }
+          ],
+          "left": 
+            { "kind": 41,
+              "body": [
+                { "kind": 3,
+                  "left": 
+                    { "kind": 2, "name": "c_lines" },
+                  "right": 
+                    { "kind": 15 } },
+                { "kind": 42,
+                  "left": 
+                    { "kind": 2, "name": "init_indent_cache" } },
+                { "kind": 3,
+                  "left": 
+                    { "kind": 2, "name": "indent_lvl" },
+                  "right": 
+                    { "kind": 0, "val": 0 } },
+                { "kind": 42,
+                  "left": 
+                    { "kind": 40,
+                      "body": [
+                        { "kind": 1, "str": "#include <stdio.h>" }
+                      ],
+                      "left": 
+                        { "kind": 2, "name": "emit" } } },
+                { "kind": 42,
+                  "left": 
+                    { "kind": 40,
+                      "body": [
+                        { "kind": 1, "str": "#include "src/vii.h"" }
+                      ],
+                      "left": 
+                        { "kind": 2, "name": "emit" } } },
+                { "kind": 42,
+                  "left": 
+                    { "kind": 40,
+                      "body": [
+                        { "kind": 1, "str": "/* Generated by Vii Codegen */" }
+                      ],
+                      "left": 
+                        { "kind": 2, "name": "emit" } } },
+                { "kind": 3,
+                  "left": 
+                    { "kind": 2, "name": "body" },
+                  "right": 
+                    { "kind": 19,
+                      "left": 
+                        { "kind": 2, "name": "prog" },
+                      "right": 
+                        { "kind": 1, "str": "body" } } },
+                { "kind": 3,
+                  "left": 
+                    { "kind": 2, "name": "i" },
+                  "right": 
+                    { "kind": 0, "val": 0 } },
+                { "kind": 7,
+                  "body": [
+                    { "kind": 41,
+                      "body": [
+                        { "kind": 3,
+                          "left": 
+                            { "kind": 2, "name": "n" },
+                          "right": 
+                            { "kind": 19,
+                              "left": 
+                                { "kind": 2, "name": "body" },
+                              "right": 
+                                { "kind": 2, "name": "i" } } },
+                        { "kind": 6,
+                          "body": [
+                            { "kind": 41,
+                              "body": [
+                                { "kind": 42,
+                                  "left": 
+                                    { "kind": 40,
+                                      "body": [
+                                        { "kind": 2, "name": "n" }
+                                      ],
+                                      "left": 
+                                        { "kind": 2, "name": "emit_stmt" } } }
+                              ] }
+                          ],
+                          "left": 
+                            { "kind": 4,
+                              "left": 
+                                { "kind": 19,
+                                  "left": 
+                                    { "kind": 2, "name": "n" },
+                                  "right": 
+                                    { "kind": 1, "str": "kind" } },
+                              "right": 
+                                { "kind": 2, "name": "ND_DO" } } },
+                        { "kind": 3,
+                          "left": 
+                            { "kind": 2, "name": "i" },
+                          "right": 
+                            { "kind": 4,
+                              "left": 
+                                { "kind": 2, "name": "i" },
+                              "right": 
+                                { "kind": 0, "val": 1 } } }
+                      ] }
+                  ],
+                  "left": 
+                    { "kind": 4,
+                      "left": 
+                        { "kind": 2, "name": "i" },
+                      "right": 
+                        { "kind": 23,
+                          "left": 
+                            { "kind": 2, "name": "body" } } } },
+                { "kind": 42,
+                  "left": 
+                    { "kind": 40,
+                      "body": [
+                        { "kind": 1, "str": "int main(int argc, char** argv) {" }
+                      ],
+                      "left": 
+                        { "kind": 2, "name": "emit" } } },
+                { "kind": 3,
+                  "left": 
+                    { "kind": 2, "name": "indent_lvl" },
+                  "right": 
+                    { "kind": 4,
+                      "left": 
+                        { "kind": 2, "name": "indent_lvl" },
+                      "right": 
+                        { "kind": 0, "val": 1 } } },
+                { "kind": 42,
+                  "left": 
+                    { "kind": 40,
+                      "body": [
+                        { "kind": 1, "str": "global_arena = arena_create(512*1024*1024);" }
+                      ],
+                      "left": 
+                        { "kind": 2, "name": "emit" } } },
+                { "kind": 3,
+                  "left": 
+                    { "kind": 2, "name": "declared_vars" },
+                  "right": 
+                    { "kind": 16 } },
+                { "kind": 42,
+                  "left": 
+                    { "kind": 40,
+                      "body": [
+                        { "kind": 2, "name": "prog" }
+                      ],
+                      "left": 
+                        { "kind": 2, "name": "hoist_vars" } } },
+                { "kind": 3,
+                  "left": 
+                    { "kind": 2, "name": "vnames" },
+                  "right": 
+                    { "kind": 18,
+                      "left": 
+                        { "kind": 2, "name": "declared_vars" } } },
+                { "kind": 3,
+                  "left": 
+                    { "kind": 2, "name": "i" },
+                  "right": 
+                    { "kind": 0, "val": 0 } },
+                { "kind": 7,
+                  "body": [
+                    { "kind": 41,
+                      "body": [
+                        { "kind": 42,
+                          "left": 
+                            { "kind": 4,
+                              "left": 
+                                { "kind": 4,
+                                  "left": 
+                                    { "kind": 40,
+                                      "body": [
+                                        { "kind": 1, "str": "Value* " }
+                                      ],
+                                      "left": 
+                                        { "kind": 2, "name": "emit" } },
+                                  "right": 
+                                    { "kind": 19,
+                                      "left": 
+                                        { "kind": 2, "name": "vnames" },
+                                      "right": 
+                                        { "kind": 2, "name": "i" } } },
+                              "right": 
+                                { "kind": 1, "str": " = val_none();" } } },
+                        { "kind": 3,
+                          "left": 
+                            { "kind": 2, "name": "i" },
+                          "right": 
+                            { "kind": 4,
+                              "left": 
+                                { "kind": 2, "name": "i" },
+                              "right": 
+                                { "kind": 0, "val": 1 } } }
+                      ] }
+                  ],
+                  "left": 
+                    { "kind": 4,
+                      "left": 
+                        { "kind": 2, "name": "i" },
+                      "right": 
+                        { "kind": 23,
+                          "left": 
+                            { "kind": 2, "name": "vnames" } } } },
+                { "kind": 42,
+                  "left": 
+                    { "kind": 40,
+                      "body": [
+                        { "kind": 2, "name": "prog" }
+                      ],
+                      "left": 
+                        { "kind": 2, "name": "emit_stmt" } } },
+                { "kind": 42,
+                  "left": 
+                    { "kind": 40,
+                      "body": [
+                        { "kind": 1, "str": "return 0;" }
+                      ],
+                      "left": 
+                        { "kind": 2, "name": "emit" } } },
+                { "kind": 3,
+                  "left": 
+                    { "kind": 2, "name": "indent_lvl" },
+                  "right": 
+                    { "kind": 4,
+                      "left": 
+                        { "kind": 2, "name": "indent_lvl" },
+                      "right": 
+                        { "kind": 0, "val": 1 } } },
+                { "kind": 42,
+                  "left": 
+                    { "kind": 40,
+                      "body": [
+                        { "kind": 1, "str": "}" }
+                      ],
+                      "left": 
+                        { "kind": 2, "name": "emit" } } },
+                { "kind": 3,
+                  "left": 
+                    { "kind": 2, "name": "res" },
+                  "right": 
+                    { "kind": 1, "str": "" } },
+                { "kind": 3,
+                  "left": 
+                    { "kind": 2, "name": "i" },
+                  "right": 
+                    { "kind": 0, "val": 0 } },
+                { "kind": 7,
+                  "body": [
+                    { "kind": 41,
+                      "body": [
+                        { "kind": 3,
+                          "left": 
+                            { "kind": 2, "name": "res" },
+                          "right": 
+                            { "kind": 4,
+                              "left": 
+                                { "kind": 4,
+                                  "left": 
+                                    { "kind": 2, "name": "res" },
+                                  "right": 
+                                    { "kind": 19,
+                                      "left": 
+                                        { "kind": 2, "name": "c_lines" },
+                                      "right": 
+                                        { "kind": 2, "name": "i" } } },
+                              "right": 
+                                { "kind": 1, "str": "
+" } } },
+                        { "kind": 3,
+                          "left": 
+                            { "kind": 2, "name": "i" },
+                          "right": 
+                            { "kind": 4,
+                              "left": 
+                                { "kind": 2, "name": "i" },
+                              "right": 
+                                { "kind": 0, "val": 1 } } }
+                      ] }
+                  ],
+                  "left": 
+                    { "kind": 4,
+                      "left": 
+                        { "kind": 2, "name": "i" },
+                      "right": 
+                        { "kind": 23,
+                          "left": 
+                            { "kind": 2, "name": "c_lines" } } } },
+                { "kind": 2, "name": "res" }
+              ] } },
+        { "kind": 9, "name": "compile_to_bin",
+          "body": [
+            { "kind": 2, "name": "prog" },
+            { "kind": 2, "name": "out_name" },
+            { "kind": 2, "name": "keep_c" }
+          ],
+          "left": 
+            { "kind": 41,
+              "body": [
+                { "kind": 3,
+                  "left": 
+                    { "kind": 2, "name": "c_src" },
+                  "right": 
+                    { "kind": 40,
+                      "body": [
+                        { "kind": 2, "name": "prog" }
+                      ],
+                      "left": 
+                        { "kind": 2, "name": "compile_to_c" } } },
+                { "kind": 3,
+                  "left": 
+                    { "kind": 2, "name": "c_fname" },
+                  "right": 
+                    { "kind": 4,
+                      "left": 
+                        { "kind": 2, "name": "out_name" },
+                      "right": 
+                        { "kind": 1, "str": ".c" } } },
+                { "kind": 21,
+                  "left": 
+                    { "kind": 2, "name": "c_fname" },
+                  "right": 
+                    { "kind": 2, "name": "c_src" } },
+                { "kind": 3,
+                  "left": 
+                    { "kind": 2, "name": "cmd" },
+                  "right": 
+                    { "kind": 4,
+                      "left": 
+                        { "kind": 4,
+                          "left": 
+                            { "kind": 4,
+                              "left": 
+                                { "kind": 1, "str": "gcc -O3 -Isrc " },
+                              "right": 
+                                { "kind": 2, "name": "c_fname" } },
+                          "right": 
+                            { "kind": 1, "str": " -o " } },
+                      "right": 
+                        { "kind": 2, "name": "out_name" } } },
+                { "kind": 42,
+                  "left": 
+                    { "kind": 4,
+                      "left": 
+                        { "kind": 4,
+                          "left": 
+                            { "kind": 1, "str": "Compiling " },
+                          "right": 
+                            { "kind": 2, "name": "out_name" } },
+                      "right": 
+                        { "kind": 1, "str": "..." } } },
+                { "kind": 42,
+                  "left": 
+                    { "kind": 34,
+                      "left": 
+                        { "kind": 2, "name": "cmd" } } },
+                { "kind": 6,
+                  "body": [
+                    { "kind": 41,
+                      "body": [
+                        { "kind": 42,
+                          "left": 
+                            { "kind": 1, "str": "" } }
+                      ] }
+                  ],
+                  "left": 
+                    { "kind": 4,
+                      "left": 
+                        { "kind": 2, "name": "keep_c" },
+                      "right": 
+                        { "kind": 0, "val": 0 } } }
+              ] } }
+      ] },
     { "kind": 3,
       "left": 
         { "kind": 2, "name": "color_red" },
@@ -14488,21 +17073,21 @@
                   "body": [
                     { "kind": 41,
                       "body": [
-                        { "kind": 3,
-                          "left": 
-                            { "kind": 2, "name": "output_name" },
-                          "right": 
-                            { "kind": 4,
-                              "left": 
-                                { "kind": 2, "name": "output_name" },
-                              "right": 
-                                { "kind": 1, "str": ".exe" } } }
-                      ] }
-                  ],
-                  "left": 
-                    { "kind": 4,
-                      "left": 
-                        { "kind": 4,
+                        { "kind": 6,
+                          "body": [
+                            { "kind": 41,
+                              "body": [
+                                { "kind": 3,
+                                  "left": 
+                                    { "kind": 2, "name": "output_name" },
+                                  "right": 
+                                    { "kind": 4,
+                                      "left": 
+                                        { "kind": 2, "name": "output_name" },
+                                      "right": 
+                                        { "kind": 1, "str": ".exe" } } }
+                              ] }
+                          ],
                           "left": 
                             { "kind": 4,
                               "left": 
@@ -14510,29 +17095,33 @@
                                   "left": 
                                     { "kind": 4,
                                       "left": 
-                                        { "kind": 2, "name": "output_name" },
+                                        { "kind": 40,
+                                          "body": [
+                                            { "kind": 2, "name": "output_name" },
+                                            { "kind": 1, "str": ".exe" }
+                                          ],
+                                          "left": 
+                                            { "kind": 2, "name": "str_contains" } },
                                       "right": 
-                                        { "kind": 1, "str": "none" } },
+                                        { "kind": 0, "val": 0 } },
                                   "right": 
                                     { "kind": 40,
                                       "body": [
                                         { "kind": 2, "name": "output_name" },
-                                        { "kind": 1, "str": ".exe" }
+                                        { "kind": 1, "str": ".EXE" }
                                       ],
                                       "left": 
                                         { "kind": 2, "name": "str_contains" } } },
                               "right": 
-                                { "kind": 0, "val": 0 } },
-                          "right": 
-                            { "kind": 40,
-                              "body": [
-                                { "kind": 2, "name": "output_name" },
-                                { "kind": 1, "str": ".EXE" }
-                              ],
-                              "left": 
-                                { "kind": 2, "name": "str_contains" } } },
+                                { "kind": 0, "val": 0 } } }
+                      ] }
+                  ],
+                  "left": 
+                    { "kind": 4,
+                      "left": 
+                        { "kind": 2, "name": "output_name" },
                       "right": 
-                        { "kind": 0, "val": 0 } } }
+                        { "kind": 1, "str": "none" } } }
               ] },
             { "kind": 3,
               "left": 

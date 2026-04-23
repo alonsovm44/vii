@@ -2,10 +2,10 @@
 
 # ──────────────────────── Codegen State ────────────────────────
 
-C_LINES = list
-INDENT_LVL = 0
-DECLARED_VARS = dict
-INDENT_CACHE = dict
+c_lines = list
+indent_lvl = 0
+declared_vars = dict
+indent_cache = dict
 
 # Pre-allocate indentation strings to avoid memory exhaustion
 do init_indent_cache
@@ -13,14 +13,17 @@ do init_indent_cache
   while i < 32
     s = ""
     j = 0
-    while j < i; s = s + "  "; j = j + 1;
-    INDENT_CACHE key i s
+    while j < i
+      s = s + "  "
+      j = j + 1
+    indent_cache key (tostr i) s
     i = i + 1
 
 do emit line
-  indent_str = INDENT_CACHE at INDENT_LVL
-  if type indent_str == "none"; indent_str = "";
-  C_LINES set (len C_LINES) (indent_str + line)
+  indent_str = indent_cache at tostr indent_lvl
+  if type indent_str == "none"
+    indent_str = ""
+  c_lines set (len c_lines) (indent_str + line)
 
 # ──────────────────────── Variable Hoisting (Pass 1) ────────────────────────
 
@@ -32,7 +35,7 @@ do hoist_vars node
   if k == ND_ASSIGN
     left = node at "left"
     if (left at "kind") == ND_VAR
-      DECLARED_VARS key (left at "name") 1
+      declared_vars key (left at "name") 1
     hoist_vars (node at "right")
   else if k == ND_BINOP
     hoist_vars (node at "left")
@@ -100,7 +103,7 @@ do emit_expr n
   if k == ND_CALL
     name = n at "left" at "name"
     args = n at "body"
-    # Use runtime_call if it's a dynamic dispatch, but here we assume direct C call
+    # Direct C call emission
     s = "val_call(" + name + ", " + tostr (len args)
     i = 0
     while i < len args
@@ -111,14 +114,14 @@ do emit_expr n
   # GCC Statement Expressions allow nested logic inside expressions
   if k == ND_IF or k == ND_WHILE or k == ND_BLOCK
     # We redirect emission to a temporary sub-buffer
-    old_lines = C_LINES
-    C_LINES = list
-    IND_OLD = INDENT_LVL
-    INDENT_LVL = 0
+    old_lines = c_lines
+    c_lines = list
+    IND_OLD = indent_lvl
+    indent_lvl = 0
     
     # We need a result variable within the statement expression
     emit "({ Value* _res = val_none(); "
-    INDENT_LVL = 1
+    indent_lvl = 1
     
     # If it's a block, we need to handle the implicit return of the last expression
     # For simplicity in this pass, we use a global return value strategy
@@ -128,11 +131,11 @@ do emit_expr n
     emit "})"
     block_str = ""
     i = 0
-    while i < len C_LINES
-      block_str = block_str + (C_LINES at i) + " "
+    while i < len c_lines
+      block_str = block_str + (c_lines at i) + " "
       i = i + 1
-    C_LINES = old_lines
-    INDENT_LVL = IND_OLD
+    c_lines = old_lines
+    indent_lvl = IND_OLD
     out block_str
 
   out "val_none()"
@@ -146,7 +149,7 @@ do emit_stmt n
     body = n at "body"
     i = 0
     while i < len body
-      if i == (len body - 1) and INDENT_LVL > 0
+      if i == (len body - 1) and indent_lvl > 0
         # Last expression in a Statement Expression block sets the result
         emit "_res = " + emit_expr (body at i) + ";"
       else
@@ -157,21 +160,21 @@ do emit_stmt n
     emit (left at "name") + " = " + emit_expr (n at "right") + ";"
   else if k == ND_IF
     emit "if (val_truthy(" + emit_expr (n at "left") + ")) {"
-    INDENT_LVL = INDENT_LVL + 1
+    indent_lvl = indent_lvl + 1
     emit_stmt (n at "body" at 0)
-    INDENT_LVL = INDENT_LVL - 1
+    indent_lvl = indent_lvl - 1
     emit "}"
     if type (n at "right") != "none"
       emit "else {"
-      INDENT_LVL = INDENT_LVL + 1
+      indent_lvl = indent_lvl + 1
       emit_stmt (n at "right")
-      INDENT_LVL = INDENT_LVL - 1
+      indent_lvl = indent_lvl - 1
       emit "}"
   else if k == ND_WHILE
     emit "while (val_truthy(" + emit_expr (n at "left") + ")) {"
-    INDENT_LVL = INDENT_LVL + 1
+    indent_lvl = indent_lvl + 1
     emit_stmt (n at "body" at 0)
-    INDENT_LVL = INDENT_LVL - 1
+    indent_lvl = indent_lvl - 1
     emit "}"
   else if k == ND_BREAK
     emit "break;"
@@ -183,27 +186,28 @@ do emit_stmt n
     emit "return " + emit_expr (n at "left") + ";"
   else if k == ND_DO
     # Hoist locals excluding parameters
-    OLD_VARS = DECLARED_VARS
-    DECLARED_VARS = dict
+    OLD_VARS = declared_vars
+    declared_vars = dict
     params = n at "body"
     j = 0
     while j < len params
-      DECLARED_VARS key (params at j at "name") 1
+      declared_vars key (params at j at "name") 1
       j = j + 1
     
     hoist_vars (n at "left")
     
     emit "Value* " + (n at "name") + "() {"
-    INDENT_LVL = INDENT_LVL + 1
+    indent_lvl = indent_lvl + 1
     
-    vnames = keys DECLARED_VARS
+    vnames = keys declared_vars
     i = 0
     while i < len vnames
       # Check if it was a param to avoid redeclaration
       is_param = 0
       p_check = 0
       while p_check < len params
-        if (vnames at i) == (params at p_check at "name"); is_param = 1;
+        if (vnames at i) == (params at p_check at "name")
+          is_param = 1;
         p_check = p_check + 1
       
       if is_param == 0
@@ -211,18 +215,19 @@ do emit_stmt n
       i = i + 1
     
     emit_stmt (n at "left")
-    INDENT_LVL = INDENT_LVL - 1
+    indent_lvl = indent_lvl - 1
     emit "}"
-    DECLARED_VARS = OLD_VARS
+    declared_vars = OLD_VARS
 
 # ──────────────────────── Main Entry Point ────────────────────────
 
 do compile_to_c prog
-  C_LINES = list
+  c_lines = list
   init_indent_cache
-  INDENT_LVL = 0
+  indent_lvl = 0
   emit "#include <stdio.h>"
-  emit "#include \"vii.h\""
+  # Point to the source directory header
+  emit "#include \"src/vii.h\""
   emit "/* Generated by Vii Codegen */"
   
   # Emit Functions First
@@ -230,17 +235,18 @@ do compile_to_c prog
   i = 0
   while i < len body
     n = body at i
-    if (n at "kind") == ND_DO; emit_stmt n;
+    if (n at "kind") == ND_DO
+      emit_stmt n
     i = i + 1
     
   emit "int main(int argc, char** argv) {"
-  INDENT_LVL = INDENT_LVL + 1
+  indent_lvl = indent_lvl + 1
   emit "global_arena = arena_create(512*1024*1024);"
   
   # Hoist Top-Level Variables
-  DECLARED_VARS = dict
+  declared_vars = dict
   hoist_vars prog
-  vnames = keys DECLARED_VARS
+  vnames = keys declared_vars
   i = 0
   while i < len vnames
     emit "Value* " + (vnames at i) + " = val_none();"
@@ -248,13 +254,13 @@ do compile_to_c prog
     
   emit_stmt prog
   emit "return 0;"
-  INDENT_LVL = INDENT_LVL - 1
+  indent_lvl = indent_lvl - 1
   emit "}"
   
   res = ""
   i = 0
-  while i < len C_LINES
-    res = res + (C_LINES at i) + "\n"
+  while i < len c_lines
+    res = res + (c_lines at i) + "\n"
     i = i + 1
   res
 
@@ -264,7 +270,8 @@ do compile_to_bin prog out_name keep_c
   c_fname put c_src
   
   # Official Bootstrap GCC Trigger
-  cmd = "gcc -O3 " + c_fname + " -o " + out_name
+  # Added -Isrc so GCC can find vii.h
+  cmd = "gcc -O3 -Isrc " + c_fname + " -o " + out_name
   "Compiling " + out_name + "..."
   sys cmd
   
