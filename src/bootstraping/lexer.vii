@@ -335,6 +335,7 @@ do lex lexer_ctx
         tokens set (len tokens) t
       else
         report_error (lexer_ctx at "filename") src pos line ("Unexpected character: " + char) # Use report_error
+        pos = pos + 1
 
   # 9. Final Dedent Chain
   while (len indent_stack) > 1

@@ -20,7 +20,8 @@ Value *table_get(Table *t, const char *key) {
     for (Table *cur = t; cur; cur = cur->parent) {
         unsigned h = hash(key);
         for (Entry *e = cur->buckets[h]; e; e = e->next) {
-            if (strcmp(e->key, key) == 0) return e->val;
+            /* Use pointer comparison first for interned keys, fallback to strcmp */
+            if (e->key == key || strcmp(e->key, key) == 0) return e->val;
         }
     }
     return NULL;
@@ -282,9 +283,12 @@ Value *eval(Node *n, Table *env) {
                 if (r->kind == VAL_STR) snprintf(ra, sizeof(ra), "%s", r->str);
                 else snprintf(ra, sizeof(ra), "%g", r->num);
                 size_t total_len = strlen(la) + strlen(ra) + 1;
-                char *combined = arena_alloc(global_arena, total_len);
+                /* Use a temporary buffer instead of the Arena for the join */
+                char *combined = malloc(total_len);
                 snprintf(combined, total_len, "%s%s", la, ra);
-                return val_str(combined);
+                Value *res = val_str(combined);
+                free(combined);
+                return res;
             }
             switch (n->op) {
                 case TOK_PLUS:  return val_num(a + b);
@@ -573,7 +577,8 @@ Value *eval(Node *n, Table *env) {
             Func *fn = func_find(fname);
             if (!fn) { fprintf(stderr, "Runtime error: undefined function '%s'\n", fname); exit(1); }
             int argc = n->body_count;
-            Value **argv = arena_alloc(global_arena, argc * sizeof(Value*));
+            /* Use malloc for transient argument arrays */
+            Value **argv = malloc(argc * sizeof(Value*));
             for (int i = 0; i < argc; i++) {
                 if (i < fn->def->body_count && fn->def->body[i]->type_tag && !strcmp(fn->def->body[i]->type_tag, "ptr")) {
                     if (n->body[i]->kind == ND_VAR) {
@@ -592,6 +597,7 @@ Value *eval(Node *n, Table *env) {
             Value *result = eval_block(fn->def->left, scope);
             /* Ensure 'break' signal doesn't escape the function into the caller's loop */
             table_free(scope);
+            free(argv);
             if (result->kind == VAL_BREAK) return val_none();
             if (result->kind == VAL_OUT) return result->inner;
             return result;
