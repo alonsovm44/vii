@@ -115,6 +115,7 @@ do lex lexer_ctx
   tokens = list
   pos = lexer_ctx at "pos" # Initial position
   line = lexer_ctx at "line" # Initial line
+  boot_debug = lexer_ctx at "boot_debug"
   at_start = 1
   indent_stack = list
   indent_stack set 0 0
@@ -123,6 +124,9 @@ do lex lexer_ctx
   source_len = len src
 
   while pos < source_len
+    if boot_debug and (len tokens % 1000 == 0)
+      "Lexer heartbeat: " + tostr (len tokens) + " tokens generated..."
+
     char = src at pos
 
     # 1. Skip non-structural whitespace (Spaces, Tabs, CRLF)

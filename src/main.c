@@ -39,7 +39,14 @@ Arena* arena_create(size_t size) {
 void* arena_alloc(Arena *a, size_t size) {
     size_t aligned = (size + 7) & ~7;
     if (a->offset + aligned > a->capacity) {
-        fprintf(stderr, "Arena memory exhausted\n");
+        fprintf(stderr, "\n--- FATAL: Arena Memory Exhausted ---\n");
+        fprintf(stderr, "Capacity: %zu bytes\n", a->capacity);
+        fprintf(stderr, "Current Offset: %zu bytes\n", a->offset);
+        fprintf(stderr, "Requested: %zu bytes\n", size);
+        fprintf(stderr, "Hint: This usually indicates an infinite loop creating\n");
+        fprintf(stderr, "dictionaries or strings in your Vii code.\n");
+        fprintf(stderr, "Check for circular 'paste' calls or lexer loops.\n");
+        fprintf(stderr, "---------------------------------------\n");
         exit(1);
     }
     void *ptr = a->data + a->offset;

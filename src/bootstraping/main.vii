@@ -56,21 +56,24 @@ do main
   input_path str = "none"
   output_name str = "none"
   debug_ast bit = 0
+  boot_debug bit = 0
   keep_c bit = 0 
   
   argc = len arg
   
-  # Check for basic usage/help/version before full parsing
-  if argc < 2
+  # Ensure we have at least one argument (the input file)
+  if argc < 1
     print_usage
   
   # Argument Parsing
-  # Start at 1 to skip the vii executable itself
-  i num = 1 
+  # Start at 0 to be robust across different host interpreter arg-passing styles
+  i num = 0 
   while i < argc
     current_arg = arg at i
     if current_arg == "--debug"
       debug_ast = 1
+    else if current_arg == "--bootdebug"
+      boot_debug = 1
     else if current_arg == "-o"
       if i + 1 < argc
         output_name = arg at (i + 1)
@@ -95,6 +98,9 @@ do main
     else if str_contains current_arg "main.vii"
       # Skip the bootstrap script itself
       ""
+    else if current_arg == "vii" or current_arg == "vii.exe"
+      # Skip the binary if it's in the list
+      ""
     else if (current_arg at 0) != "-" # Not an option, must be input file
       if input_path == "none"
         input_path = current_arg
@@ -111,7 +117,7 @@ do main
   
   # Build CLI arg list for the Vii program itself
   cli_args = list
-  i = 1 # Start at 1 to skip the vii executable
+  i = 0 
   while i < argc
     current_arg = arg at i
     if current_arg == "--debug"
@@ -126,6 +132,8 @@ do main
       i = i + 1 # Skip input path
     else if str_contains current_arg "main.vii"
       i = i + 1 # Skip the bootstrap script name
+    else if current_arg == "vii" or current_arg == "vii.exe"
+      i = i + 1 # Skip the binary name
     else
       cli_args set (len cli_args) current_arg
       i = i + 1
@@ -137,7 +145,12 @@ do main
   lexer key "pos" 0
   lexer key "line" 1 # Starting line for this lexer instance
   lexer key "filename" input_path
+  lexer key "boot_debug" boot_debug
   lexer key "arena" global_arena # Assuming arena is passed to lexer
+
+  # Initialize the list of pasted files to track dependencies
+  pasted_files = list
+  pasted_files set 0 input_path
 
   tokens = lex lexer # Call the lexer
 
@@ -148,9 +161,11 @@ do main
   parser key "filename" input_path
   parser key "arena" global_arena # Assuming arena is passed to parser
   parser key "defines" CLI_DEFINES # Pass CLI defines to the parser
+  parser key "boot_debug" boot_debug
   parser key "in_func" 0 # Initialize in_func
   parser key "current_func" "none" # Initialize current_func
   parser key "constants" list # Initialize constants
+  parser key "pasted_files" pasted_files # Pass tracking list to parser
 
   prog = parse_program parser # Call the parser
 
