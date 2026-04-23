@@ -176,6 +176,13 @@ do emit_stmt n
     emit_stmt (n at "body" at 0)
     indent_lvl = indent_lvl - 1
     emit "}"
+  else if k == ND_FOR
+    # Translate Vii 'for' to C 'for' using the list item_count
+    emit "{ Value* _lst = val_unwrap(" + emit_expr (n at "left") + ");"
+    emit "  for (int _i = 0; _i < _lst->item_count; _i++) {"
+    emit "    table_set(env, \"" + (n at "name") + "\", _lst->items[_i]);"
+    emit_stmt (n at "body" at 0)
+    emit "  }}"
   else if k == ND_BREAK
     emit "break;"
   else if k == ND_SKIP
@@ -242,6 +249,17 @@ do compile_to_c prog
   emit "int main(int argc, char** argv) {"
   indent_lvl = indent_lvl + 1
   emit "global_arena = arena_create(512*1024*1024);"
+  
+  # Populate the 'arg' global list for the Vii program
+  emit "Value* arg = val_list();"
+  emit "for (int i = 1; i < argc; i++) {"
+  emit "  if (arg->item_count >= arg->item_cap) val_list_grow(arg);"
+  emit "  arg->items[arg->item_count++] = val_str(argv[i]);"
+  emit "}"
+  
+  # Create a global environment table
+  emit "Table* env = table_new(NULL);"
+  emit "table_set(env, \"arg\", arg);"
   
   # Hoist Top-Level Variables
   declared_vars = dict

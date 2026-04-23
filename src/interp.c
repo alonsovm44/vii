@@ -112,9 +112,15 @@ Value *cli_args = NULL;
 
 static Value *val_unwrap(Value *v) {
     int depth = 0;
-    while (v && v->kind == VAL_REF) {
-        if (depth++ > 100) { fprintf(stderr, "Runtime error: circular reference detected\n"); exit(1); }
-        v = v->target;
+    while (v) {
+        if (v->kind == VAL_REF) {
+            v = v->target;
+        } else if (v->kind == VAL_OUT) {
+            v = v->inner;
+        } else {
+            break;
+        }
+        if (depth++ > 100) { fprintf(stderr, "Runtime error: circular reference or signal loop detected\n"); exit(1); }
     }
     return v;
 }

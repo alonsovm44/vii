@@ -120,7 +120,7 @@ do main
   # Windows .exe handling
   IF WIN # Compile-time conditional
     if output_name != "none"
-      if str_contains output_name ".exe" == 0 and str_contains output_name ".EXE" == 0
+      if (str_contains output_name ".exe") == 0 and (str_contains output_name ".EXE") == 0
         output_name = output_name + ".exe"
   
   # Build CLI arg list for the Vii program itself
