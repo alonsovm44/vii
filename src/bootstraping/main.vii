@@ -1,4 +1,5 @@
 #! ONCE
+# ^ this is basically # pragma once but it is a shebang that does the same
 paste "src/bootstraping/vii.vii"
 paste "src/bootstraping/ui.vii"
 paste "src/bootstraping/lexer.vii"
@@ -209,3 +210,8 @@ do main
 
 # Start the compiler
 main
+
+
+# Note: The above code assumes that the lexer, parser, interpreter, and code generator
+# LMAO i almost achieve self-bootstrapping in Vii itself in 6 days from start to finish,
+# good for a hobby project
