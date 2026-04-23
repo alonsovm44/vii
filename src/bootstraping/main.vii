@@ -1,3 +1,4 @@
+#! ONCE
 paste "src/bootstraping/vii.vii"
 paste "src/bootstraping/ui.vii"
 paste "src/bootstraping/lexer.vii"
@@ -41,12 +42,13 @@ do str_contains s sub
   len_sub = len sub
   if len_sub == 0
     out 1
-  if len_s < len_sub
-    out 0
   i = 0
-  while i <= len_s - len_sub
-    if slice s i (i + len_sub) == sub
-      out 1
+  first_char = slice sub 0 1
+  while i <= (len_s - len_sub)
+    # Only slice if the first character matches to save Arena memory
+    if (slice s i (i + 1)) == first_char
+      if (slice s i (i + len_sub)) == sub
+        out 1
     i = i + 1
   out 0
 
@@ -101,10 +103,14 @@ do main
     else if current_arg == "vii" or current_arg == "vii.exe"
       # Skip the binary if it's in the list
       ""
-    else if (current_arg at 0) != "-" # Not an option, must be input file
-      if input_path == "none"
-        input_path = current_arg
-      # else: ignore extra positional arguments for now, or handle as error
+    else if (current_arg at 0) == "-"
+      "Warning: Ignoring unknown flag: " + current_arg
+    else if input_path == "none"
+      input_path = current_arg
+    else
+      "Warning: Ignoring unknown positional argument: " + current_arg
+
+    # Ensure the pointer always advances to avoid infinite loops
     i = i + 1
 
   if input_path == "none"
@@ -122,6 +128,8 @@ do main
     current_arg = arg at i
     if current_arg == "--debug"
       i = i + 1 # Skip debug flag
+    else if current_arg == "--bootdebug"
+      i = i + 1 # Skip bootstrapping debug flag
     else if current_arg == "-o"
       i = i + 2 # Skip -o and its value
     else if current_arg == "-k" or current_arg == "--keep"
@@ -134,7 +142,7 @@ do main
       i = i + 1 # Skip the bootstrap script name
     else if current_arg == "vii" or current_arg == "vii.exe"
       i = i + 1 # Skip the binary name
-    else
+    else # Fallback for unknown flags and input files
       cli_args set (len cli_args) current_arg
       i = i + 1
 
@@ -166,6 +174,7 @@ do main
   parser key "current_func" "none" # Initialize current_func
   parser key "constants" list # Initialize constants
   parser key "pasted_files" pasted_files # Pass tracking list to parser
+  parser key "once_registry" (dict) # Global registry for ONCE 1 macros
 
   prog = parse_program parser # Call the parser
 

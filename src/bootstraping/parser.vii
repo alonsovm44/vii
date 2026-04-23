@@ -1,4 +1,4 @@
-
+#! ONCE
 # ──────────────────────── AST Helpers ────────────────────────
 
 do nd_new kind t
@@ -6,6 +6,7 @@ do nd_new kind t
   n key "kind" kind
   n key "body" list
   n key "line" (t at "line")
+  n key "filename" (t at "filename")
   n key "pos" (t at "pos")
   n
 
@@ -520,13 +521,13 @@ do parse_stmt p
     filename = t at "text"
     advance p
 
-    if p at "boot_debug"
-      "Paste trace: inclusion of '" + filename + "' from '" + (p at "filename") + "'"
-
     # 6.2 - Guard against circular dependencies and redundant pasting
     p_files = p at "pasted_files"
     already_done = 0
     i = 0
+    if type p_files == "none"
+      p key "pasted_files" (list)
+      p_files = p at "pasted_files"
     while i < len p_files
       if (p_files at i) == filename
         already_done = 1
@@ -534,6 +535,9 @@ do parse_stmt p
     
     if already_done
       out nd_new ND_BLOCK t # Return an empty block for already processed files
+
+    if p at "boot_debug"
+      "Paste trace: inclusion of '" + filename + "' from '" + (p at "filename") + "'"
 
     p_files set (len p_files) filename
 
@@ -596,6 +600,11 @@ do parse_stmt p
     advance p
     out nd_new ND_BREAK t
 
+  if k == TOK_SKIP
+    advance p
+    out nd_new ND_SKIP t
+
+
   if k == TOK_OUT
     advance p
     n = nd_new ND_OUT t
@@ -635,6 +644,17 @@ do parse_block p is_func
 
 do parse_program p
   prog = nd_new ND_BLOCK (peek p)
+  
+  # Check for #! ONCE shebang at the very beginning of the program
+  t1 = peek p
+  if (t1 at "kind") == TOK_SHEBANG
+    advance p # consume shebang
+    once_registry = p at "once_registry"
+    fname = p at "filename"
+    if (once_registry at fname) == 1
+      out prog # Return empty block, we've already parsed this file
+    once_registry key fname 1
+
   while (peek p at "kind") != TOK_EOF
     k = peek p at "kind"
     if k == TOK_NEWLINE or k == TOK_SEMICOLON

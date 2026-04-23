@@ -1,9 +1,14 @@
 #include "vii.h"
 #include <ctype.h>
 
+static int parser_current_line = 0;
+static const char *parser_current_filename = NULL;
+
 Node *nd_new(NdKind kind) {
     Node *n = arena_alloc(global_arena, sizeof(Node));
     n->kind = kind;
+    n->line = parser_current_line; // Set the line number here
+    n->filename = (char*)parser_current_filename;
     return n;
 }
 
@@ -46,8 +51,15 @@ static void track_constant(Parser *p, const char *name, int pos, int line) {
 
 /* ──────────────────────── Parser helpers ──────────────────────── */
 
-static Token *peek(Parser *p) { return &p->tokens[p->pos]; }
-static Token *advance(Parser *p) { return &p->tokens[p->pos++]; }
+static Token *peek(Parser *p) { 
+    if (p->tokens[p->pos].line > 0) parser_current_line = p->tokens[p->pos].line;
+    return &p->tokens[p->pos]; 
+}
+static Token *advance(Parser *p) { 
+    Token *t = &p->tokens[p->pos++];
+    parser_current_line = t->line;
+    return t;
+}
 
 static void expect(Parser *p, TokKind k) {
     if (peek(p)->kind != k) {
@@ -497,10 +509,15 @@ static Node *parse_stmt(Parser *p) {
         const char *filename = peek(p)->text;
         advance(p);
         char *src = read_file(filename);
-        Lexer sub_lex = { .src = src, .pos = 0, .filename = filename, .arena = p->arena };
-        lex(&sub_lex, filename);
+        Lexer sub_lex = { .src = src, .pos = 0, .filename = arena_intern(p->arena, filename), .arena = p->arena };
+        lex(&sub_lex, sub_lex.filename);
         Parser sub_p = { .tokens = sub_lex.tokens, .pos = 0, .src = src, .filename = filename, .arena = p->arena };
+        
+        const char *old_fname = parser_current_filename;
+        parser_current_filename = sub_p.filename;
         Node *included = parse_program(&sub_p);
+        parser_current_filename = old_fname;
+        
         free(src);
         return included;
     }
@@ -545,6 +562,11 @@ static Node *parse_stmt(Parser *p) {
     if (t->kind == TOK_BREAK || (t->kind == TOK_IDENT && strcmp(t->text, "break") == 0)) {
         advance(p);
         return nd_new(ND_BREAK);
+    }
+
+    if (t->kind == TOK_SKIP) {
+        advance(p);
+        return nd_new(ND_SKIP);
     }
 
     if (t->kind == TOK_OUT) {
@@ -601,6 +623,7 @@ static Node *parse_block(Parser *p, bool is_function) {
 }
 
 Node *parse_program(Parser *p) {
+    parser_current_filename = p->filename;
     Node *prog = nd_new(ND_BLOCK);
     while (peek(p)->kind != TOK_EOF) {
         if (peek(p)->kind == TOK_NEWLINE || peek(p)->kind == TOK_SEMICOLON) { advance(p); continue; }

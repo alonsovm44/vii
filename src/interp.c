@@ -83,6 +83,27 @@ Value *val_break(void) {
     return v;
 }
 
+Value *val_skip(void) {
+    Value *v = arena_alloc(global_arena, sizeof(Value));
+    v->kind = VAL_SKIP;
+    return v;
+}
+
+static void runtime_error(Node *n, const char *fmt, ...) {
+    fprintf(stderr, COL_RED "Runtime error" COL_RST);
+    if (n && n->filename) {
+        fprintf(stderr, " in %s on line %d", n->filename, n->line);
+    }
+    fprintf(stderr, ": ");
+    va_list ap;
+    va_start(ap, fmt);
+    vfprintf(stderr, fmt, ap);
+    va_end(ap);
+    fprintf(stderr, "\n");
+    fflush(stderr);
+    exit(1);
+}
+
 /* ──────────────────────── CLI args ──────────────────────── */
 
 Value *cli_args = NULL;
@@ -101,14 +122,23 @@ static Value *val_unwrap(Value *v) {
 Value *eval_block(Node *block, Table *env) {
     Value *last = val_none();
     for (int i = 0; i < block->body_count; i++) {
-        last = eval(block->body[i], env);
-        if (last->kind == VAL_BREAK || last->kind == VAL_OUT) break;
+        last = eval(block->body[i], env); // Evaluate each statement
+        if (last->kind == VAL_BREAK || last->kind == VAL_OUT || last->kind == VAL_SKIP) break; // Stop on control flow signals
     }
     return last;
 }
 
 Value *eval(Node *n, Table *env) {
     if (!n) return val_none();
+
+    /* --- EXECUTION HEARTBEAT TRACER --- */
+    static long long eval_steps = 0;
+    eval_steps++;
+    
+    if (eval_steps % 500000 == 0) {
+        fprintf(stderr, "[TRACER] 500k steps... Kind: %d | Name: %s | Str: %s | Line: %d\n", n->kind, n->name ? n->name : "N/A", n->str ? n->str : "N/A", n->line);
+    }
+    /* ---------------------------------- */
 
     switch (n->kind) {
         case ND_NUM:   return val_num(n->num);
@@ -126,8 +156,7 @@ Value *eval(Node *n, Table *env) {
         case ND_UMINUS: {
             Value *v = val_unwrap(eval(n->left, env));
             if (v->kind != VAL_NUM) {
-                fprintf(stderr, "Runtime error: unary minus requires a number\n");
-                exit(1);
+                runtime_error(n, "unary minus requires a number");
             }
             return val_num(0 - v->num);
         }
@@ -139,11 +168,15 @@ Value *eval(Node *n, Table *env) {
                     Table *scope = table_new(env);
                     Value *res = eval_block(fn->def->left, scope);
                     table_free(scope);
+                    if (res->kind == VAL_OUT) return res->inner;
                     return res;
                 }
-                fprintf(stderr, "Runtime error: undefined variable '%s'\n", n->name); exit(1);
+                runtime_error(n, "undefined variable '%s'", n->name);
             }
             return v;
+        }
+        case ND_SKIP: {
+            return val_skip();
         }
         case ND_ASSIGN: {
             Value *val = eval(n->right, env);
@@ -185,6 +218,8 @@ Value *eval(Node *n, Table *env) {
                 table_set(env, n->name, list->items[i]);
                 Value *res = eval_block(n->body[0], env);
                 if (res->kind == VAL_BREAK) break;
+                if (res->kind == VAL_SKIP) continue; // Continue to next iteration
+                if (res->kind == VAL_OUT) return res;
             }
             return val_none();
         }
@@ -315,25 +350,22 @@ Value *eval(Node *n, Table *env) {
         }
         case ND_IF: {
             Value *cond = eval(n->left, env);
-            Value *result = val_none();
             if (val_truthy(cond)) {
-                if (n->body_count > 0) {
-                    for (int i = 0; i < n->body_count; i++)
-                        result = eval(n->body[i], env);
-                }
+                if (n->body_count > 0) return eval_block(n->body[0], env);
             } else if (n->right) {
                 if (n->right->kind == ND_BLOCK) {
-                    result = eval_block(n->right, env);
-                } else {
-                    result = eval(n->right, env);
+                    return eval_block(n->right, env);
                 }
+                return eval(n->right, env);
             }
-            return result;
+            return val_none();
         }
         case ND_WHILE: {
             while (val_truthy(eval(n->left, env))) {
                 Value *res = eval_block(n->body[0], env);
                 if (res->kind == VAL_BREAK) break;
+                if (res->kind == VAL_SKIP) continue; // Continue to next iteration
+                if (res->kind == VAL_OUT) return res;
             }
             return val_none();
         }
@@ -400,8 +432,8 @@ Value *eval(Node *n, Table *env) {
             Value *dict = val_unwrap(eval(n->left, env));
             Value *key = val_unwrap(eval(n->body[0], env));
             Value *val = eval(n->body[1], env);
-            if (dict->kind != VAL_DICT) { fprintf(stderr, "Runtime error: 'key' on non-dict\n"); exit(1); }
-            if (key->kind != VAL_STR) { fprintf(stderr, "Runtime error: dict key must be string\n"); exit(1); }
+            if (dict->kind != VAL_DICT) { runtime_error(n, "'key' on non-dict"); }
+            if (key->kind != VAL_STR) { runtime_error(n, "dict key must be string"); }
             table_set(dict->fields, key->str, val);
             return val;
         }
@@ -409,7 +441,7 @@ Value *eval(Node *n, Table *env) {
             Value *list = val_unwrap(eval(n->left, env));
             Value *idx  = val_unwrap(eval(n->right, env));
             if (list->kind == VAL_DICT) {
-                if (idx->kind != VAL_STR) { fprintf(stderr, "Runtime error: dict index must be string\n"); exit(1); }
+                if (idx->kind != VAL_STR) { runtime_error(n, "dict index must be string"); }
                 Value *v = table_get(list->fields, idx->str);
                 return v ? v : val_none();
             }
@@ -447,11 +479,11 @@ Value *eval(Node *n, Table *env) {
         case ND_PUT: {
             Value *path = eval(n->left, env);
             Value *data = eval(n->right, env);
-            if (path->kind != VAL_STR) { fprintf(stderr, "Runtime error: put requires a string path\n"); exit(1); }
+            if (path->kind != VAL_STR) { runtime_error(n, "put requires a string path"); }
             FILE *f;
             if (path->str[0] == '\0') f = stdout;
             else f = fopen(path->str, (n->op == TOK_APPEND) ? "a" : "w");
-            if (!f) { fprintf(stderr, "Runtime error: cannot open '%s' for writing\n", path->str); exit(1); }
+            if (!f) { runtime_error(n, "cannot open '%s' for writing", path->str); }
             if (data->kind == VAL_STR) fprintf(f, "%s", data->str);
             else val_print_to(data, f);
             if (f != stdout) fclose(f);
@@ -575,7 +607,7 @@ Value *eval(Node *n, Table *env) {
         case ND_CALL: {
             const char *fname = n->left->name;
             Func *fn = func_find(fname);
-            if (!fn) { fprintf(stderr, "Runtime error: undefined function '%s'\n", fname); exit(1); }
+            if (!fn) { runtime_error(n, "undefined function '%s'", fname); }
             int argc = n->body_count;
             /* Use malloc for transient argument arrays */
             Value **argv = malloc(argc * sizeof(Value*));

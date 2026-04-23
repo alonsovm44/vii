@@ -41,7 +41,7 @@ extern Arena *global_arena;
 
 /* ──────────────────────── Value ──────────────────────── */
 
-typedef enum { VAL_NUM, VAL_STR, VAL_LIST, VAL_DICT, VAL_BIT, VAL_REF, VAL_BREAK, VAL_OUT, VAL_NONE } ValKind;
+typedef enum { VAL_NUM, VAL_STR, VAL_LIST, VAL_DICT, VAL_BIT, VAL_REF, VAL_BREAK, VAL_OUT, VAL_SKIP, VAL_NONE } ValKind;
 
 typedef struct Value {
     ValKind kind;
@@ -62,6 +62,7 @@ Value *val_dict(void);
 Value *val_bit(bool b);
 Value *val_ref(Value *target);
 Value *val_break(void);
+Value *val_skip(void);
 Value *val_none(void);
 void   val_list_grow(Value *v);
 bool   val_truthy(Value *v);
@@ -90,7 +91,7 @@ typedef enum {
     TOK_FOR, TOK_IN, TOK_EQ, TOK_EQEQ, TOK_PLUS, TOK_MINUS, TOK_STAR, TOK_SLASH, TOK_PCT, TOK_ARROW,
     TOK_LT, TOK_GT, TOK_LTE, TOK_GTE, TOK_NE, TOK_AND, TOK_OR, 
     TOK_LPAREN, TOK_RPAREN, TOK_SEMICOLON,
-    TOK_NEWLINE, TOK_INDENT, TOK_DEDENT, TOK_EOF, TOK_OUT, TOK_NOT
+    TOK_NEWLINE, TOK_INDENT, TOK_DEDENT, TOK_EOF, TOK_OUT, TOK_NOT, TOK_SKIP
 } TokKind;
 
 typedef struct Token {
@@ -123,7 +124,7 @@ void lex(Lexer *l, const char *filename);
 typedef enum {
     ND_NUM, ND_STR, ND_VAR,
     ND_ASSIGN, ND_BINOP, ND_UMINUS,
-    ND_IF, ND_WHILE, ND_BREAK, ND_DO,
+    ND_IF, ND_WHILE, ND_BREAK, ND_DO, ND_SKIP,
     ND_FOR, ND_SAFE, ND_ASK, ND_ASKFILE, ND_LIST, ND_DICT, ND_KEY, ND_KEYS, ND_AT, ND_SET,
     ND_PUT, ND_ARG, ND_LEN, ND_ORD, ND_CHR, ND_TONUM, ND_TOSTR, ND_SLICE, ND_SPLIT, ND_TRIM, ND_REPLACE, ND_TYPE, ND_TIME,
     ND_SYS, ND_ENV, ND_EXIT, ND_REF, ND_OUT, ND_NOT,
@@ -138,6 +139,8 @@ typedef struct Node {
     char  *mod_tag;
     double num;
     char  *str;
+    char  *filename;
+    int    line;
     TokKind op;
     struct Node *left;
     struct Node *right;

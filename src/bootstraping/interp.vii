@@ -1,3 +1,5 @@
+#! ONCE
+
 # ──────────────────────── Value Constructors ────────────────────────
 
 do val_num n
@@ -20,6 +22,11 @@ do val_none
 do val_break
   v = dict
   v key "kind" VAL_BREAK
+  v
+
+do val_skip
+  v = dict
+  v key "kind" VAL_SKIP
   v
 
 do val_out val
@@ -108,8 +115,8 @@ do eval_block block env_
   i = 0
   while i < len body
     last = eval (body at i) env_
-    k = last at "kind"
-    if k == VAL_BREAK or k == VAL_OUT
+    k = last at "kind" # Get the kind of the evaluated value
+    if k == VAL_BREAK or k == VAL_OUT or k == VAL_SKIP # Check for VAL_SKIP as well
       out last
     i = i + 1
   last
@@ -142,9 +149,12 @@ do eval n env_
         if (res at "kind") == VAL_OUT
           out res at "inner"
         out res
-      "Runtime error: undefined variable " + (n at "name")
+      "Runtime error: undefined variable " + (n at "name") + " in " + (n at "filename") + " on line " + tostr (n at "line")
       exit 1
     out res
+
+  if k == ND_SKIP
+    out val_skip
 
   if k == ND_ASSIGN
     val = eval (n at "right") env_
@@ -252,6 +262,8 @@ do eval n env_
       res = eval_block (n at "body" at 0) env_
       if (res at "kind") == VAL_BREAK
         break
+      if (res at "kind") == VAL_SKIP
+        skip # This will continue the while loop
       if (res at "kind") == VAL_OUT
         out res
     out val_none
@@ -265,6 +277,8 @@ do eval n env_
       res = eval_block (n at "body" at 0) env_
       if (res at "kind") == VAL_BREAK
         break
+      if (res at "kind") == VAL_SKIP
+        break
       if (res at "kind") == VAL_OUT
         out res
       i = i + 1
@@ -277,7 +291,7 @@ do eval n env_
   if k == ND_CALL
     fn = FUNCS at (n at "left" at "name")
     if type fn == "none"
-      "Runtime error: undefined function " + (n at "left" at "name")
+      "Runtime error: undefined function " + (n at "left" at "name") + " in " + (n at "filename") + " on line " + tostr (n at "line")
       exit 1
     
     args = n at "body"

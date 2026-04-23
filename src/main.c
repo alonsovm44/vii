@@ -70,7 +70,7 @@ static void add_define(const char *name) {
         if (cli_defines) memcpy(new_defines, cli_defines, old_cap * sizeof(char*));
         cli_defines = new_defines;
     }
-    cli_defines[cli_define_count++] = strdup(name);
+    cli_defines[cli_define_count++] = arena_strdup(global_arena, name);
 }
 
 int main(int argc, char **argv) {
@@ -137,7 +137,7 @@ int main(int argc, char **argv) {
         if (strcmp(argv[i], "-o") == 0) { i++; continue; }
         if (strcmp(argv[i], "-k") == 0 || strcmp(argv[i], "--keep") == 0) continue;
         if (strcmp(argv[i], "-D") == 0 || strcmp(argv[i], "--define") == 0) { i++; continue; }
-        if (argv[i] == input_path) continue;
+        if (input_path && strcmp(argv[i], input_path) == 0) continue;
 
         if (cli_args->item_count >= cli_args->item_cap) {
             val_list_grow(cli_args);

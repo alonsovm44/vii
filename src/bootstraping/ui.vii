@@ -1,3 +1,4 @@
+#! ONCE
 
 do enable_ansi_colors
   IF WIN
