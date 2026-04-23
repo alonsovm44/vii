@@ -28,7 +28,7 @@ void dump_ast_json(Node *n, FILE *f, int indent) {
 /* ──────────────────────── Codegen (IO -> C) ──────────────────────── */
 
 static void emit_c_header(FILE *f) {
-    fprintf(f, "#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n#include <stdbool.h>\n#include <math.h>\n#include <time.h>\n#include <ctype.h>\n\n");
+    fprintf(f, "#include <stdio.h>\n#include <stdlib.h>\n#include <stdint.h>\n#include <string.h>\n#include <stdbool.h>\n#include <math.h>\n#include <time.h>\n#include <ctype.h>\n\n");
     fprintf(f, "typedef enum { VAL_NUM, VAL_STR, VAL_LIST, VAL_DICT, VAL_FUNC, VAL_BIT, VAL_REF, VAL_BREAK, VAL_SKIP, VAL_OUT, VAL_NONE } ValKind;\n");
     fprintf(f, "struct Table;\nstruct Value;\n");
     fprintf(f, "typedef struct Value* (*IoFunc)(struct Table*, int, struct Value**);\n");
@@ -407,7 +407,19 @@ void compile_to_bin(Node *prog, const char *out_name, bool keep_c) {
     if (!f) { fprintf(stderr, "Failed to create C source\n"); exit(1); }
 
     emit_c_header(f);
+    fprintf(f, "typedef struct { size_t cap; size_t off; char* data; } Arena;\n\n");
     emit_c_functions(prog, f);
+
+    // Emit arena_create after other functions but before main
+    fprintf(f, "static Value* io_func_arena_create(Table* parent, int argc, Value** argv) {\n");
+    fprintf(f, "  Table* env = table_new(parent);\n");
+    fprintf(f, "  if(argc > 0) table_set(env, \"size\", argv[0]);\n");
+    fprintf(f, "  Arena* a = calloc(1, sizeof(Arena));\n");
+    fprintf(f, "  Value* sz = (argc > 0) ? argv[0] : val_num(64*1024*1024);\n");
+    fprintf(f, "  a->cap = (size_t)(sz->kind==VAL_NUM ? sz->num : 64*1024*1024);\n");
+    fprintf(f, "  a->data = calloc(1, a->cap);\n");
+    fprintf(f, "  return val_out(val_num((double)(uintptr_t)a));\n");
+    fprintf(f, "}\n\n");
 
     fprintf(f, "\nint main(int argc, char **argv) {\n");
     fprintf(f, "  io_args = val_list();\n");
