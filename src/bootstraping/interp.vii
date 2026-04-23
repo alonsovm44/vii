@@ -134,8 +134,10 @@ do eval_block block env_
 
 do eval n env_
   if type n == "none"
+    IF DEBUG
+      "DEBUG: eval got none"
+      "DEBUG: eval kind = " + tostr (n at "kind")
     out val_none
-
   k = n at "kind"
 
   if k == ND_NUM
@@ -254,7 +256,9 @@ do eval n env_
           out val_bit (ls == rs)
         if op == TOK_NE
           out val_bit (ls != rs)
-
+    IF DEBUG
+      if k != ND_PRINT
+        "DEBUG: eval returning val_none for kind " + tostr k
     out val_none
 
   if k == ND_IF
@@ -289,7 +293,8 @@ do eval n env_
       if (res at "kind") == VAL_BREAK
         break
       if (res at "kind") == VAL_SKIP
-        break
+        i = i + 1
+        skip
       if (res at "kind") == VAL_OUT
         out res
       i = i + 1
@@ -349,8 +354,13 @@ do eval n env_
     out val_break
 
   if k == ND_PRINT
+    "xDEBUG: Entered ND_PRINT"
     v = eval (n at "left") env_
-    "" put (val_print v + "\n")
+    "xDEBUG: v kind = " + tostr (v at "kind")
+    "xDEBUG: v str = " + (v at "str")
+    s = val_print v
+    "DEBUG: s = " + s
+    sys("echo " + s)
     out v
 
   if k == ND_ASK

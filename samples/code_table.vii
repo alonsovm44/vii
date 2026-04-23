@@ -1,2 +1,0 @@
-|var1 num | var2 str | do func param->num | 
-| 12 | "hi" |param*param|

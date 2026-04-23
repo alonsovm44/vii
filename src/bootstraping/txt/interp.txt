@@ -289,7 +289,8 @@ do eval n env_
       if (res at "kind") == VAL_BREAK
         break
       if (res at "kind") == VAL_SKIP
-        break
+        i = i + 1
+        skip
       if (res at "kind") == VAL_OUT
         out res
       i = i + 1
