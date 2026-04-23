@@ -14,16 +14,16 @@ color_rst = "\x1b[0m"
 
 # Helper function for printing usage
 do print_usage
-  "vii - a minimalist programming language"
-  "Usage: vii <file.vii> [-o program] [args...]"
-  "       vii --version"
-  "       vii --help"
-  "       vii --debug <file.vii>"
-  ""
-  "Options:"
-  "  -o <name>      Compile to executable"
-  "  -k, --keep     Keep transpiled .c source"
-  "  -D <name>      Define compile-time flag for IF macros"
+  "" put ("vii - a minimalist programming language\n")
+  "" put ("Usage: vii <file.vii> [-o program] [args...]\n")
+  "" put ("       vii --version\n")
+  "" put ("       vii --help\n")
+  "" put ("       vii --debug <file.vii>\n")
+  "" put ("\n")
+  "" put ("Options:\n")
+  "" put ("  -o <name>      Compile to executable\n")
+  "" put ("  -k, --keep     Keep transpiled .c source\n")
+  "" put ("  -D <name>      Define compile-time flag for IF macros\n")
   exit 1 # Exit with error code for usage
 
 
@@ -101,7 +101,7 @@ do main
         color_red + "Error: -D requires a name" + color_rst
         exit 1
     else if current_arg == "--version"
-      "vii 2.0.0 bootstrapped"
+      "" put ("vii 2.0.0 bootstrapped\n")
       exit 0
     else if current_arg == "--help"
       print_usage
@@ -114,11 +114,11 @@ do main
     else
       first_char = current_arg at 0
       if first_char == "-"
-        "Warning: Ignoring unknown flag: " + current_arg
+        "" put ("Warning: Ignoring unknown flag: " + current_arg + "\n")
       else if input_path == "none"
         input_path = current_arg
       else
-        "Warning: Ignoring unknown positional argument: " + current_arg
+        "" put ("Warning: Ignoring unknown positional argument: " + current_arg + "\n")
 
     # Ensure the pointer always advances to avoid infinite loops
     i = i + 1
@@ -231,12 +231,12 @@ do main
   if is_none
     ""
   else if is_break
-    ""
+    0
   else
     printed = val_print res
     msg = printed + "\n"
     "" put msg
-  res
+  exit 0
 
 # Start the compiler
 main

@@ -613,7 +613,7 @@ do parse_stmt p
   expr = parse_expr p
   # Implicit print logic
   ek = expr at "kind"
-  if ek != ND_ASSIGN and ek != ND_DO and ek != ND_SET and ek != ND_KEY and ek != ND_PUT and ek != ND_EXIT
+  if (p at "in_func") == 0 and ek != ND_ASSIGN and ek != ND_DO and ek != ND_SET and ek != ND_KEY and ek != ND_PUT and ek != ND_EXIT and ek != ND_OUT and ek != ND_BLOCK and ek != ND_IF and ek != ND_WHILE and ek != ND_FOR
     n = nd_new ND_PRINT t
     n key "left" expr
     out n
