@@ -1,5 +1,8 @@
 #! ONCE
 
+# Global step counter for the heartbeat tracker
+interp_steps = 0
+
 # Global cache to store and reuse unique string values
 STRING_CACHE = dict
 
@@ -88,8 +91,14 @@ do val_truthy v
 do val_unwrap v
   curr = v
   depth = 0
-  while type curr != "none" and (curr at "kind") == VAL_REF
-    curr = curr at "target"
+  while type curr != "none"
+    k = curr at "kind"
+    if k == VAL_REF
+      curr = curr at "target"
+    else if k == VAL_OUT
+      curr = curr at "inner"
+    else
+      break
     depth = depth + 1
     if depth > 100
       "Runtime error: circular reference in unwrap"
@@ -138,6 +147,16 @@ do eval n env_
       "DEBUG: eval got none"
       "DEBUG: eval kind = " + tostr (n at "kind")
     out val_none
+
+  # Heartbeat Tracker: Prints progress every 1000 steps if BOOT_DEBUG is enabled
+  interp_steps = interp_steps + 1
+  db_flag = table_get env_ "BOOT_DEBUG"
+  if (db_flag at "kind") == VAL_BIT and (db_flag at "num") == 1
+    # Show step 1 and then every 500 steps to monitor progress
+    if interp_steps == 1 or interp_steps % 500 == 0
+      msg = "[INTERP] Step " + tostr interp_steps + ": Node " + tostr (n at "kind") + " at " + (n at "filename") + ":" + tostr (n at "line") + "\n"
+      "" put msg
+
   k = n at "kind"
 
   if k == ND_NUM
@@ -354,14 +373,12 @@ do eval n env_
     out val_break
 
   if k == ND_PRINT
-    "xDEBUG: Entered ND_PRINT"
-    v = eval (n at "left") env_
-    "xDEBUG: v kind = " + tostr (v at "kind")
-    "xDEBUG: v str = " + (v at "str")
-    s = val_print v
-    "DEBUG: s = " + s
-    sys("echo " + s)
-    out v
+    v_print = val_unwrap (eval (n at "left") env_)
+    "" put (val_print v_print + "\n")
+    v_print
+
+  if k == ND_BLOCK
+    out eval_block n env_
 
   if k == ND_ASK
     out val_str ask

@@ -1,5 +1,4 @@
 #! ONCE
-# ^ this is basically # pragma once but it is a shebang that does the same
 paste "src/bootstraping/vii.vii"
 paste "src/bootstraping/ui.vii"
 paste "src/bootstraping/lexer.vii"
@@ -55,7 +54,7 @@ do str_contains s sub
   out 0
 
 do main
-  global_arena = arena_create(64*1024*1024) # Assuming arena_create is available from vii.vii or C runtime
+  global_arena = arena_create(512*1024*1024) # Assuming arena_create is available from vii.vii or C runtime
   
   input_path str = "none"
   output_name str = "none"
@@ -195,8 +194,10 @@ do main
   global = dict # Create a new global scope table
   # Set cli_args in the global scope for the interpreted program
   global key "arg" cli_args
+  global key "BOOT_DEBUG" (val_bit boot_debug)
   
-  res = eval prog global # Evaluate the entire program
+
+  res = val_unwrap (eval prog global) # Evaluate and unwrap final signals
 
   # The implicit print logic is handled by the Vii interpreter's ND_PRINT node.
   # If the last statement was an implicit print, it's already printed.
@@ -207,11 +208,7 @@ do main
   # Always print the result of the program if it's not none or break.
   if (res at "kind") != VAL_NONE and (res at "kind") != VAL_BREAK
     "" put (val_print res + "\n")
+  res
 
 # Start the compiler
 main
-
-
-# Note: The above code assumes that the lexer, parser, interpreter, and code generator
-# LMAO i almost achieve self-bootstrapping in Vii itself in 6 days from start to finish,
-# good for a hobby project

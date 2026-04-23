@@ -9428,6 +9428,11 @@
       "body": [
         { "kind": 3,
           "left": 
+            { "kind": 2, "name": "interp_steps" },
+          "right": 
+            { "kind": 0, "val": 0 } },
+        { "kind": 3,
+          "left": 
             { "kind": 2, "name": "STRING_CACHE" },
           "right": 
             { "kind": 16 } },
@@ -10294,6 +10299,7 @@
                   "body": [
                     { "kind": 41,
                       "body": [
+                        { "kind": 41 },
                         { "kind": 38,
                           "left": 
                             { "kind": 2, "name": "val_none" } }
@@ -10307,6 +10313,129 @@
                             { "kind": 2, "name": "n" } },
                       "right": 
                         { "kind": 1, "str": "none" } } },
+                { "kind": 3,
+                  "left": 
+                    { "kind": 2, "name": "interp_steps" },
+                  "right": 
+                    { "kind": 4,
+                      "left": 
+                        { "kind": 2, "name": "interp_steps" },
+                      "right": 
+                        { "kind": 0, "val": 1 } } },
+                { "kind": 3,
+                  "left": 
+                    { "kind": 2, "name": "db_flag" },
+                  "right": 
+                    { "kind": 19,
+                      "left": 
+                        { "kind": 2, "name": "env_" },
+                      "right": 
+                        { "kind": 1, "str": "debug" } } },
+                { "kind": 6,
+                  "body": [
+                    { "kind": 41,
+                      "body": [
+                        { "kind": 6,
+                          "body": [
+                            { "kind": 41,
+                              "body": [
+                                { "kind": 3,
+                                  "left": 
+                                    { "kind": 2, "name": "msg" },
+                                  "right": 
+                                    { "kind": 4,
+                                      "left": 
+                                        { "kind": 4,
+                                          "left": 
+                                            { "kind": 4,
+                                              "left": 
+                                                { "kind": 4,
+                                                  "left": 
+                                                    { "kind": 4,
+                                                      "left": 
+                                                        { "kind": 4,
+                                                          "left": 
+                                                            { "kind": 4,
+                                                              "left": 
+                                                                { "kind": 4,
+                                                                  "left": 
+                                                                    { "kind": 1, "str": "Step " },
+                                                                  "right": 
+                                                                    { "kind": 27,
+                                                                      "left": 
+                                                                        { "kind": 2, "name": "interp_steps" } } },
+                                                              "right": 
+                                                                { "kind": 1, "str": ": Node " } },
+                                                          "right": 
+                                                            { "kind": 27,
+                                                              "left": 
+                                                                { "kind": 19,
+                                                                  "left": 
+                                                                    { "kind": 2, "name": "n" },
+                                                                  "right": 
+                                                                    { "kind": 1, "str": "kind" } } } },
+                                                      "right": 
+                                                        { "kind": 1, "str": " at " } },
+                                                  "right": 
+                                                    { "kind": 19,
+                                                      "left": 
+                                                        { "kind": 2, "name": "n" },
+                                                      "right": 
+                                                        { "kind": 1, "str": "filename" } } },
+                                              "right": 
+                                                { "kind": 1, "str": ":" } },
+                                          "right": 
+                                            { "kind": 27,
+                                              "left": 
+                                                { "kind": 19,
+                                                  "left": 
+                                                    { "kind": 2, "name": "n" },
+                                                  "right": 
+                                                    { "kind": 1, "str": "line" } } } },
+                                      "right": 
+                                        { "kind": 1, "str": "
+" } } },
+                                { "kind": 21,
+                                  "left": 
+                                    { "kind": 1, "str": "" },
+                                  "right": 
+                                    { "kind": 2, "name": "msg" } }
+                              ] }
+                          ],
+                          "left": 
+                            { "kind": 4,
+                              "left": 
+                                { "kind": 4,
+                                  "left": 
+                                    { "kind": 2, "name": "interp_steps" },
+                                  "right": 
+                                    { "kind": 0, "val": 1000 } },
+                              "right": 
+                                { "kind": 0, "val": 0 } } }
+                      ] }
+                  ],
+                  "left": 
+                    { "kind": 4,
+                      "left": 
+                        { "kind": 4,
+                          "left": 
+                            { "kind": 4,
+                              "left": 
+                                { "kind": 19,
+                                  "left": 
+                                    { "kind": 2, "name": "db_flag" },
+                                  "right": 
+                                    { "kind": 1, "str": "kind" } },
+                              "right": 
+                                { "kind": 2, "name": "VAL_BIT" } },
+                          "right": 
+                            { "kind": 19,
+                              "left": 
+                                { "kind": 2, "name": "db_flag" },
+                              "right": 
+                                { "kind": 1, "str": "num" } } },
+                      "right": 
+                        { "kind": 0, "val": 1 } } },
                 { "kind": 3,
                   "left": 
                     { "kind": 2, "name": "k" },
@@ -11598,6 +11727,7 @@
                                         { "kind": 1, "str": "kind" } } },
                               "right": 
                                 { "kind": 2, "name": "VAL_STR" } } },
+                        { "kind": 41 },
                         { "kind": 38,
                           "left": 
                             { "kind": 2, "name": "val_none" } }
@@ -12567,7 +12697,7 @@
                       "body": [
                         { "kind": 3,
                           "left": 
-                            { "kind": 2, "name": "v" },
+                            { "kind": 2, "name": "v_print" },
                           "right": 
                             { "kind": 40,
                               "body": [
@@ -12588,7 +12718,7 @@
                               "left": 
                                 { "kind": 40,
                                   "body": [
-                                    { "kind": 2, "name": "v" }
+                                    { "kind": 2, "name": "v_print" }
                                   ],
                                   "left": 
                                     { "kind": 2, "name": "val_print" } },
@@ -12597,7 +12727,7 @@
 " } } },
                         { "kind": 38,
                           "left": 
-                            { "kind": 2, "name": "v" } }
+                            { "kind": 2, "name": "v_print" } }
                       ] }
                   ],
                   "left": 
@@ -12606,6 +12736,27 @@
                         { "kind": 2, "name": "k" },
                       "right": 
                         { "kind": 2, "name": "ND_PRINT" } } },
+                { "kind": 6,
+                  "body": [
+                    { "kind": 41,
+                      "body": [
+                        { "kind": 38,
+                          "left": 
+                            { "kind": 40,
+                              "body": [
+                                { "kind": 2, "name": "n" },
+                                { "kind": 2, "name": "env_" }
+                              ],
+                              "left": 
+                                { "kind": 2, "name": "eval_block" } } }
+                      ] }
+                  ],
+                  "left": 
+                    { "kind": 4,
+                      "left": 
+                        { "kind": 2, "name": "k" },
+                      "right": 
+                        { "kind": 2, "name": "ND_BLOCK" } } },
                 { "kind": 6,
                   "body": [
                     { "kind": 41,
@@ -16638,7 +16789,7 @@
                       "left": 
                         { "kind": 4,
                           "left": 
-                            { "kind": 0, "val": 64 },
+                            { "kind": 0, "val": 512 },
                           "right": 
                             { "kind": 0, "val": 1024 } },
                       "right": 
@@ -17619,6 +17770,18 @@
               ],
               "left": 
                 { "kind": 2, "name": "global" } },
+            { "kind": 17,
+              "body": [
+                { "kind": 1, "str": "BOOT_DEBUG" },
+                { "kind": 40,
+                  "body": [
+                    { "kind": 2, "name": "boot_debug" }
+                  ],
+                  "left": 
+                    { "kind": 2, "name": "val_bit" } }
+              ],
+              "left": 
+                { "kind": 2, "name": "global" } },
             { "kind": 3,
               "left": 
                 { "kind": 2, "name": "res" },
@@ -17672,7 +17835,8 @@
                           "right": 
                             { "kind": 1, "str": "kind" } } },
                   "right": 
-                    { "kind": 2, "name": "VAL_BREAK" } } }
+                    { "kind": 2, "name": "VAL_BREAK" } } },
+            { "kind": 2, "name": "res" }
           ] } },
     { "kind": 42,
       "left": 
