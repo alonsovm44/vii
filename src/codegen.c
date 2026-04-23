@@ -29,10 +29,10 @@ void dump_ast_json(Node *n, FILE *f, int indent) {
 
 static void emit_c_header(FILE *f) {
     fprintf(f, "#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n#include <stdbool.h>\n#include <math.h>\n#include <time.h>\n#include <ctype.h>\n\n");
-    fprintf(f, "typedef enum { VAL_NUM, VAL_STR, VAL_LIST, VAL_DICT, VAL_FUNC, VAL_BIT, VAL_REF, VAL_NONE } ValKind;\n");
+    fprintf(f, "typedef enum { VAL_NUM, VAL_STR, VAL_LIST, VAL_DICT, VAL_FUNC, VAL_BIT, VAL_REF, VAL_BREAK, VAL_SKIP, VAL_OUT, VAL_NONE } ValKind;\n");
     fprintf(f, "struct Table;\nstruct Value;\n");
     fprintf(f, "typedef struct Value* (*IoFunc)(struct Table*, int, struct Value**);\n");
-    fprintf(f, "typedef struct Value { ValKind kind; double num; char *str; struct Value **items; int item_count; int item_cap; struct Table *fields; IoFunc func; struct Value *target; } Value;\n");
+    fprintf(f, "typedef struct Value { ValKind kind; double num; char *str; struct Value **items; int item_count; int item_cap; struct Table *fields; IoFunc func; struct Value *target; struct Value *inner; } Value;\n");
     fprintf(f, "typedef struct Entry { char *key; Value *val; bool is_constant; struct Entry *next; } Entry;\n");
     fprintf(f, "typedef struct Table { Entry *buckets[256]; struct Table *parent; } Table;\n\n");
 
@@ -48,6 +48,7 @@ static void emit_c_header(FILE *f) {
     fprintf(f, "static Value *val_func(IoFunc f) { Value *v = calloc(1, sizeof(Value)); v->kind = VAL_FUNC; v->func = f; return v; }\n");
     fprintf(f, "static Value *val_bit(bool b) { Value *v = calloc(1, sizeof(Value)); v->kind = VAL_BIT; v->num = b ? 1 : 0; return v; }\n");
     fprintf(f, "static Value *val_ref(Value *t) { Value *v = calloc(1, sizeof(Value)); v->kind = VAL_REF; v->target = t; return v; }\n");
+    fprintf(f, "static Value *val_out(Value *i) { Value *v = calloc(1, sizeof(Value)); v->kind = VAL_OUT; v->inner = i; return v; }\n");
     fprintf(f, "static Value *val_none() { Value *v = calloc(1, sizeof(Value)); v->kind = VAL_NONE; return v; }\n\n");
 
     fprintf(f, "static Value* table_get(Table *t, const char *k) { for(Table *cur=t;cur;cur=cur->parent){ unsigned h=hash(k); for(Entry *e=cur->buckets[h];e;e=e->next) if(!strcmp(e->key,k)) return e->val; } return val_none(); }\n");
@@ -55,7 +56,7 @@ static void emit_c_header(FILE *f) {
     fprintf(f, "static void table_set(Table *t, const char *k, Value *v) { unsigned h = hash(k); for(Entry *e=t->buckets[h];e;e=e->next) if(!strcmp(e->key,k)){ if(e->is_constant){fprintf(stderr,\"Runtime error: cannot reassign constant '%%s'\\n\",k);exit(1);} if(e->val->kind == VAL_REF) { Value *trg = e->val->target; trg->kind=v->kind; trg->num=v->num; trg->str=v->str; trg->items=v->items; trg->item_count=v->item_count; trg->fields=v->fields; return; } e->val=v;return;} Entry *e=malloc(sizeof(Entry)); e->key=strdup(k); e->val=v; e->is_constant=is_all_caps(k); e->next=t->buckets[h]; t->buckets[h]=e; }\n\n");
 
     /* Builtin Operations */
-    fprintf(f, "static Value* val_unwrap(Value* v) { while(v && v->kind == VAL_REF) v = v->target; return v; }\n");
+    fprintf(f, "static Value* val_unwrap(Value* v) { while(v && (v->kind == VAL_REF || v->kind == VAL_OUT)) v = (v->kind == VAL_REF ? v->target : v->inner); return v; }\n");
     fprintf(f, "static bool val_truthy(Value *v) { v = val_unwrap(v); if(!v) return false; if(v->kind==VAL_NUM) return v->num != 0; if(v->kind==VAL_STR) return v->str[0]!='\\0'; return v->item_count > 0; }\n");
     fprintf(f, "static void val_print(Value *v) { v = val_unwrap(v); if(!v) return; if(v->kind==VAL_NUM) printf(v->num==(long long)v->num?\"%%lld\":\"%%g\",(long long)v->num); else if(v->kind==VAL_STR) printf(\"%%s\",v->str); else if(v->kind==VAL_LIST){ printf(\"[\"); for(int i=0;i<v->item_count;i++){ if(i)printf(\", \"); val_print(v->items[i]); } printf(\"]\"); } }\n");
     fprintf(f, "static Value* runtime_binop(int op, Value* l, Value* r) {\n");
@@ -73,8 +74,9 @@ static void emit_c_header(FILE *f) {
     fprintf(f, "static Value* runtime_call(Value* f, Table* e, int c, Value** v) { if(f->kind==VAL_FUNC) return f->func(e, c, v); return val_none(); }\n");
     fprintf(f, "static Value* io_args;\n");
     fprintf(f, "static Value* runtime_var_get(Table* e, const char* k) { Value* v=table_get(e,k); if(v->kind==VAL_FUNC) return v->func(e,0,NULL); return v; }\n");
-    fprintf(f, "static Value* runtime_at(Value* l, Value* r) { l = val_unwrap(l); r = val_unwrap(r); int i=(int)r->num; if(l->kind==VAL_STR){ if(i<0||i>=strlen(l->str)) return val_none(); char b[2]={l->str[i],0}; return val_str(b); } if(l->kind==VAL_LIST){ if(i<0||i>=l->item_count) return val_none(); return l->items[i]; } return val_none(); }\n");
+    fprintf(f, "static Value* runtime_at(Value* l, Value* r) { l = val_unwrap(l); r = val_unwrap(r); if(l->kind==VAL_DICT) return table_get(l->fields, r->str); int i=(int)r->num; if(l->kind==VAL_STR){ if(i<0||i>=strlen(l->str)) return val_none(); char b[2]={l->str[i],0}; return val_str(b); } if(l->kind==VAL_LIST){ if(i<0||i>=l->item_count) return val_none(); return l->items[i]; } return val_none(); }\n");
     fprintf(f, "static Value* runtime_set(Value* l, Value* i, Value* v) { l = val_unwrap(l); i = val_unwrap(i); if(l->kind!=VAL_LIST) return v; int idx=(int)i->num; if(idx==l->item_count){ if(l->item_count>=l->item_cap){ l->item_cap*=2; l->items=realloc(l->items,l->item_cap*sizeof(Value*)); } l->items[l->item_count++]=v; } else if(idx>=0 && idx<l->item_count) l->items[idx]=v; return v; }\n");
+    fprintf(f, "static Value* runtime_key(Value* d, Value* k, Value* v) { d = val_unwrap(d); k = val_unwrap(k); if(d->kind==VAL_DICT) table_set(d->fields, k->str, v); return v; }\n");
     fprintf(f, "static Value* runtime_ask(Value* p) { p = val_unwrap(p); if(p&&p->kind==VAL_STR){ FILE* f=fopen(p->str,\"rb\"); if(!f) return val_str(\"\"); fseek(f,0,SEEK_END); long l=ftell(f); fseek(f,0,SEEK_SET); char* b=malloc(l+1); fread(b,1,l,f); b[l]=0; fclose(f); Value* v=val_str(b); free(b); return v; } char buf[1024]; if(!fgets(buf,1024,stdin)) return val_str(\"\"); buf[strcspn(buf,\"\\n\")]=0; return val_str(buf); }\n");
     fprintf(f, "static Value* runtime_len(Value* v) { v = val_unwrap(v); if(v->kind==VAL_STR) return val_num(strlen(v->str)); if(v->kind==VAL_LIST) return val_num(v->item_count); if(v->kind==VAL_DICT){ int c=0; for(int i=0;i<256;i++) for(Entry *e=v->fields->buckets[i];e;e=e->next) c++; return val_num(c); } return val_num(0); }\n");
     fprintf(f, "static Value* runtime_ord(Value* v) { v = val_unwrap(v); if(v->kind==VAL_STR&&v->str[0]) return val_num((unsigned char)v->str[0]); return val_num(0); }\n");
@@ -349,8 +351,8 @@ static void emit_c_functions(Node *n, FILE *f) {
         emit_c_functions(n->left, f);
         Node *block = n->left;
         for (int i = 0; i < block->body_count; i++) {
-            if (i == block->body_count - 1 && block->body[i]->kind != ND_IF && block->body[i]->kind != ND_WHILE && block->body[i]->kind != ND_EXIT && block->body[i]->kind != ND_BLOCK) {
-                fprintf(f, "  return "); emit_c_expr(block->body[i], f); fprintf(f, ";\n");
+            if (i == block->body_count - 1 && block->body[i]->kind != ND_IF && block->body[i]->kind != ND_WHILE && block->body[i]->kind != ND_EXIT && block->body[i]->kind != ND_BLOCK && block->body[i]->kind != ND_OUT) {
+                fprintf(f, "  return val_out("); emit_c_expr(block->body[i], f); fprintf(f, ");\n");
             } else {
                 emit_c_stmt(block->body[i], 1, f);
             }
@@ -378,7 +380,14 @@ void compile_to_bin(Node *prog, const char *out_name, bool keep_c) {
     fprintf(f, "  }\n");
     fprintf(f, "  Table *env = table_new(NULL);\n");
     fprintf(f, "  table_set(env, \"arg\", io_args);\n");
-    emit_c_stmt(prog, 1, f);
+    fprintf(f, "  table_set(env, \"argv\", io_args);\n");
+    // The main Vii program is expected to have a 'do main' function.
+    // We need to explicitly call this function as the entry point.
+    fprintf(f, "  Value *program_result = io_func_main(env, 0, NULL);\n");
+    fprintf(f, "  if (program_result->kind != VAL_NONE && program_result->kind != VAL_BREAK) {\n");
+    fprintf(f, "    val_print(program_result);\n");
+    fprintf(f, "    printf(\"\\n\");\n");
+    fprintf(f, "  }\n");
     fprintf(f, "  return 0;\n}\n");
     fclose(f);
 

@@ -6,11 +6,11 @@
 #include <time.h>
 #include <ctype.h>
 
-typedef enum { VAL_NUM, VAL_STR, VAL_LIST, VAL_DICT, VAL_FUNC, VAL_BIT, VAL_REF, VAL_NONE } ValKind;
+typedef enum { VAL_NUM, VAL_STR, VAL_LIST, VAL_DICT, VAL_FUNC, VAL_BIT, VAL_REF, VAL_BREAK, VAL_SKIP, VAL_OUT, VAL_NONE } ValKind;
 struct Table;
 struct Value;
 typedef struct Value* (*IoFunc)(struct Table*, int, struct Value**);
-typedef struct Value { ValKind kind; double num; char *str; struct Value **items; int item_count; int item_cap; struct Table *fields; IoFunc func; struct Value *target; } Value;
+typedef struct Value { ValKind kind; double num; char *str; struct Value **items; int item_count; int item_cap; struct Table *fields; IoFunc func; struct Value *target; struct Value *inner; } Value;
 typedef struct Entry { char *key; Value *val; bool is_constant; struct Entry *next; } Entry;
 typedef struct Table { Entry *buckets[256]; struct Table *parent; } Table;
 
@@ -23,13 +23,14 @@ static Value *val_dict() { Value *v = calloc(1, sizeof(Value)); v->kind = VAL_DI
 static Value *val_func(IoFunc f) { Value *v = calloc(1, sizeof(Value)); v->kind = VAL_FUNC; v->func = f; return v; }
 static Value *val_bit(bool b) { Value *v = calloc(1, sizeof(Value)); v->kind = VAL_BIT; v->num = b ? 1 : 0; return v; }
 static Value *val_ref(Value *t) { Value *v = calloc(1, sizeof(Value)); v->kind = VAL_REF; v->target = t; return v; }
+static Value *val_out(Value *i) { Value *v = calloc(1, sizeof(Value)); v->kind = VAL_OUT; v->inner = i; return v; }
 static Value *val_none() { Value *v = calloc(1, sizeof(Value)); v->kind = VAL_NONE; return v; }
 
 static Value* table_get(Table *t, const char *k) { for(Table *cur=t;cur;cur=cur->parent){ unsigned h=hash(k); for(Entry *e=cur->buckets[h];e;e=e->next) if(!strcmp(e->key,k)) return e->val; } return val_none(); }
 static bool is_all_caps(const char *s) { if(!s||!*s)return false; bool h=false; for(const char *c=s;*c;c++){ if(*c>='a'&&*c<='z') return false; if(*c>='A'&&*c<='Z') h=true; } return h; }
 static void table_set(Table *t, const char *k, Value *v) { unsigned h = hash(k); for(Entry *e=t->buckets[h];e;e=e->next) if(!strcmp(e->key,k)){ if(e->is_constant){fprintf(stderr,"Runtime error: cannot reassign constant '%s'\n",k);exit(1);} if(e->val->kind == VAL_REF) { Value *trg = e->val->target; trg->kind=v->kind; trg->num=v->num; trg->str=v->str; trg->items=v->items; trg->item_count=v->item_count; trg->fields=v->fields; return; } e->val=v;return;} Entry *e=malloc(sizeof(Entry)); e->key=strdup(k); e->val=v; e->is_constant=is_all_caps(k); e->next=t->buckets[h]; t->buckets[h]=e; }
 
-static Value* val_unwrap(Value* v) { while(v && v->kind == VAL_REF) v = v->target; return v; }
+static Value* val_unwrap(Value* v) { while(v && (v->kind == VAL_REF || v->kind == VAL_OUT)) v = (v->kind == VAL_REF ? v->target : v->inner); return v; }
 static bool val_truthy(Value *v) { v = val_unwrap(v); if(!v) return false; if(v->kind==VAL_NUM) return v->num != 0; if(v->kind==VAL_STR) return v->str[0]!='\0'; return v->item_count > 0; }
 static void val_print(Value *v) { v = val_unwrap(v); if(!v) return; if(v->kind==VAL_NUM) printf(v->num==(long long)v->num?"%lld":"%g",(long long)v->num); else if(v->kind==VAL_STR) printf("%s",v->str); else if(v->kind==VAL_LIST){ printf("["); for(int i=0;i<v->item_count;i++){ if(i)printf(", "); val_print(v->items[i]); } printf("]"); } }
 static Value* runtime_binop(int op, Value* l, Value* r) {
@@ -49,8 +50,9 @@ static Value* runtime_binop(int op, Value* l, Value* r) {
 static Value* runtime_call(Value* f, Table* e, int c, Value** v) { if(f->kind==VAL_FUNC) return f->func(e, c, v); return val_none(); }
 static Value* io_args;
 static Value* runtime_var_get(Table* e, const char* k) { Value* v=table_get(e,k); if(v->kind==VAL_FUNC) return v->func(e,0,NULL); return v; }
-static Value* runtime_at(Value* l, Value* r) { l = val_unwrap(l); r = val_unwrap(r); int i=(int)r->num; if(l->kind==VAL_STR){ if(i<0||i>=strlen(l->str)) return val_none(); char b[2]={l->str[i],0}; return val_str(b); } if(l->kind==VAL_LIST){ if(i<0||i>=l->item_count) return val_none(); return l->items[i]; } return val_none(); }
+static Value* runtime_at(Value* l, Value* r) { l = val_unwrap(l); r = val_unwrap(r); if(l->kind==VAL_DICT) return table_get(l->fields, r->str); int i=(int)r->num; if(l->kind==VAL_STR){ if(i<0||i>=strlen(l->str)) return val_none(); char b[2]={l->str[i],0}; return val_str(b); } if(l->kind==VAL_LIST){ if(i<0||i>=l->item_count) return val_none(); return l->items[i]; } return val_none(); }
 static Value* runtime_set(Value* l, Value* i, Value* v) { l = val_unwrap(l); i = val_unwrap(i); if(l->kind!=VAL_LIST) return v; int idx=(int)i->num; if(idx==l->item_count){ if(l->item_count>=l->item_cap){ l->item_cap*=2; l->items=realloc(l->items,l->item_cap*sizeof(Value*)); } l->items[l->item_count++]=v; } else if(idx>=0 && idx<l->item_count) l->items[idx]=v; return v; }
+static Value* runtime_key(Value* d, Value* k, Value* v) { d = val_unwrap(d); k = val_unwrap(k); if(d->kind==VAL_DICT) table_set(d->fields, k->str, v); return v; }
 static Value* runtime_ask(Value* p) { p = val_unwrap(p); if(p&&p->kind==VAL_STR){ FILE* f=fopen(p->str,"rb"); if(!f) return val_str(""); fseek(f,0,SEEK_END); long l=ftell(f); fseek(f,0,SEEK_SET); char* b=malloc(l+1); fread(b,1,l,f); b[l]=0; fclose(f); Value* v=val_str(b); free(b); return v; } char buf[1024]; if(!fgets(buf,1024,stdin)) return val_str(""); buf[strcspn(buf,"\n")]=0; return val_str(buf); }
 static Value* runtime_len(Value* v) { v = val_unwrap(v); if(v->kind==VAL_STR) return val_num(strlen(v->str)); if(v->kind==VAL_LIST) return val_num(v->item_count); if(v->kind==VAL_DICT){ int c=0; for(int i=0;i<256;i++) for(Entry *e=v->fields->buckets[i];e;e=e->next) c++; return val_num(c); } return val_num(0); }
 static Value* runtime_ord(Value* v) { v = val_unwrap(v); if(v->kind==VAL_STR&&v->str[0]) return val_num((unsigned char)v->str[0]); return val_num(0); }
@@ -76,7 +78,7 @@ static Value* io_func_enable_ansi_colors(Table* parent, int argc, Value** argv) 
 static Value* io_func_read_file(Table* parent, int argc, Value** argv) {
   Table* env = table_new(parent);
   if(argc > 0) table_set(env, "path", argv[0]);
-  return runtime_ask(runtime_var_get(env, "path"));
+  return val_out(runtime_ask(runtime_var_get(env, "path")));
   return val_none();
 }
 
@@ -126,7 +128,7 @@ static Value* io_func_is_digit(Table* parent, int argc, Value** argv) {
   Table* env = table_new(parent);
   if(argc > 0) table_set(env, "c", argv[0]);
   table_set(env, "o", runtime_ord(runtime_var_get(env, "c")));
-  return runtime_binop(49, runtime_binop(52, runtime_binop(50, runtime_var_get(env, "o"), val_num(48)), runtime_var_get(env, "o")), val_num(57));
+  return val_out(runtime_binop(49, runtime_binop(52, runtime_binop(50, runtime_var_get(env, "o"), val_num(48)), runtime_var_get(env, "o")), val_num(57)));
   return val_none();
 }
 
@@ -134,14 +136,14 @@ static Value* io_func_is_alpha(Table* parent, int argc, Value** argv) {
   Table* env = table_new(parent);
   if(argc > 0) table_set(env, "c", argv[0]);
   table_set(env, "o", runtime_ord(runtime_var_get(env, "c")));
-  return runtime_binop(53, runtime_binop(53, runtime_binop(49, runtime_binop(52, runtime_binop(50, runtime_var_get(env, "o"), val_num(65)), runtime_var_get(env, "o")), val_num(90)), runtime_binop(49, runtime_binop(52, runtime_binop(50, runtime_var_get(env, "o"), val_num(97)), runtime_var_get(env, "o")), val_num(122))), runtime_binop(40, runtime_var_get(env, "o"), val_num(95)));
+  return val_out(runtime_binop(53, runtime_binop(53, runtime_binop(49, runtime_binop(52, runtime_binop(50, runtime_var_get(env, "o"), val_num(65)), runtime_var_get(env, "o")), val_num(90)), runtime_binop(49, runtime_binop(52, runtime_binop(50, runtime_var_get(env, "o"), val_num(97)), runtime_var_get(env, "o")), val_num(122))), runtime_binop(40, runtime_var_get(env, "o"), val_num(95))));
   return val_none();
 }
 
 static Value* io_func_is_alnum(Table* parent, int argc, Value** argv) {
   Table* env = table_new(parent);
   if(argc > 0) table_set(env, "c", argv[0]);
-  return runtime_binop(53, runtime_call(table_get(env, "is_alpha"), env, 1, (Value*[]){runtime_var_get(env, "c")}), runtime_call(table_get(env, "is_digit"), env, 1, (Value*[]){runtime_var_get(env, "c")}));
+  return val_out(runtime_binop(53, runtime_call(table_get(env, "is_alpha"), env, 1, (Value*[]){runtime_var_get(env, "c")}), runtime_call(table_get(env, "is_digit"), env, 1, (Value*[]){runtime_var_get(env, "c")})));
   return val_none();
 }
 
@@ -451,7 +453,7 @@ runtime_set(runtime_var_get(env, "tokens"), runtime_len(runtime_var_get(env, "to
   val_none();
   val_none();
   runtime_set(runtime_var_get(env, "tokens"), runtime_len(runtime_var_get(env, "tokens")), runtime_var_get(env, "t"));
-  return runtime_var_get(env, "tokens");
+  return val_out(runtime_var_get(env, "tokens"));
   return val_none();
 }
 
@@ -465,7 +467,7 @@ static Value* io_func_nd_new(Table* parent, int argc, Value** argv) {
   val_none();
   val_none();
   val_none();
-  return runtime_var_get(env, "n");
+  return val_out(runtime_var_get(env, "n"));
   return val_none();
 }
 
@@ -474,7 +476,7 @@ static Value* io_func_nd_push(Table* parent, int argc, Value** argv) {
   if(argc > 0) table_set(env, "node", argv[0]);
   if(argc > 1) table_set(env, "child", argv[1]);
   table_set(env, "body", runtime_at(runtime_var_get(env, "node"), val_str("body")));
-  return runtime_set(runtime_var_get(env, "body"), runtime_len(runtime_var_get(env, "body")), runtime_var_get(env, "child"));
+  return val_out(runtime_set(runtime_var_get(env, "body"), runtime_len(runtime_var_get(env, "body")), runtime_var_get(env, "child")));
   return val_none();
 }
 
@@ -497,7 +499,7 @@ if (val_truthy(runtime_binop(49, runtime_binop(52, runtime_binop(50, runtime_var
 }
 table_set(env, "i", runtime_binop(41, runtime_var_get(env, "i"), val_num(1)));
   }
-  return runtime_var_get(env, "has_upper");
+  return val_out(runtime_var_get(env, "has_upper"));
   return val_none();
 }
 
@@ -519,7 +521,7 @@ exit((int)(val_num(1))->num);
 }
 table_set(env, "i", runtime_binop(41, runtime_var_get(env, "i"), val_num(1)));
   }
-  return runtime_set(runtime_var_get(env, "constants"), runtime_len(runtime_var_get(env, "constants")), runtime_var_get(env, "name"));
+  return val_out(runtime_set(runtime_var_get(env, "constants"), runtime_len(runtime_var_get(env, "constants")), runtime_var_get(env, "name")));
   return val_none();
 }
 
@@ -528,7 +530,7 @@ static Value* io_func_peek(Table* parent, int argc, Value** argv) {
   if(argc > 0) table_set(env, "p", argv[0]);
   table_set(env, "tokens", runtime_at(runtime_var_get(env, "p"), val_str("tokens")));
   table_set(env, "pos", runtime_at(runtime_var_get(env, "p"), val_str("pos")));
-  return runtime_at(runtime_var_get(env, "tokens"), runtime_var_get(env, "pos"));
+  return val_out(runtime_at(runtime_var_get(env, "tokens"), runtime_var_get(env, "pos")));
   return val_none();
 }
 
@@ -537,7 +539,7 @@ static Value* io_func_advance(Table* parent, int argc, Value** argv) {
   if(argc > 0) table_set(env, "p", argv[0]);
   table_set(env, "t", runtime_call(table_get(env, "peek"), env, 1, (Value*[]){runtime_var_get(env, "p")}));
   val_none();
-  return runtime_var_get(env, "t");
+  return val_out(runtime_var_get(env, "t"));
   return val_none();
 }
 
@@ -550,7 +552,7 @@ static Value* io_func_expect(Table* parent, int argc, Value** argv) {
     val_print(runtime_binop(41, runtime_binop(41, runtime_binop(41, runtime_binop(41, runtime_binop(41, runtime_binop(41, runtime_str_concat(runtime_tostr(val_str("Error in "))->str, runtime_tostr(runtime_at(runtime_var_get(env, "p"), val_str("filename")))->str), val_str(" on line ")), runtime_tostr(runtime_at(runtime_var_get(env, "t"), val_str("line")))), val_str(": expected token kind ")), runtime_tostr(runtime_var_get(env, "kind"))), val_str(", got ")), runtime_tostr(runtime_at(runtime_var_get(env, "t"), val_str("kind"))))); printf("\n");
 exit((int)(val_num(1))->num);
   }
-  return runtime_call(table_get(env, "advance"), env, 1, (Value*[]){runtime_var_get(env, "p")});
+  return val_out(runtime_call(table_get(env, "advance"), env, 1, (Value*[]){runtime_var_get(env, "p")}));
   return val_none();
 }
 
@@ -943,7 +945,7 @@ table_set(env, "expr", runtime_var_get(env, "n"));
   }
 }
   }
-  return runtime_var_get(env, "expr");
+  return val_out(runtime_var_get(env, "expr"));
   return val_none();
 }
 
@@ -994,7 +996,7 @@ exit((int)(val_num(1))->num);
 }
 }
   }
-  return runtime_var_get(env, "left");
+  return val_out(runtime_var_get(env, "left"));
   return val_none();
 }
 
@@ -1034,7 +1036,7 @@ static Value* io_func_resolve_condition(Table* parent, int argc, Value** argv) {
 }
 table_set(env, "i", runtime_binop(41, runtime_var_get(env, "i"), val_num(1)));
   }
-  return val_num(0);
+  return val_out(val_num(0));
   return val_none();
 }
 
@@ -1055,7 +1057,7 @@ val_none();
 val_print(runtime_call(table_get(env, "skip_block_body"), env, 1, (Value*[]){runtime_var_get(env, "p")})); printf("\n");
 val_print(runtime_call(table_get(env, "expect"), env, 2, (Value*[]){runtime_var_get(env, "p"), runtime_var_get(env, "TOK_DEDENT")})); printf("\n");
   }
-  return runtime_var_get(env, "result");
+  return val_out(runtime_var_get(env, "result"));
   return val_none();
 }
 
@@ -1181,7 +1183,7 @@ return runtime_var_get(env, "n");
 val_none();
 return runtime_var_get(env, "n");
   }
-  return runtime_var_get(env, "expr");
+  return val_out(runtime_var_get(env, "expr"));
   return val_none();
 }
 
@@ -1210,7 +1212,7 @@ if (val_truthy(runtime_binop(40, runtime_at(runtime_var_get(env, "last"), val_st
 }
 }
   }
-  return runtime_var_get(env, "block");
+  return val_out(runtime_var_get(env, "block"));
   return val_none();
 }
 
@@ -1237,7 +1239,7 @@ if (val_truthy(runtime_binop(40, runtime_binop(53, runtime_binop(40, runtime_var
 val_print(runtime_call(table_get(env, "skip_newlines"), env, 1, (Value*[]){runtime_var_get(env, "p")})); printf("\n");
 }
   }
-  return runtime_var_get(env, "prog");
+  return val_out(runtime_var_get(env, "prog"));
   return val_none();
 }
 
@@ -1247,7 +1249,7 @@ static Value* io_func_val_num(Table* parent, int argc, Value** argv) {
   table_set(env, "v", val_none());
   val_none();
   val_none();
-  return runtime_var_get(env, "v");
+  return val_out(runtime_var_get(env, "v"));
   return val_none();
 }
 
@@ -1262,7 +1264,7 @@ static Value* io_func_val_str(Table* parent, int argc, Value** argv) {
   val_none();
   val_none();
   val_none();
-  return runtime_var_get(env, "v");
+  return val_out(runtime_var_get(env, "v"));
   return val_none();
 }
 
@@ -1270,7 +1272,7 @@ static Value* io_func_val_none(Table* parent, int argc, Value** argv) {
   Table* env = table_new(parent);
   table_set(env, "v", val_none());
   val_none();
-  return runtime_var_get(env, "v");
+  return val_out(runtime_var_get(env, "v"));
   return val_none();
 }
 
@@ -1278,7 +1280,7 @@ static Value* io_func_val_break(Table* parent, int argc, Value** argv) {
   Table* env = table_new(parent);
   table_set(env, "v", val_none());
   val_none();
-  return runtime_var_get(env, "v");
+  return val_out(runtime_var_get(env, "v"));
   return val_none();
 }
 
@@ -1286,7 +1288,7 @@ static Value* io_func_val_skip(Table* parent, int argc, Value** argv) {
   Table* env = table_new(parent);
   table_set(env, "v", val_none());
   val_none();
-  return runtime_var_get(env, "v");
+  return val_out(runtime_var_get(env, "v"));
   return val_none();
 }
 
@@ -1296,7 +1298,7 @@ static Value* io_func_val_out(Table* parent, int argc, Value** argv) {
   table_set(env, "v", val_none());
   val_none();
   val_none();
-  return runtime_var_get(env, "v");
+  return val_out(runtime_var_get(env, "v"));
   return val_none();
 }
 
@@ -1306,7 +1308,7 @@ static Value* io_func_val_bit(Table* parent, int argc, Value** argv) {
   table_set(env, "v", val_none());
   val_none();
   val_none();
-  return runtime_var_get(env, "v");
+  return val_out(runtime_var_get(env, "v"));
   return val_none();
 }
 
@@ -1369,7 +1371,7 @@ static Value* io_func_val_truthy(Table* parent, int argc, Value** argv) {
       }
     }
   }
-  return val_num(0);
+  return val_out(val_num(0));
   return val_none();
 }
 
@@ -1395,7 +1397,7 @@ if (val_truthy(runtime_binop(48, runtime_var_get(env, "depth"), val_num(100)))) 
 exit((int)(val_num(1))->num);
 }
   }
-  return runtime_var_get(env, "curr");
+  return val_out(runtime_var_get(env, "curr"));
   return val_none();
 }
 
@@ -1411,7 +1413,7 @@ if (val_truthy(runtime_binop(51, runtime_type(runtime_var_get(env, "val")), val_
 }
 table_set(env, "curr", runtime_at(runtime_var_get(env, "curr"), val_str("parent")));
   }
-  return runtime_var_get(env, "val_none");
+  return val_out(runtime_var_get(env, "val_none"));
   return val_none();
 }
 
@@ -1427,7 +1429,7 @@ if (val_truthy(runtime_binop(51, runtime_type(runtime_var_get(env, "existing")),
 exit((int)(val_num(1))->num);
 }
   }
-  return val_none();
+  return val_out(val_none());
   return val_none();
 }
 
@@ -1446,7 +1448,7 @@ if (val_truthy(runtime_binop(40, runtime_binop(53, runtime_binop(40, runtime_bin
 }
 table_set(env, "i", runtime_binop(41, runtime_var_get(env, "i"), val_num(1)));
   }
-  return runtime_var_get(env, "last");
+  return val_out(runtime_var_get(env, "last"));
   return val_none();
 }
 
@@ -1867,7 +1869,7 @@ return runtime_var_get(env, "res");
     table_set(env, "v", runtime_call(table_get(env, "eval"), env, 2, (Value*[]){runtime_at(runtime_var_get(env, "n"), val_str("left")), runtime_var_get(env, "env_")}));
 exit((int)(runtime_at(runtime_var_get(env, "v"), val_str("num")))->num);
   }
-  return runtime_var_get(env, "val_none");
+  return val_out(runtime_var_get(env, "val_none"));
   return val_none();
 }
 
@@ -1894,7 +1896,7 @@ static Value* io_func_emit(Table* parent, int argc, Value** argv) {
   if (val_truthy(runtime_binop(40, runtime_type(runtime_var_get(env, "indent_str")), val_str("none")))) {
     table_set(env, "indent_str", val_str(""));
   }
-  return runtime_set(runtime_var_get(env, "c_lines"), runtime_len(runtime_var_get(env, "c_lines")), runtime_binop(41, runtime_var_get(env, "indent_str"), runtime_var_get(env, "line")));
+  return val_out(runtime_set(runtime_var_get(env, "c_lines"), runtime_len(runtime_var_get(env, "c_lines")), runtime_binop(41, runtime_var_get(env, "indent_str"), runtime_var_get(env, "line"))));
   return val_none();
 }
 
@@ -2033,7 +2035,7 @@ table_set(env, "c_lines", runtime_var_get(env, "old_lines"));
 table_set(env, "indent_lvl", runtime_var_get(env, "IND_OLD"));
 return runtime_var_get(env, "block_str");
   }
-  return val_none();
+  return val_str("val_none()");
   return val_none();
 }
 
@@ -2191,7 +2193,7 @@ table_set(env, "i", runtime_binop(41, runtime_var_get(env, "i"), val_num(1)));
     table_set(env, "res", runtime_binop(41, runtime_binop(41, runtime_var_get(env, "res"), runtime_at(runtime_var_get(env, "c_lines"), runtime_var_get(env, "i"))), val_str("\n")));
 table_set(env, "i", runtime_binop(41, runtime_var_get(env, "i"), val_num(1)));
   }
-  return runtime_var_get(env, "res");
+  return val_out(runtime_var_get(env, "res"));
   return val_none();
 }
 
@@ -2216,7 +2218,7 @@ static Value* io_func_arena_create(Table* parent, int argc, Value** argv) {
   Table* env = table_new(parent);
   if(argc > 0) table_set(env, "size", argv[0]);
   val_print(val_str("DEBUG: Arena initialized")); printf("\n");
-  return val_num(0);
+  return val_out(val_num(0));
   return val_none();
 }
 
@@ -2239,7 +2241,7 @@ static Value* io_func_print_usage(Table* parent, int argc, Value** argv) {
 static Value* io_func_add_define(Table* parent, int argc, Value** argv) {
   Table* env = table_new(parent);
   if(argc > 0) table_set(env, "name", argv[0]);
-  return runtime_set(runtime_var_get(env, "CLI_DEFINES"), runtime_len(runtime_var_get(env, "CLI_DEFINES")), runtime_var_get(env, "name"));
+  return val_out(runtime_set(runtime_var_get(env, "CLI_DEFINES"), runtime_len(runtime_var_get(env, "CLI_DEFINES")), runtime_var_get(env, "name")));
   return val_none();
 }
 
@@ -2262,7 +2264,7 @@ static Value* io_func_str_contains(Table* parent, int argc, Value** argv) {
 }
 table_set(env, "i", runtime_binop(41, runtime_var_get(env, "i"), val_num(1)));
   }
-  return val_none();
+  return val_num(0);
   return val_none();
 }
 
@@ -2428,7 +2430,7 @@ exit((int)(val_num(0))->num);
   if (val_truthy(runtime_binop(51, runtime_binop(52, runtime_binop(51, runtime_at(runtime_var_get(env, "res"), val_str("kind")), runtime_var_get(env, "VAL_NONE")), runtime_at(runtime_var_get(env, "res"), val_str("kind"))), runtime_var_get(env, "VAL_BREAK")))) {
     runtime_put(val_str(""), runtime_binop(41, runtime_call(table_get(env, "val_print"), env, 1, (Value*[]){runtime_var_get(env, "res")}), val_str("\n")), 0);
   }
-  return runtime_var_get(env, "res");
+  return val_out(runtime_var_get(env, "res"));
   return val_none();
 }
 
@@ -2441,279 +2443,11 @@ int main(int argc, char **argv) {
   }
   Table *env = table_new(NULL);
   table_set(env, "arg", io_args);
-  table_set(env, "VAL_NUM", val_num(0));
-table_set(env, "VAL_STR", val_num(1));
-table_set(env, "VAL_LIST", val_num(2));
-table_set(env, "VAL_DICT", val_num(3));
-table_set(env, "VAL_BIT", val_num(4));
-table_set(env, "VAL_REF", val_num(5));
-table_set(env, "VAL_BREAK", val_num(6));
-table_set(env, "VAL_OUT", val_num(7));
-table_set(env, "VAL_SKIP", val_num(8));
-table_set(env, "VAL_NONE", val_num(9));
-table_set(env, "TOK_NUM", val_num(0));
-table_set(env, "TOK_STR", val_num(1));
-table_set(env, "TOK_IDENT", val_num(2));
-table_set(env, "TOK_IF", val_num(3));
-table_set(env, "TOK_ELSE", val_num(4));
-table_set(env, "TOK_WHILE", val_num(5));
-table_set(env, "TOK_BREAK", val_num(6));
-table_set(env, "TOK_DO", val_num(7));
-table_set(env, "TOK_ASK", val_num(8));
-table_set(env, "TOK_LIST", val_num(9));
-table_set(env, "TOK_DICT", val_num(10));
-table_set(env, "TOK_KEY", val_num(11));
-table_set(env, "TOK_KEYS", val_num(12));
-table_set(env, "TOK_AT", val_num(13));
-table_set(env, "TOK_SET", val_num(14));
-table_set(env, "TOK_PUT", val_num(15));
-table_set(env, "TOK_ARG", val_num(16));
-table_set(env, "TOK_PASTE", val_num(17));
-table_set(env, "TOK_LEN", val_num(18));
-table_set(env, "TOK_ORD", val_num(19));
-table_set(env, "TOK_CHR", val_num(20));
-table_set(env, "TOK_TONUM", val_num(21));
-table_set(env, "TOK_TOSTR", val_num(22));
-table_set(env, "TOK_SLICE", val_num(23));
-table_set(env, "TOK_TYPE", val_num(24));
-table_set(env, "TOK_TIME", val_num(25));
-table_set(env, "TOK_APPEND", val_num(26));
-table_set(env, "TOK_SYS", val_num(27));
-table_set(env, "TOK_ENV", val_num(28));
-table_set(env, "TOK_EXIT", val_num(29));
-table_set(env, "TOK_REF", val_num(30));
-table_set(env, "TOK_PTR", val_num(31));
-table_set(env, "TOK_BIT", val_num(32));
-table_set(env, "TOK_SPLIT", val_num(33));
-table_set(env, "TOK_TRIM", val_num(34));
-table_set(env, "TOK_REPLACE", val_num(35));
-table_set(env, "TOK_SAFE", val_num(36));
-table_set(env, "TOK_FOR", val_num(37));
-table_set(env, "TOK_IN", val_num(38));
-table_set(env, "TOK_EQ", val_num(39));
-table_set(env, "TOK_EQEQ", val_num(40));
-table_set(env, "TOK_PLUS", val_num(41));
-table_set(env, "TOK_MINUS", val_num(42));
-table_set(env, "TOK_STAR", val_num(43));
-table_set(env, "TOK_SLASH", val_num(44));
-table_set(env, "TOK_PCT", val_num(45));
-table_set(env, "TOK_ARROW", val_num(46));
-table_set(env, "TOK_LT", val_num(47));
-table_set(env, "TOK_GT", val_num(48));
-table_set(env, "TOK_LTE", val_num(49));
-table_set(env, "TOK_GTE", val_num(50));
-table_set(env, "TOK_NE", val_num(51));
-table_set(env, "TOK_AND", val_num(52));
-table_set(env, "TOK_OR", val_num(53));
-table_set(env, "TOK_LPAREN", val_num(54));
-table_set(env, "TOK_RPAREN", val_num(55));
-table_set(env, "TOK_SEMICOLON", val_num(56));
-table_set(env, "TOK_NEWLINE", val_num(57));
-table_set(env, "TOK_INDENT", val_num(58));
-table_set(env, "TOK_DEDENT", val_num(59));
-table_set(env, "TOK_EOF", val_num(60));
-table_set(env, "TOK_OUT", val_num(61));
-table_set(env, "TOK_NOT", val_num(62));
-table_set(env, "TOK_SKIP", val_num(63));
-table_set(env, "TOK_SHEBANG", val_num(64));
-table_set(env, "ND_NUM", val_num(0));
-table_set(env, "ND_STR", val_num(1));
-table_set(env, "ND_VAR", val_num(2));
-table_set(env, "ND_ASSIGN", val_num(3));
-table_set(env, "ND_BINOP", val_num(4));
-table_set(env, "ND_UMINUS", val_num(5));
-table_set(env, "ND_IF", val_num(6));
-table_set(env, "ND_WHILE", val_num(7));
-table_set(env, "ND_BREAK", val_num(8));
-table_set(env, "ND_DO", val_num(9));
-table_set(env, "ND_SKIP", val_num(10));
-table_set(env, "ND_FOR", val_num(11));
-table_set(env, "ND_SAFE", val_num(12));
-table_set(env, "ND_ASK", val_num(13));
-table_set(env, "ND_ASKFILE", val_num(14));
-table_set(env, "ND_LIST", val_num(15));
-table_set(env, "ND_DICT", val_num(16));
-table_set(env, "ND_KEY", val_num(17));
-table_set(env, "ND_KEYS", val_num(18));
-table_set(env, "ND_AT", val_num(19));
-table_set(env, "ND_SET", val_num(20));
-table_set(env, "ND_PUT", val_num(21));
-table_set(env, "ND_ARG", val_num(22));
-table_set(env, "ND_LEN", val_num(23));
-table_set(env, "ND_ORD", val_num(24));
-table_set(env, "ND_CHR", val_num(25));
-table_set(env, "ND_TONUM", val_num(26));
-table_set(env, "ND_TOSTR", val_num(27));
-table_set(env, "ND_SLICE", val_num(28));
-table_set(env, "ND_SPLIT", val_num(29));
-table_set(env, "ND_TRIM", val_num(30));
-table_set(env, "ND_REPLACE", val_num(31));
-table_set(env, "ND_TYPE", val_num(32));
-table_set(env, "ND_TIME", val_num(33));
-table_set(env, "ND_SYS", val_num(34));
-table_set(env, "ND_ENV", val_num(35));
-table_set(env, "ND_EXIT", val_num(36));
-table_set(env, "ND_REF", val_num(37));
-table_set(env, "ND_OUT", val_num(38));
-table_set(env, "ND_NOT", val_num(39));
-table_set(env, "ND_CALL", val_num(40));
-table_set(env, "ND_BLOCK", val_num(41));
-table_set(env, "ND_PRINT", val_num(42));
-table_set(env, "TABLE_SIZE", val_num(256));
-table_set(env, "enable_ansi_colors", val_func(io_func_enable_ansi_colors));
-table_set(env, "read_file", val_func(io_func_read_file));
-table_set(env, "report_error", val_func(io_func_report_error));
-table_set(env, "TK_KW", val_list());
-runtime_set(runtime_var_get(env, "TK_KW"), val_num(0), val_str("if"));
-runtime_set(runtime_var_get(env, "TK_KW"), val_num(1), val_str("else"));
-runtime_set(runtime_var_get(env, "TK_KW"), val_num(2), val_str("while"));
-runtime_set(runtime_var_get(env, "TK_KW"), val_num(3), val_str("break"));
-runtime_set(runtime_var_get(env, "TK_KW"), val_num(4), val_str("do"));
-runtime_set(runtime_var_get(env, "TK_KW"), val_num(5), val_str("ask"));
-runtime_set(runtime_var_get(env, "TK_KW"), val_num(6), val_str("list"));
-runtime_set(runtime_var_get(env, "TK_KW"), val_num(7), val_str("dict"));
-runtime_set(runtime_var_get(env, "TK_KW"), val_num(8), val_str("key"));
-runtime_set(runtime_var_get(env, "TK_KW"), val_num(9), val_str("keys"));
-runtime_set(runtime_var_get(env, "TK_KW"), val_num(10), val_str("at"));
-runtime_set(runtime_var_get(env, "TK_KW"), val_num(11), val_str("set"));
-runtime_set(runtime_var_get(env, "TK_KW"), val_num(12), val_str("put"));
-runtime_set(runtime_var_get(env, "TK_KW"), val_num(13), val_str("arg"));
-runtime_set(runtime_var_get(env, "TK_KW"), val_num(14), val_str("paste"));
-runtime_set(runtime_var_get(env, "TK_KW"), val_num(15), val_str("len"));
-runtime_set(runtime_var_get(env, "TK_KW"), val_num(16), val_str("ord"));
-runtime_set(runtime_var_get(env, "TK_KW"), val_num(17), val_str("chr"));
-runtime_set(runtime_var_get(env, "TK_KW"), val_num(18), val_str("tonum"));
-runtime_set(runtime_var_get(env, "TK_KW"), val_num(19), val_str("tostr"));
-runtime_set(runtime_var_get(env, "TK_KW"), val_num(20), val_str("slice"));
-runtime_set(runtime_var_get(env, "TK_KW"), val_num(21), val_str("type"));
-runtime_set(runtime_var_get(env, "TK_KW"), val_num(22), val_str("time"));
-runtime_set(runtime_var_get(env, "TK_KW"), val_num(23), val_str("append"));
-runtime_set(runtime_var_get(env, "TK_KW"), val_num(24), val_str("sys"));
-runtime_set(runtime_var_get(env, "TK_KW"), val_num(25), val_str("env"));
-runtime_set(runtime_var_get(env, "TK_KW"), val_num(26), val_str("exit"));
-runtime_set(runtime_var_get(env, "TK_KW"), val_num(27), val_str("ref"));
-runtime_set(runtime_var_get(env, "TK_KW"), val_num(28), val_str("ptr"));
-runtime_set(runtime_var_get(env, "TK_KW"), val_num(29), val_str("bit"));
-runtime_set(runtime_var_get(env, "TK_KW"), val_num(30), val_str("for"));
-runtime_set(runtime_var_get(env, "TK_KW"), val_num(31), val_str("in"));
-runtime_set(runtime_var_get(env, "TK_KW"), val_num(32), val_str("split"));
-runtime_set(runtime_var_get(env, "TK_KW"), val_num(33), val_str("trim"));
-runtime_set(runtime_var_get(env, "TK_KW"), val_num(34), val_str("replace"));
-runtime_set(runtime_var_get(env, "TK_KW"), val_num(35), val_str("safe"));
-runtime_set(runtime_var_get(env, "TK_KW"), val_num(36), val_str("and"));
-runtime_set(runtime_var_get(env, "TK_KW"), val_num(37), val_str("or"));
-runtime_set(runtime_var_get(env, "TK_KW"), val_num(38), val_str("out"));
-runtime_set(runtime_var_get(env, "TK_KW"), val_num(39), val_str("not"));
-runtime_set(runtime_var_get(env, "TK_KW"), val_num(40), val_str("skip"));
-table_set(env, "KW_KIND", val_list());
-runtime_set(runtime_var_get(env, "KW_KIND"), val_num(0), runtime_var_get(env, "TOK_IF"));
-runtime_set(runtime_var_get(env, "KW_KIND"), val_num(1), runtime_var_get(env, "TOK_ELSE"));
-runtime_set(runtime_var_get(env, "KW_KIND"), val_num(2), runtime_var_get(env, "TOK_WHILE"));
-runtime_set(runtime_var_get(env, "KW_KIND"), val_num(3), runtime_var_get(env, "TOK_BREAK"));
-runtime_set(runtime_var_get(env, "KW_KIND"), val_num(4), runtime_var_get(env, "TOK_DO"));
-runtime_set(runtime_var_get(env, "KW_KIND"), val_num(5), runtime_var_get(env, "TOK_ASK"));
-runtime_set(runtime_var_get(env, "KW_KIND"), val_num(6), runtime_var_get(env, "TOK_LIST"));
-runtime_set(runtime_var_get(env, "KW_KIND"), val_num(7), runtime_var_get(env, "TOK_DICT"));
-runtime_set(runtime_var_get(env, "KW_KIND"), val_num(8), runtime_var_get(env, "TOK_KEY"));
-runtime_set(runtime_var_get(env, "KW_KIND"), val_num(9), runtime_var_get(env, "TOK_KEYS"));
-runtime_set(runtime_var_get(env, "KW_KIND"), val_num(10), runtime_var_get(env, "TOK_AT"));
-runtime_set(runtime_var_get(env, "KW_KIND"), val_num(11), runtime_var_get(env, "TOK_SET"));
-runtime_set(runtime_var_get(env, "KW_KIND"), val_num(12), runtime_var_get(env, "TOK_PUT"));
-runtime_set(runtime_var_get(env, "KW_KIND"), val_num(13), runtime_var_get(env, "TOK_ARG"));
-runtime_set(runtime_var_get(env, "KW_KIND"), val_num(14), runtime_var_get(env, "TOK_PASTE"));
-runtime_set(runtime_var_get(env, "KW_KIND"), val_num(15), runtime_var_get(env, "TOK_LEN"));
-runtime_set(runtime_var_get(env, "KW_KIND"), val_num(16), runtime_var_get(env, "TOK_ORD"));
-runtime_set(runtime_var_get(env, "KW_KIND"), val_num(17), runtime_var_get(env, "TOK_CHR"));
-runtime_set(runtime_var_get(env, "KW_KIND"), val_num(18), runtime_var_get(env, "TOK_TONUM"));
-runtime_set(runtime_var_get(env, "KW_KIND"), val_num(19), runtime_var_get(env, "TOK_TOSTR"));
-runtime_set(runtime_var_get(env, "KW_KIND"), val_num(20), runtime_var_get(env, "TOK_SLICE"));
-runtime_set(runtime_var_get(env, "KW_KIND"), val_num(21), runtime_var_get(env, "TOK_TYPE"));
-runtime_set(runtime_var_get(env, "KW_KIND"), val_num(22), runtime_var_get(env, "TOK_TIME"));
-runtime_set(runtime_var_get(env, "KW_KIND"), val_num(23), runtime_var_get(env, "TOK_APPEND"));
-runtime_set(runtime_var_get(env, "KW_KIND"), val_num(24), runtime_var_get(env, "TOK_SYS"));
-runtime_set(runtime_var_get(env, "KW_KIND"), val_num(25), runtime_var_get(env, "TOK_ENV"));
-runtime_set(runtime_var_get(env, "KW_KIND"), val_num(26), runtime_var_get(env, "TOK_EXIT"));
-runtime_set(runtime_var_get(env, "KW_KIND"), val_num(27), runtime_var_get(env, "TOK_REF"));
-runtime_set(runtime_var_get(env, "KW_KIND"), val_num(28), runtime_var_get(env, "TOK_PTR"));
-runtime_set(runtime_var_get(env, "KW_KIND"), val_num(29), runtime_var_get(env, "TOK_BIT"));
-runtime_set(runtime_var_get(env, "KW_KIND"), val_num(30), runtime_var_get(env, "TOK_FOR"));
-runtime_set(runtime_var_get(env, "KW_KIND"), val_num(31), runtime_var_get(env, "TOK_IN"));
-runtime_set(runtime_var_get(env, "KW_KIND"), val_num(32), runtime_var_get(env, "TOK_SPLIT"));
-runtime_set(runtime_var_get(env, "KW_KIND"), val_num(33), runtime_var_get(env, "TOK_TRIM"));
-runtime_set(runtime_var_get(env, "KW_KIND"), val_num(34), runtime_var_get(env, "TOK_REPLACE"));
-runtime_set(runtime_var_get(env, "KW_KIND"), val_num(35), runtime_var_get(env, "TOK_SAFE"));
-runtime_set(runtime_var_get(env, "KW_KIND"), val_num(36), runtime_var_get(env, "TOK_AND"));
-runtime_set(runtime_var_get(env, "KW_KIND"), val_num(37), runtime_var_get(env, "TOK_OR"));
-runtime_set(runtime_var_get(env, "KW_KIND"), val_num(38), runtime_var_get(env, "TOK_OUT"));
-runtime_set(runtime_var_get(env, "KW_KIND"), val_num(39), runtime_var_get(env, "TOK_NOT"));
-runtime_set(runtime_var_get(env, "KW_KIND"), val_num(40), runtime_var_get(env, "TOK_SKIP"));
-table_set(env, "KW_MAP", val_none());
-table_set(env, "i", val_num(0));
-while (val_truthy(runtime_binop(47, runtime_var_get(env, "i"), runtime_len(runtime_var_get(env, "TK_KW"))))) {
-  val_none();
-table_set(env, "i", runtime_binop(41, runtime_var_get(env, "i"), val_num(1)));
-}
-table_set(env, "is_digit", val_func(io_func_is_digit));
-table_set(env, "is_alpha", val_func(io_func_is_alpha));
-table_set(env, "is_alnum", val_func(io_func_is_alnum));
-table_set(env, "get_kw_kind", val_func(io_func_get_kw_kind));
-table_set(env, "lex", val_func(io_func_lex));
-table_set(env, "nd_new", val_func(io_func_nd_new));
-table_set(env, "nd_push", val_func(io_func_nd_push));
-table_set(env, "is_all_caps", val_func(io_func_is_all_caps));
-table_set(env, "track_constant", val_func(io_func_track_constant));
-table_set(env, "peek", val_func(io_func_peek));
-table_set(env, "advance", val_func(io_func_advance));
-table_set(env, "expect", val_func(io_func_expect));
-table_set(env, "skip_newlines", val_func(io_func_skip_newlines));
-table_set(env, "infer_node_type", val_func(io_func_infer_node_type));
-table_set(env, "parse_primary", val_func(io_func_parse_primary));
-table_set(env, "parse_postfix", val_func(io_func_parse_postfix));
-table_set(env, "parse_expr", val_func(io_func_parse_expr));
-table_set(env, "skip_block_body", val_func(io_func_skip_block_body));
-table_set(env, "resolve_condition", val_func(io_func_resolve_condition));
-table_set(env, "parse_when_stmt", val_func(io_func_parse_when_stmt));
-table_set(env, "parse_stmt", val_func(io_func_parse_stmt));
-table_set(env, "parse_block", val_func(io_func_parse_block));
-table_set(env, "parse_program", val_func(io_func_parse_program));
-table_set(env, "interp_steps", val_num(0));
-table_set(env, "STRING_CACHE", val_none());
-table_set(env, "val_num", val_func(io_func_val_num));
-table_set(env, "val_str", val_func(io_func_val_str));
-table_set(env, "val_none", val_func(io_func_val_none));
-table_set(env, "val_break", val_func(io_func_val_break));
-table_set(env, "val_skip", val_func(io_func_val_skip));
-table_set(env, "val_out", val_func(io_func_val_out));
-table_set(env, "val_bit", val_func(io_func_val_bit));
-table_set(env, "val_print", val_func(io_func_val_print));
-table_set(env, "val_truthy", val_func(io_func_val_truthy));
-table_set(env, "val_unwrap", val_func(io_func_val_unwrap));
-table_set(env, "FUNCS", val_none());
-table_set(env, "table_get", val_func(io_func_table_get));
-table_set(env, "table_set", val_func(io_func_table_set));
-table_set(env, "eval_block", val_func(io_func_eval_block));
-table_set(env, "eval", val_func(io_func_eval));
-table_set(env, "c_lines", val_list());
-table_set(env, "indent_lvl", val_num(0));
-table_set(env, "declared_vars", val_none());
-table_set(env, "indent_cache", val_none());
-table_set(env, "init_indent_cache", val_func(io_func_init_indent_cache));
-table_set(env, "emit", val_func(io_func_emit));
-table_set(env, "hoist_vars", val_func(io_func_hoist_vars));
-table_set(env, "emit_expr", val_func(io_func_emit_expr));
-table_set(env, "emit_stmt", val_func(io_func_emit_stmt));
-table_set(env, "compile_to_c", val_func(io_func_compile_to_c));
-table_set(env, "compile_to_bin", val_func(io_func_compile_to_bin));
-table_set(env, "color_red", val_str("x1b[1;31m"));
-table_set(env, "color_grn", val_str("x1b[1;32m"));
-table_set(env, "color_yel", val_str("x1b[1;33m"));
-table_set(env, "color_rst", val_str("x1b[0m"));
-table_set(env, "arena_create", val_func(io_func_arena_create));
-table_set(env, "print_usage", val_func(io_func_print_usage));
-table_set(env, "CLI_DEFINES", val_list());
-table_set(env, "add_define", val_func(io_func_add_define));
-table_set(env, "str_contains", val_func(io_func_str_contains));
-table_set(env, "main", val_func(io_func_main));
-val_print(runtime_var_get(env, "main")); printf("\n");
+  table_set(env, "argv", io_args);
+  Value *program_result = io_func_main(env, 0, NULL);
+  if (program_result->kind != VAL_NONE && program_result->kind != VAL_BREAK) {
+    val_print(program_result);
+    printf("\n");
+  }
   return 0;
 }

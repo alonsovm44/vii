@@ -25,6 +25,15 @@ void nd_push(Node *block, Node *child) {
     block->body[block->body_count++] = child;
 }
 
+static Node *strip_prints(Node *n) {
+    if (!n) return NULL;
+    if (n->kind == ND_PRINT) return n->left;
+    if (n->kind == ND_BLOCK && n->body_count > 0) {
+        n->body[n->body_count - 1] = strip_prints(n->body[n->body_count - 1]);
+    }
+    return n;
+}
+
 /* ──────────────────────── Constant Tracking ──────────────────────── */
 
 static char **parsed_constants = NULL;
@@ -614,10 +623,7 @@ static Node *parse_block(Parser *p, bool is_function) {
 
     /* Implicit return logic: the last expression in a function shouldn't print, it's the return value */
     if (is_function && block->body_count > 0) {
-        Node *last = block->body[block->body_count - 1];
-        if (last->kind == ND_PRINT) {
-            block->body[block->body_count - 1] = last->left;
-        }
+        block->body[block->body_count - 1] = strip_prints(block->body[block->body_count - 1]);
     }
     return block;
 }
