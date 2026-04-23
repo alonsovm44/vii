@@ -28,7 +28,7 @@ void dump_ast_json(Node *n, FILE *f, int indent) {
 /* ──────────────────────── Codegen (IO -> C) ──────────────────────── */
 
 static void emit_c_header(FILE *f) {
-    fprintf(f, "#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n#include <stdbool.h>\n#include <math.h>\n#include <time.h>\n\n");
+    fprintf(f, "#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n#include <stdbool.h>\n#include <math.h>\n#include <time.h>\n#include <ctype.h>\n\n");
     fprintf(f, "typedef enum { VAL_NUM, VAL_STR, VAL_LIST, VAL_DICT, VAL_FUNC, VAL_BIT, VAL_REF, VAL_NONE } ValKind;\n");
     fprintf(f, "struct Table;\nstruct Value;\n");
     fprintf(f, "typedef struct Value* (*IoFunc)(struct Table*, int, struct Value**);\n");
@@ -74,7 +74,7 @@ static void emit_c_header(FILE *f) {
     fprintf(f, "static Value* io_args;\n");
     fprintf(f, "static Value* runtime_var_get(Table* e, const char* k) { Value* v=table_get(e,k); if(v->kind==VAL_FUNC) return v->func(e,0,NULL); return v; }\n");
     fprintf(f, "static Value* runtime_at(Value* l, Value* r) { l = val_unwrap(l); r = val_unwrap(r); int i=(int)r->num; if(l->kind==VAL_STR){ if(i<0||i>=strlen(l->str)) return val_none(); char b[2]={l->str[i],0}; return val_str(b); } if(l->kind==VAL_LIST){ if(i<0||i>=l->item_count) return val_none(); return l->items[i]; } return val_none(); }\n");
-    fprintf(f, "static void runtime_set(Value* l, Value* i, Value* v) { l = val_unwrap(l); i = val_unwrap(i); if(l->kind!=VAL_LIST) return; int idx=(int)i->num; if(idx==l->item_count){ if(l->item_count>=l->item_cap){ l->item_cap*=2; l->items=realloc(l->items,l->item_cap*sizeof(Value*)); } l->items[l->item_count++]=v; } else if(idx>=0 && idx<l->item_count) l->items[idx]=v; }\n");
+    fprintf(f, "static Value* runtime_set(Value* l, Value* i, Value* v) { l = val_unwrap(l); i = val_unwrap(i); if(l->kind!=VAL_LIST) return v; int idx=(int)i->num; if(idx==l->item_count){ if(l->item_count>=l->item_cap){ l->item_cap*=2; l->items=realloc(l->items,l->item_cap*sizeof(Value*)); } l->items[l->item_count++]=v; } else if(idx>=0 && idx<l->item_count) l->items[idx]=v; return v; }\n");
     fprintf(f, "static Value* runtime_ask(Value* p) { p = val_unwrap(p); if(p&&p->kind==VAL_STR){ FILE* f=fopen(p->str,\"rb\"); if(!f) return val_str(\"\"); fseek(f,0,SEEK_END); long l=ftell(f); fseek(f,0,SEEK_SET); char* b=malloc(l+1); fread(b,1,l,f); b[l]=0; fclose(f); Value* v=val_str(b); free(b); return v; } char buf[1024]; if(!fgets(buf,1024,stdin)) return val_str(\"\"); buf[strcspn(buf,\"\\n\")]=0; return val_str(buf); }\n");
     fprintf(f, "static Value* runtime_len(Value* v) { v = val_unwrap(v); if(v->kind==VAL_STR) return val_num(strlen(v->str)); if(v->kind==VAL_LIST) return val_num(v->item_count); if(v->kind==VAL_DICT){ int c=0; for(int i=0;i<256;i++) for(Entry *e=v->fields->buckets[i];e;e=e->next) c++; return val_num(c); } return val_num(0); }\n");
     fprintf(f, "static Value* runtime_ord(Value* v) { v = val_unwrap(v); if(v->kind==VAL_STR&&v->str[0]) return val_num((unsigned char)v->str[0]); return val_num(0); }\n");
@@ -124,7 +124,7 @@ static void emit_c_expr(Node *n, FILE *f) {
             if ((n->left->type_tag && !strcmp(n->left->type_tag, "num")) || n->left->kind == ND_NUM) {
                 fprintf(f, "val_num(");
                 if (n->left->kind == ND_NUM) fprintf(f, "%g", n->left->num);
-                else emit_c_expr(n->left, f);
+                else { fprintf(f, "("); emit_c_expr(n->left, f); fprintf(f, ")->num"); }
 
                 if (n->op == TOK_PLUS) fprintf(f, " + ");
                 else if (n->op == TOK_MINUS) fprintf(f, " - ");
@@ -132,7 +132,7 @@ static void emit_c_expr(Node *n, FILE *f) {
                 else if (n->op == TOK_SLASH) fprintf(f, " / ");
 
                 if (n->right->kind == ND_NUM) fprintf(f, "%g", n->right->num);
-                else emit_c_expr(n->right, f);
+                else { fprintf(f, "("); emit_c_expr(n->right, f); fprintf(f, ")->num"); }
                 fprintf(f, ")");
             } else if (n->op == TOK_PLUS && ((n->left->type_tag && !strcmp(n->left->type_tag, "str")) || n->left->kind == ND_STR)) {
                 fprintf(f, "runtime_str_concat(runtime_tostr(");
