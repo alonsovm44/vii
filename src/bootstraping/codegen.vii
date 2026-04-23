@@ -1,0 +1,272 @@
+#! ONCE
+
+# ──────────────────────── Codegen State ────────────────────────
+
+C_LINES = list
+INDENT_LVL = 0
+DECLARED_VARS = dict
+INDENT_CACHE = dict
+
+# Pre-allocate indentation strings to avoid memory exhaustion
+do init_indent_cache
+  i = 0
+  while i < 32
+    s = ""
+    j = 0
+    while j < i; s = s + "  "; j = j + 1;
+    INDENT_CACHE key i s
+    i = i + 1
+
+do emit line
+  indent_str = INDENT_CACHE at INDENT_LVL
+  if type indent_str == "none"; indent_str = "";
+  C_LINES set (len C_LINES) (indent_str + line)
+
+# ──────────────────────── Variable Hoisting (Pass 1) ────────────────────────
+
+do hoist_vars node
+  if type node == "none"
+    out 0
+  
+  k = node at "kind"
+  if k == ND_ASSIGN
+    left = node at "left"
+    if (left at "kind") == ND_VAR
+      DECLARED_VARS key (left at "name") 1
+    hoist_vars (node at "right")
+  else if k == ND_BINOP
+    hoist_vars (node at "left")
+    hoist_vars (node at "right")
+  else if k == ND_IF
+    hoist_vars (node at "left")
+    body = node at "body"
+    if len body > 0
+      hoist_vars (body at 0)
+    if type (node at "right") != "none"
+      hoist_vars (node at "right")
+  else if k == ND_WHILE or k == ND_FOR
+    hoist_vars (node at "left")
+    body = node at "body"
+    if len body > 0
+      hoist_vars (body at 0)
+  else if k == ND_BLOCK
+    body = node at "body"
+    i = 0
+    while i < len body
+      hoist_vars (body at i)
+      i = i + 1
+  else if k == ND_OUT or k == ND_PRINT or k == ND_LEN or k == ND_TONUM or k == ND_TOSTR
+    hoist_vars (node at "left")
+
+# ──────────────────────── Emission Pass (Pass 2) ────────────────────────
+
+do emit_expr n
+  if type n == "none"
+    out "val_none()"
+
+  k = n at "kind"
+  if k == ND_NUM
+    out "val_num(" + tostr (n at "num") + ")"
+  if k == ND_STR
+    out "val_str(\"" + (n at "str") + "\")"
+  if k == ND_VAR
+    out n at "name"
+  if k == ND_NOT
+    out "val_not(" + emit_expr (n at "left") + ")"
+  if k == ND_LEN
+    out "val_len(" + emit_expr (n at "left") + ")"
+  if k == ND_TONUM
+    out "val_tonum(" + emit_expr (n at "left") + ")"
+  if k == ND_TOSTR
+    out "val_tostr(" + emit_expr (n at "left") + ")"
+  if k == ND_TYPE
+    out "val_type(" + emit_expr (n at "left") + ")"
+  if k == ND_LIST
+    out "val_list()"
+  if k == ND_DICT
+    out "val_dict()"
+  if k == ND_AT
+    out "val_at(" + emit_expr (n at "left") + ", " + emit_expr (n at "right") + ")"
+  if k == ND_SLICE
+    body = n at "body"
+    out "val_slice(" + emit_expr (n at "left") + ", " + emit_expr (body at 0) + ", " + emit_expr (body at 1) + ")"
+  
+  if k == ND_BINOP
+    l = emit_expr (n at "left")
+    r = emit_expr (n at "right")
+    op = n at "op"
+    out "runtime_binop(" + l + ", " + tostr op + ", " + r + ")"
+
+  if k == ND_CALL
+    name = n at "left" at "name"
+    args = n at "body"
+    # Use runtime_call if it's a dynamic dispatch, but here we assume direct C call
+    s = "val_call(" + name + ", " + tostr (len args)
+    i = 0
+    while i < len args
+      s = s + ", " + emit_expr (args at i)
+      i = i + 1
+    out s + ")"
+
+  # GCC Statement Expressions allow nested logic inside expressions
+  if k == ND_IF or k == ND_WHILE or k == ND_BLOCK
+    # We redirect emission to a temporary sub-buffer
+    old_lines = C_LINES
+    C_LINES = list
+    IND_OLD = INDENT_LVL
+    INDENT_LVL = 0
+    
+    # We need a result variable within the statement expression
+    emit "({ Value* _res = val_none(); "
+    INDENT_LVL = 1
+    
+    # If it's a block, we need to handle the implicit return of the last expression
+    # For simplicity in this pass, we use a global return value strategy
+    emit_stmt n
+    
+    emit "_res; "
+    emit "})"
+    block_str = ""
+    i = 0
+    while i < len C_LINES
+      block_str = block_str + (C_LINES at i) + " "
+      i = i + 1
+    C_LINES = old_lines
+    INDENT_LVL = IND_OLD
+    out block_str
+
+  out "val_none()"
+
+do emit_stmt n
+  if type n == "none"
+    out val_none
+  
+  k = n at "kind"
+  if k == ND_BLOCK
+    body = n at "body"
+    i = 0
+    while i < len body
+      if i == (len body - 1) and INDENT_LVL > 0
+        # Last expression in a Statement Expression block sets the result
+        emit "_res = " + emit_expr (body at i) + ";"
+      else
+        emit_stmt (body at i)
+      i = i + 1
+  else if k == ND_ASSIGN
+    left = n at "left"
+    emit (left at "name") + " = " + emit_expr (n at "right") + ";"
+  else if k == ND_IF
+    emit "if (val_truthy(" + emit_expr (n at "left") + ")) {"
+    INDENT_LVL = INDENT_LVL + 1
+    emit_stmt (n at "body" at 0)
+    INDENT_LVL = INDENT_LVL - 1
+    emit "}"
+    if type (n at "right") != "none"
+      emit "else {"
+      INDENT_LVL = INDENT_LVL + 1
+      emit_stmt (n at "right")
+      INDENT_LVL = INDENT_LVL - 1
+      emit "}"
+  else if k == ND_WHILE
+    emit "while (val_truthy(" + emit_expr (n at "left") + ")) {"
+    INDENT_LVL = INDENT_LVL + 1
+    emit_stmt (n at "body" at 0)
+    INDENT_LVL = INDENT_LVL - 1
+    emit "}"
+  else if k == ND_BREAK
+    emit "break;"
+  else if k == ND_SKIP
+    emit "continue;"
+  else if k == ND_PRINT
+    emit "val_print(" + emit_expr (n at "left") + "); printf(\"\\n\");"
+  else if k == ND_OUT
+    emit "return " + emit_expr (n at "left") + ";"
+  else if k == ND_DO
+    # Hoist locals excluding parameters
+    OLD_VARS = DECLARED_VARS
+    DECLARED_VARS = dict
+    params = n at "body"
+    j = 0
+    while j < len params
+      DECLARED_VARS key (params at j at "name") 1
+      j = j + 1
+    
+    hoist_vars (n at "left")
+    
+    emit "Value* " + (n at "name") + "() {"
+    INDENT_LVL = INDENT_LVL + 1
+    
+    vnames = keys DECLARED_VARS
+    i = 0
+    while i < len vnames
+      # Check if it was a param to avoid redeclaration
+      is_param = 0
+      p_check = 0
+      while p_check < len params
+        if (vnames at i) == (params at p_check at "name"); is_param = 1;
+        p_check = p_check + 1
+      
+      if is_param == 0
+        emit "Value* " + (vnames at i) + " = val_none();"
+      i = i + 1
+    
+    emit_stmt (n at "left")
+    INDENT_LVL = INDENT_LVL - 1
+    emit "}"
+    DECLARED_VARS = OLD_VARS
+
+# ──────────────────────── Main Entry Point ────────────────────────
+
+do compile_to_c prog
+  C_LINES = list
+  init_indent_cache
+  INDENT_LVL = 0
+  emit "#include <stdio.h>"
+  emit "#include \"vii.h\""
+  emit "/* Generated by Vii Codegen */"
+  
+  # Emit Functions First
+  body = prog at "body"
+  i = 0
+  while i < len body
+    n = body at i
+    if (n at "kind") == ND_DO; emit_stmt n;
+    i = i + 1
+    
+  emit "int main(int argc, char** argv) {"
+  INDENT_LVL = INDENT_LVL + 1
+  emit "global_arena = arena_create(512*1024*1024);"
+  
+  # Hoist Top-Level Variables
+  DECLARED_VARS = dict
+  hoist_vars prog
+  vnames = keys DECLARED_VARS
+  i = 0
+  while i < len vnames
+    emit "Value* " + (vnames at i) + " = val_none();"
+    i = i + 1
+    
+  emit_stmt prog
+  emit "return 0;"
+  INDENT_LVL = INDENT_LVL - 1
+  emit "}"
+  
+  res = ""
+  i = 0
+  while i < len C_LINES
+    res = res + (C_LINES at i) + "\n"
+    i = i + 1
+  res
+
+do compile_to_bin prog out_name keep_c
+  c_src = compile_to_c prog
+  c_fname = out_name + ".c"
+  c_fname put c_src
+  
+  # Official Bootstrap GCC Trigger
+  cmd = "gcc -O3 " + c_fname + " -o " + out_name
+  "Compiling " + out_name + "..."
+  sys cmd
+  
+  if keep_c == 0
+    "" # Optional: logic to delete c_fname if desired

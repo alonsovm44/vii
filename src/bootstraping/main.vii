@@ -4,6 +4,7 @@ paste "src/bootstraping/ui.vii"
 paste "src/bootstraping/lexer.vii"
 paste "src/bootstraping/parser.vii"
 paste "src/bootstraping/interp.vii"
+paste "src/bootstraping/codegen.vii"
 
 color_red = "\x1b[1;31m"
 color_grn = "\x1b[1;32m"
