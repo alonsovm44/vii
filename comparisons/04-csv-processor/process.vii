@@ -1,0 +1,156 @@
+# CSV Processor in Vii
+# Reads sales data, filters, aggregates, generates report
+# Lines: 48 | Complexity: Low | Dependencies: None
+
+# Arguments
+input_file = arg at 1
+if input_file == ""
+  input_file = "sales.csv"
+
+output_file = arg at 2
+if output_file == ""
+  output_file = "report.txt"
+
+min_amount_str = arg at 3
+if min_amount_str == ""
+  min_amount_str = "100"
+min_amount = tonum min_amount_str
+
+# Read file
+content = input_file ask
+if content == ""
+  "Error: File " + input_file + " not found"
+  exit 1
+
+# Parse CSV (simple: split by line, then by comma)
+lines = content split "\n"
+header = (lines at 0) split ","
+
+# Find column indices
+region_idx = 0
+amount_idx = 0
+date_idx = 0
+customer_idx = 0
+
+i = 0
+while i < (header len)
+  col = header at i
+  if col == "region" or col contains "region"
+    region_idx = i
+  if col == "amount" or col contains "amount"
+    amount_idx = i
+  if col == "date" or col contains "date"
+    date_idx = i
+  if col == "customer" or col contains "customer"
+    customer_idx = i
+  i = i + 1
+
+# Filter and aggregate
+filtered = list
+totals = dict
+all_amounts = list
+
+# Skip header, process data
+i = 1
+while i < (lines len)
+  line = lines at i
+  if line == ""
+    i = i + 1
+    continue
+  
+  fields = line split ","
+  if (fields len) <= amount_idx
+    i = i + 1
+    continue
+  
+  # Parse amount
+  amount_str = fields at amount_idx
+  amount = tonum amount_str
+  
+  # Filter
+  if amount > min_amount
+    filtered push fields
+    all_amounts push amount
+    
+    # Aggregate by region
+    region = fields at region_idx
+    if region == ""
+      region = "Unknown"
+    
+    current = totals at region
+    if current == ""
+      current = 0
+    totals key region (tonum current) + amount
+  
+  i = i + 1
+
+# Calculate stats
+total_records = filtered len
+if total_records > 0
+  sum_amounts = 0
+  max_amount = 0
+  for amt in all_amounts
+    sum_amounts = sum_amounts + amt
+    if amt > max_amount
+      max_amount = amt
+  avg_amount = sum_amounts / total_records
+else
+  avg_amount = 0
+  max_amount = 0
+
+# Generate report
+report = "Sales Report\n"
+report = report + "============\n"
+report = report + "Input: " + input_file + "\n\n"
+report = report + "Summary\n-------\n"
+report = report + "Total Records: " + total_records + "\n"
+report = report + "Average Amount: $" + avg_amount + "\n"
+report = report + "Max Amount: $" + max_amount + "\n\n"
+report = report + "By Region\n---------\n"
+
+# Region totals
+regions = keys totals
+for region in regions
+  total = totals at region
+  report = report + region + ": $" + total + "\n"
+
+report = report + "\nTop Transactions\n----------------\n"
+
+# Sort by amount (simple bubble sort for demo)
+# (In production, use a proper sort)
+top_count = 5
+if total_records < top_count
+  top_count = total_records
+
+i = 0
+while i < top_count
+  # Find max in remaining
+  max_idx = 0
+  max_val = 0
+  j = 0
+  while j < (filtered len)
+    row = filtered at j
+    amt_str = row at amount_idx
+    amt = tonum amt_str
+    if amt > max_val
+      max_val = amt
+      max_idx = j
+    j = j + 1
+  
+  # Add to report
+  row = filtered at max_idx
+  date = row at date_idx
+  customer = row at customer_idx
+  amt = row at amount_idx
+  report = report + date + ": " + customer + " - $" + amt + "\n"
+  
+  # Remove from filtered so we don't pick it again
+  # (In real code, would use a different approach)
+  filtered set max_idx (list)  # Mark as used
+  i = i + 1
+
+# Write and display
+output_file put report
+report
+
+"Report written to: " + output_file

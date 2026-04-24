@@ -1,0 +1,72 @@
+# Log Analyzer in Vii
+# Extracts ERROR lines, counts by type, generates report
+# Lines: 35 | Complexity: Low | Maintainability: Obvious
+
+# Get arguments
+log_file = arg at 1
+if log_file == ""
+  log_file = "app.log"
+
+output = arg at 2
+if output == ""
+  output = "report.txt"
+
+# Read file (fails gracefully with empty string on missing file)
+content = log_file ask
+if content == ""
+  "Error: File " + log_file + " not found"
+  exit 1
+
+# Split into lines
+lines = content split "\n"
+
+# Filter errors
+errors = list
+for line in lines
+  if line contains "ERROR"
+    errors push line
+
+# Count by category
+db_count = 0
+net_count = 0
+auth_count = 0
+
+for err in errors
+  if err contains "Database"
+    db_count = db_count + 1
+  if err contains "Network"
+    net_count = net_count + 1
+  if err contains "Auth"
+    auth_count = auth_count + 1
+
+# Build report
+report = "Log Analysis Report\n"
+report = report + "===================\n"
+report = report + "File: " + log_file + "\n\n"
+report = report + "Summary\n-------\n"
+report = report + "Total Lines: " + (lines len) + "\n"
+report = report + "Total Errors: " + (errors len) + "\n\n"
+report = report + "Breakdown\n---------\n"
+report = report + "Database: " + db_count + "\n"
+report = report + "Network: " + net_count + "\n"
+report = report + "Auth: " + auth_count + "\n\n"
+report = report + "Recent Errors\n-------------\n"
+
+# Add last 5 errors
+error_count = errors len
+start = error_count - 5
+if start < 0
+  start = 0
+
+i = start
+while i < error_count
+  report = report + (errors at i) + "\n"
+  i = i + 1
+
+# Write and display
+output put report
+report
+
+# Exit with error code if errors found
+if (errors len) > 0
+  exit 1

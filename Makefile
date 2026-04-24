@@ -15,7 +15,7 @@ src/%.o: src/%.c src/vii.h
 clean:
 	rm -f vii src/*.o
 
-run: vii
+
 	./vii examples/fizzbuzz.vii
 
 .PHONY: all clean run

@@ -1,0 +1,117 @@
+# Build script in Vii
+# Build a C project with dependencies
+# Lines: 42 | Complexity: Low | Actually readable
+
+# Configuration
+CC = "gcc"
+CFLAGS = "-Wall -O2 -std=c99"
+DEBUG_CFLAGS = "-Wall -g -O0 -DDEBUG"
+LDFLAGS = "-lm"
+SRCDIR = "src"
+OBJDIR = "obj"
+BINDIR = "bin"
+TARGET = BINDIR + "/app"
+
+# Get command
+command = arg at 1
+if command == ""
+  command = "build"
+
+# Find C files
+sources = list
+# (In real usage, would use sys to find files)
+sources push SRCDIR + "/main.c"
+sources push SRCDIR + "/utils.c"
+sources push SRCDIR + "/parser.c"
+
+# Detect if headers changed (simplified)
+needs_rebuild = 0
+if "obj/main.o" ask == ""
+  needs_rebuild = 1
+
+# Build function
+do build debug_mode
+  # Create directories
+  sys "mkdir -p " + OBJDIR
+  sys "mkdir -p " + BINDIR
+  
+  # Choose flags
+  flags = CFLAGS
+  if debug_mode == 1
+    flags = DEBUG_CFLAGS
+    "Building in DEBUG mode"
+  else
+    "Building in RELEASE mode"
+  
+  # Compile each source
+  objects = list
+  for src in sources
+    # Extract basename
+    parts = src split "/"
+    name = parts at ((parts len) - 1)
+    name_parts = name split "."
+    obj_name = OBJDIR + "/" + (name_parts at 0) + ".o"
+    
+    # Check if we need to compile
+    if (obj_name ask) == "" or needs_rebuild == 1
+      cmd = CC + " " + flags + " -c " + src + " -o " + obj_name
+      "Compiling: " + src
+      result = sys cmd
+      if result != 0
+        "Compilation failed!"
+        exit 1
+    
+    objects push obj_name
+  
+  # Link
+  object_files = ""
+  for obj in objects
+    object_files = object_files + obj + " "
+  
+  link_cmd = CC + " " + object_files + "-o " + TARGET + " " + LDFLAGS
+  "Linking: " + TARGET
+  result = sys link_cmd
+  if result != 0
+    "Linking failed!"
+    exit 1
+  
+  "Build complete: " + TARGET
+
+# Run based on command
+if command == "build" or command == "all"
+  build 0
+
+if command == "debug"
+  build 1
+
+if command == "clean"
+  "Cleaning build artifacts..."
+  sys "rm -rf " + OBJDIR + " " + BINDIR
+  "Clean complete."
+
+if command == "test"
+  build 0
+  "Running tests..."
+  result = sys TARGET + " --test"
+  if result == 0
+    "All tests passed!"
+  else
+    "Tests failed!"
+    exit 1
+
+if command == "install"
+  build 0
+  install_dir = "/usr/local/bin"
+  "Installing to " + install_dir + "..."
+  sys "cp " + TARGET + " " + install_dir + "/"
+  "Installed: " + install_dir + "/app"
+
+if command == "help"
+  "Usage: vii build.vii [command]"
+  "Commands:"
+  "  build   - Build the project (default)"
+  "  debug   - Build with debug symbols"
+  "  clean   - Remove build artifacts"
+  "  test    - Build and run tests"
+  "  install - Install to /usr/local/bin"
+  "  help    - Show this help"

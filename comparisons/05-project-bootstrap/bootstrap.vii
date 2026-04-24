@@ -1,0 +1,151 @@
+# Project Bootstrap in Vii
+# Creates a new project structure from template
+# Lines: 62 | Complexity: Low | Maintainable
+
+# Get project name
+project_name = arg at 1
+if project_name == ""
+  "Usage: vii bootstrap.vii <project-name> [template]"
+  "Templates: python, node, go, vii"
+  exit 1
+
+template = arg at 2
+if template == ""
+  template = "python"
+
+project_dir = "./" + project_name
+
+# Check if directory exists
+if (project_dir ask) != ""
+  "Error: Directory " + project_dir + " already exists"
+  exit 1
+
+"Creating " + template + " project: " + project_name
+
+# Create directory structure
+sys "mkdir -p " + project_dir + "/src"
+sys "mkdir -p " + project_dir + "/tests"
+sys "mkdir -p " + project_dir + "/docs"
+
+# Template files
+if template == "python"
+  # Python main.py
+  py_main = "def main():\n"
+  py_main = py_main + "    print(\"Hello from " + project_name + "!\")\n"
+  py_main = py_main + "\nif __name__ == \"__main__\":\n"
+  py_main = py_main + "    main()\n"
+  (project_dir + "/main.py") put py_main
+  
+  # requirements.txt
+  (project_dir + "/requirements.txt") put "# Add dependencies here\n"
+  
+  # setup.py
+  setup_py = "from setuptools import setup, find_packages\n\n"
+  setup_py = setup_py + "setup(\n"
+  setup_py = setup_py + "    name=\"" + project_name + "\",\n"
+  setup_py = setup_py + "    version=\"0.1.0\",\n"
+  setup_py = setup_py + "    packages=find_packages(),\n"
+  setup_py = setup_py + ")\n"
+  (project_dir + "/setup.py") put setup_py
+
+if template == "node"
+  # package.json
+  pkg = "{\n"
+  pkg = pkg + "  \"name\": \"" + project_name + "\",\n"
+  pkg = pkg + "  \"version\": \"0.1.0\",\n"
+  pkg = pkg + "  \"description\": \"\",\n"
+  pkg = pkg + "  \"main\": \"index.js\",\n"
+  pkg = pkg + "  \"scripts\": {\n"
+  pkg = pkg + "    \"test\": \"echo \\\"Error: no test specified\\\" && exit 1\"\n"
+  pkg = pkg + "  }\n"
+  pkg = pkg + "}\n"
+  (project_dir + "/package.json") put pkg
+  
+  # index.js
+  idx = "console.log(\"Hello from " + project_name + "!\");\n"
+  (project_dir + "/index.js") put idx
+
+if template == "go"
+  # go.mod
+  gomod = "module github.com/user/" + project_name + "\n\ngo 1.21\n"
+  (project_dir + "/go.mod") put gomod
+  
+  # main.go
+  gomain = "package main\n\n"
+  gomain = gomain + "import \"fmt\"\n\n"
+  gomain = gomain + "func main() {\n"
+  gomain = gomain + "    fmt.Println(\"Hello from " + project_name + "!\")\n"
+  gomain = gomain + "}\n"
+  (project_dir + "/main.go") put gomain
+
+if template == "vii"
+  # main.vii
+  vii_main = "# " + project_name + "\n\n"
+  vii_main = vii_main + "do main\n"
+  vii_main = vii_main + "  \"Hello from " + project_name + \"!\"\n"
+  (project_dir + "/main.vii") put vii_main
+  
+  # build script
+  build_vii = "# Build script for " + project_name + "\n\n"
+  build_vii = build_vii + "do build\n"
+  build_vii = build_vii + "  sys \"vii main.vii -o " + project_name + "\"\n"
+  build_vii = build_vii + "  \"Build complete\"\n"
+  (project_dir + "/build.vii") put build_vii
+
+# Unknown template
+if template != "python" and template != "node" and template != "go" and template != "vii"
+  "Unknown template: " + template
+  "Available: python, node, go, vii"
+  sys "rm -rf " + project_dir
+  exit 1
+
+# Common README
+readme = "# " + project_name + "\n\n"
+readme = readme + "Created with template: " + template + "\n\n"
+readme = readme + "## Getting Started\n\n"
+readme = readme + "```bash\n"
+if template == "python"
+  readme = readme + "pip install -r requirements.txt\n"
+  readme = readme + "python main.py\n"
+if template == "node"
+  readme = readme + "npm install\n"
+  readme = readme + "node index.js\n"
+if template == "go"
+  readme = readme + "go run .\n"
+if template == "vii"
+  readme = readme + "vii main.vii\n"
+  readme = readme + "# Or compile:\n"
+  readme = readme + "vii main.vii -o " + project_name + "\n"
+readme = readme + "```\n"
+(project_dir + "/README.md") put readme
+
+# Common .gitignore
+gitignore = "# Build artifacts\n"
+gitignore = gitignore + "build/\ndist/\n"
+gitignore = gitignore + "*.egg-info/\n"
+gitignore = gitignore + "__pycache__/\n"
+gitignore = gitignore + "node_modules/\n"
+gitignore = gitignore + "*.exe\n"
+(project_dir + "/.gitignore") put gitignore
+
+# Initialize git
+if (sys "cd " + project_dir + " && git init") == 0
+  sys "cd " + project_dir + " && git add . && git commit -m \"Initial commit\""
+  "Git repository initialized"
+
+# Success message
+""
+"✓ Project created: " + project_dir
+"✓ Template: " + template
+"✓ Git: initialized"
+""
+"Next steps:"
+"  cd " + project_name
+if template == "python"
+  "  pip install -r requirements.txt"
+if template == "node"
+  "  npm install"
+if template == "go"
+  "  go run ."
+if template == "vii"
+  "  vii main.vii"

@@ -1,29 +1,60 @@
-# Vii Automated Build System
-paste "lib/fs.vii"
+# Vii Build Script — Matches Makefile exactly
 
-BINARY = "vii_engine"
-"--- Vii Pipeline: Start ---"
+CC = "gcc"
+CFLAGS = "-Wall -Wextra -O3 -std=c99"
 
-# 1. Compilation
-"[1/3] Compiling C project..."
-# Vii constructs the string left-to-right; shell handles the globbing
-build_status = sys "gcc -O3 src/*.c -Iinclude -o " + BINARY
+SRCS = list
+SRCS push "src/main.c"
+SRCS push "src/ui.c"
+SRCS push "src/value.c"
+SRCS push "src/lexer.c"
+SRCS push "src/parser.c"
+SRCS push "src/interp.c"
+SRCS push "src/codegen.c"
 
-if build_status != 0
-  "Build Error: gcc returned " + tostr build_status
-  exit 1
+# Derive object files (like $(SRCS:.c=.o))
+OBJS = list
+for src in SRCS
+  parts = src split "."
+  obj = (parts at 0) + ".o"
+  OBJS push obj
 
-# 2. Testing
-"[2/3] Running test suite..."
-test_status = sys "./" + BINARY + " --run-tests"
+# all: vii
+do all
+  vii
 
-# 3. Deployment (Only if tests pass)
-if test_status == 0
-  "[3/3] Tests passed. Deploying to dist/..."
-  mkdir "dist"
-  target = "dist/" + BINARY
-  cp BINARY target
-  "Done: Project is live in dist/"
-else
-  "Error: Tests failed. Aborting deployment."
-  exit 1
+# vii: $(OBJS)
+do vii
+  # Link: $(CC) $(CFLAGS) -o vii $(OBJS)
+  obj_files = ""
+  for obj in OBJS
+    obj_files = obj_files + obj + " "
+  sys CC + " " + CFLAGS + " -o vii " + obj_files
+
+# src/%.o: src/%.c src/vii.h
+do compile
+  for src in SRCS
+    # Compile: $(CC) $(CFLAGS) -c -o $@ $<
+    parts = src split "."
+    obj = (parts at 0) + ".o"
+    sys CC + " " + CFLAGS + " -c -o " + obj + " " + src
+
+# clean:
+do clean
+  sys "rm -f vii src/*.o"
+
+# run: vii
+do run
+  vii
+  sys "./vii examples/fizzbuzz.vii"
+
+# Main
+target = arg at 1
+if target == "" or target == "all"
+  all
+else if target == "compile"
+  compile
+else if target == "clean"
+  clean
+else if target == "run"
+  run

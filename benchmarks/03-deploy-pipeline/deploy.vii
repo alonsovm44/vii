@@ -1,0 +1,114 @@
+# Deployment Pipeline in Vii
+# Build Docker image, push to registry, SSH to server, deploy, health check
+# Lines: 115 | Complexity: Low | Debugging: Obvious
+
+# Configuration
+env_ = arg at 1
+if env_ == ""
+  env_ = "staging"
+
+# Get version from git or use 'latest'
+version = sys "git describe --tags --always 2>/dev/null"
+if version == ""
+  version = "latest"
+
+registry = "docker.io/myapp"
+server = env "DEPLOY_SERVER"
+if server == ""
+  server = "prod-01.example.com"
+
+ssh_key = env "SSH_KEY"
+if ssh_key == ""
+  ssh_key = "~/.ssh/deploy_key"
+
+max_retries = 3
+retry_delay = 5
+
+"=== Deploying " + version + " to " + env_ + " ==="
+
+# Build Docker image
+"[1/5] Building Docker image..."
+build_cmd = "docker build -t " + registry + ":" + version + " -t " + registry + ":" + env_ + "-latest ."
+result = sys build_cmd
+if result != 0
+  "ERROR: Docker build failed"
+  exit 1
+
+# Push with retry loop
+"[2/5] Pushing to registry..."
+pushed = 0
+i = 1
+while i <= max_retries
+  push_cmd = "docker push " + registry + ":" + version + " && docker push " + registry + ":" + env_ + "-latest"
+  result = sys push_cmd
+  if result == 0
+    "Push successful"
+    pushed = 1
+    break
+  
+  if i == max_retries
+    "ERROR: Push failed after " + max_retries + " attempts"
+    exit 1
+  
+  "Push failed, retrying in " + retry_delay + "s... (" + i + "/" + max_retries + ")"
+  i = i + 1
+
+# Deploy via SSH
+"[3/5] Deploying to " + server + "..."
+ssh_opts = "-o StrictHostKeyChecking=no -o ConnectTimeout=10 -i " + ssh_key
+
+# Build remote commands
+remote_cmds = "echo 'Pulling image...'
+"
+remote_cmds = remote_cmds + "docker pull " + registry + ":" + version + "
+"
+remote_cmds = remote_cmds + "echo 'Stopping old container...'
+"
+remote_cmds = remote_cmds + "docker stop myapp-" + env_ + " 2>/dev/null || true
+"
+remote_cmds = remote_cmds + "docker rm myapp-" + env_ + " 2>/dev/null || true
+"
+remote_cmds = remote_cmds + "echo 'Starting new container...'
+"
+remote_cmds = remote_cmds + "docker run -d --name myapp-" + env_ + " -p 8080:8080 -e ENV=" + env_ + " -e VERSION=" + version + " --restart unless-stopped " + registry + ":" + version + "
+"
+remote_cmds = remote_cmds + "echo 'Pruning old images...'
+"
+remote_cmds = remote_cmds + "docker image prune -f
+"
+
+deploy_cmd = "ssh " + ssh_opts + " deploy@" + server + " '" + remote_cmds + "'"
+result = sys deploy_cmd
+if result != 0
+  "ERROR: Deployment failed on server"
+  exit 1
+
+# Health check
+"[4/5] Running health checks..."
+health_url = "http://" + server + ":8080/health"
+healthy = 0
+i = 1
+while i <= max_retries
+  sys "sleep 2"
+  check_cmd = "curl -sf " + health_url + " > /dev/null 2>&1"
+  result = sys check_cmd
+  if result == 0
+    "Health check passed"
+    healthy = 1
+    break
+  
+  if i == max_retries
+    "WARNING: Health check failed, but deployment completed"
+  
+  "Health check failed, retrying... (" + i + "/" + max_retries + ")"
+  i = i + 1
+
+# Cleanup
+"[5/5] Cleaning up..."
+cleanup_cmd = "docker rmi " + registry + ":" + version + " " + registry + ":" + env_ + "-latest 2>/dev/null || true"
+sys cleanup_cmd
+
+"=== Deployment complete ==="
+"Version: " + version
+"Server: " + server
+"URL: http://" + server + ":8080"
