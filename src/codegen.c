@@ -403,6 +403,18 @@ static void emit_c_func_registrations(Node *n, FILE *f) {
     }
 }
 
+static bool has_main_function(Node *n) {
+    if (!n) return false;
+    if (n->kind == ND_BLOCK) {
+        for (int i = 0; i < n->body_count; i++) {
+            if (has_main_function(n->body[i])) return true;
+        }
+    } else if (n->kind == ND_DO && n->name && strcmp(n->name, "main") == 0) {
+        return true;
+    }
+    return false;
+}
+
 void compile_to_bin(Node *prog, const char *out_name, bool keep_c) {
     size_t c_path_len = strlen(out_name) + 8;
     char *c_file = arena_alloc(global_arena, c_path_len);
@@ -413,6 +425,9 @@ void compile_to_bin(Node *prog, const char *out_name, bool keep_c) {
 
     emit_c_header(f);
     fprintf(f, "typedef struct { size_t cap; size_t off; char* data; } Arena;\n\n");
+    
+    bool has_main = has_main_function(prog);
+    
     emit_c_functions(prog, f);
 
     // Emit arena_create after other functions but before main
@@ -441,13 +456,41 @@ void compile_to_bin(Node *prog, const char *out_name, bool keep_c) {
     fprintf(f, "  table_set(env, \"table_new\", val_func(io_table_new));\n");
     // Register all functions in the environment so they can be called by name
     emit_c_func_registrations(prog, f);
-    // The main Vii program is expected to have a 'do main' function.
-    // We need to explicitly call this function as the entry point.
-    fprintf(f, "  Value *program_result = io_func_main(env, 0, NULL);\n");
-    fprintf(f, "  if (program_result->kind != VAL_NONE && program_result->kind != VAL_BREAK) {\n");
-    fprintf(f, "    val_print(program_result);\n");
-    fprintf(f, "    printf(\"\\n\");\n");
-    fprintf(f, "  }\n");
+    
+    if (has_main) {
+        // The main Vii program has a 'do main' function - call it as entry point
+        fprintf(f, "  Value *program_result = io_func_main(env, 0, NULL);\n");
+        fprintf(f, "  if (program_result->kind != VAL_NONE && program_result->kind != VAL_BREAK) {\n");
+        fprintf(f, "    val_print(program_result);\n");
+        fprintf(f, "    printf(\"\\n\");\n");
+        fprintf(f, "  }\n");
+    } else {
+        // No main function - execute top-level statements directly
+        Node *block = prog;
+        if (prog->kind == ND_BLOCK) {
+            for (int i = 0; i < block->body_count; i++) {
+                Node *stmt = block->body[i];
+                // Skip function definitions - they just register themselves
+                if (stmt->kind == ND_DO) {
+                    continue;
+                }
+                if (i == block->body_count - 1 && stmt->kind != ND_IF && stmt->kind != ND_WHILE && 
+                    stmt->kind != ND_EXIT && stmt->kind != ND_BLOCK && stmt->kind != ND_OUT && 
+                    stmt->kind != ND_PUT && stmt->kind != ND_PRINT) {
+                    // Last statement is an expression - print it
+                    fprintf(f, "  Value *final_result = ");
+                    emit_c_expr(stmt, f);
+                    fprintf(f, ";\n");
+                    fprintf(f, "  if (final_result->kind != VAL_NONE && final_result->kind != VAL_BREAK) {\n");
+                    fprintf(f, "    val_print(final_result);\n");
+                    fprintf(f, "    printf(\"\\n\");\n");
+                    fprintf(f, "  }\n");
+                } else {
+                    emit_c_stmt(stmt, 1, f);
+                }
+            }
+        }
+    }
     fprintf(f, "  return 0;\n}\n");
     fclose(f);
 
