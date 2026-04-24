@@ -19,6 +19,12 @@ we have to fix that
 
 End of Line.
 
+---
+
 23/04/2026 9:59 pm 
 I left trying to finish bootstrapping, partial success. I managed to compile Vii from Vii code instead of C
 But it is not completely functional, it does not run scripts or transpile itself. It is like a Mule that can't have offspring
+
+---
+
+ 
