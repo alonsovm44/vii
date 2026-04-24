@@ -81,6 +81,7 @@ int main(int argc, char **argv) {
     const char *output_name = NULL;
     bool debug_ast = false;
     bool keep_c = false;
+    bool trace = false;
 
     if (argc < 2) goto usage;
 
@@ -96,6 +97,8 @@ int main(int argc, char **argv) {
         } else if (strcmp(argv[i], "-D") == 0 || strcmp(argv[i], "--define") == 0) {
             if (i + 1 < argc) add_define(argv[++i]);
             else { fprintf(stderr, "Error: -D requires a name\n"); return 1; }
+        } else if (strcmp(argv[i], "--trace") == 0) {
+            trace = true;
         } else if (argv[i][0] != '-') {
             if (!input_path) input_path = argv[i];
         }
@@ -137,6 +140,7 @@ int main(int argc, char **argv) {
         if (strcmp(argv[i], "-o") == 0) { i++; continue; }
         if (strcmp(argv[i], "-k") == 0 || strcmp(argv[i], "--keep") == 0) continue;
         if (strcmp(argv[i], "-D") == 0 || strcmp(argv[i], "--define") == 0) { i++; continue; }
+        if (strcmp(argv[i], "--trace") == 0) continue;
         if (input_path && strcmp(argv[i], input_path) == 0) continue;
 
         if (cli_args->item_count >= cli_args->item_cap) {
@@ -146,11 +150,16 @@ int main(int argc, char **argv) {
     }
 
     char *src = read_file(input_path);
+    if (trace) fprintf(stderr, "[TRACE] Read %zu bytes from %s\n", strlen(src), input_path);
     Lexer lexer = { .src = src, .pos = 0, .filename = input_path, .arena = global_arena };
+    if (trace) fprintf(stderr, "[TRACE] Starting lexer...\n");
     lex(&lexer, input_path);
+    if (trace) fprintf(stderr, "[TRACE] Lexed %d tokens\n", lexer.tok_count);
 
     Parser parser = { .tokens = lexer.tokens, .pos = 0, .src = src, .filename = input_path, .arena = global_arena };
+    if (trace) fprintf(stderr, "[TRACE] Starting parser...\n");
     Node *prog = parse_program(&parser);
+    if (trace) fprintf(stderr, "[TRACE] Parsed AST with kind=%d\n", prog->kind);
 
     if (debug_ast) {
         FILE *df = fopen("debug_ast.json", "w");
@@ -169,7 +178,9 @@ int main(int argc, char **argv) {
 
     /* Otherwise, Interpret */
     Table *global = table_new(NULL);
+    if (trace) fprintf(stderr, "[TRACE] Starting interpreter...\n");
     Value *res = eval(prog, global); // Evaluate the entire program
+    if (trace) fprintf(stderr, "[TRACE] Interpreter returned kind=%d\n", res ? res->kind : -1);
 
     // Check if the last statement in the program was an implicit print.
     // If so, it has already been printed by the ND_PRINT node.

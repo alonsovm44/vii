@@ -346,55 +346,33 @@ do compile_to_c prog
   indent_lvl = indent_lvl + 1
   emit "global_arena = arena_create(512*1024*1024);"
   
-  # Handle --version and --help
-  emit "if (argc > 1 && strcmp(argv[1], \"--version\") == 0) {"
-  emit "  printf(\"vii 2.0.0 bootstrapped\\n\");"
-  emit "  return 0;"
-  emit "}"
-  emit "if (argc > 1 && strcmp(argv[1], \"--help\") == 0) {"
-  emit "  printf(\"vii - a minimalist programming language\\n\");"
-  emit "  printf(\"Usage: vii <file.vii> [args...]\\n\");"
-  emit "  return 0;"
-  emit "}"
-  emit "if (argc < 2) {"
-  emit "  fprintf(stderr, \"Error: no input file\\n\");"
-  emit "  return 1;"
-  emit "}"
-  
-  # Read input file
-  emit "FILE* f = fopen(argv[1], \"rb\");"
-  emit "if (!f) { fprintf(stderr, \"Error: cannot open '%s'\\n\", argv[1]); return 1; }"
-  emit "fseek(f, 0, SEEK_END);"
-  emit "long size = ftell(f);"
-  emit "fseek(f, 0, SEEK_SET);"
-  emit "char* source = malloc(size + 1);"
-  emit "fread(source, 1, size, f);"
-  emit "source[size] = 0;"
-  emit "fclose(f);"
-  emit ""
-  
-  # Create arg list (includes args after filename)
+  # Create arg list from argv
   emit "Value* arg = val_list();"
-  emit "for (int i = 2; i < argc; i++) {"
-  emit "  if (arg->item_count >= arg->item_cap) val_list_grow(arg);"
+  emit "for (int i = 1; i < argc; i++) {"
+  emit "  if (arg->item_count >= arg->item_cap) {"
+  emit "    arg->item_cap *= 2;"
+  emit "    arg->items = realloc(arg->items, arg->item_cap * sizeof(Value*));"
+  emit "  }"
   emit "  arg->items[arg->item_count++] = val_str(argv[i]);"
   emit "}"
   
-  # Create environment
+  # Create environment with arg
   emit "Table* env = table_new(NULL);"
   emit "table_set(env, \"arg\", arg);"
   emit ""
   
-  # TODO: Add lexer, parser, and interpreter calls here
-  # Value* tokens = vii_lex(source);
-  # Value* ast = vii_parse(tokens);
-  # Value* result = vii_eval(ast, env);
-  # if (result->kind != VAL_NONE) val_print(result);
-  emit "// TODO: lex, parse, and evaluate the source code"
-  emit "printf(\"Read file: %s\\n\", argv[1]);"
-  emit "printf(\"Size: %ld bytes\\n\", size);"
+  # Convert arg list to array for io_func_main
+  emit "Value** args = malloc(arg->item_count * sizeof(Value*));"
+  emit "for (int i = 0; i < arg->item_count; i++) args[i] = arg->items[i];"
   emit ""
-  emit "free(source);"
+  
+  # Call the compiler's main function
+  emit "Value* result = io_func_main(env, arg->item_count, args);"
+  emit "if (result->kind != VAL_NONE && result->kind != VAL_BREAK) {"
+  emit "  val_print(result);"
+  emit "  printf(\"\\n\");"
+  emit "}"
+  emit "free(args);"
   emit "return 0;"
   indent_lvl = indent_lvl - 1
   emit "}"

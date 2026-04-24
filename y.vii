@@ -1,8 +1,0 @@
-x = list 
-i=0
-while i < 100
-  x at i = i * i 
-  i = i + 1
-
-for a in x 
-  "hello " + a

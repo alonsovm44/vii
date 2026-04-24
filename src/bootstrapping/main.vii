@@ -53,10 +53,12 @@ do main
   
   input_path = "none"
   output_name = "none"
-  debug_ast = 0
+  keep_c = 0
   boot_debug = 0
-  keep_c = 0 
-  
+  debug_ast = 0
+  implicit_print = 0
+  target_set = 0
+  trace = 0
   argc = len arg
   
   # Ensure we have at least one argument (the input file)
@@ -72,6 +74,8 @@ do main
       debug_ast = 1
     else if current_arg == "--bootdebug"
       boot_debug = 1
+    else if current_arg == "--trace"
+      trace = 1
     else if current_arg == "-o"
       next_i = i + 1
       if next_i < argc
@@ -143,6 +147,8 @@ do main
       i = i + 1 # Skip debug flag
     else if current_arg == "--bootdebug"
       i = i + 1 # Skip bootstrapping debug flag
+    else if current_arg == "--trace"
+      i = i + 1 # Skip trace flag
     else if current_arg == "-o"
       i = i + 2 # Skip -o and its value
     else if current_arg == "-k"
@@ -167,20 +173,30 @@ do main
 
   src_content = input_path ask # Read the source file
   
+  if trace
+    "[TRACE] Reading file: " + input_path
+  
   lexer = dict
   lexer key "src" src_content # The source string to lex
   lexer key "pos" 0
   lexer key "line" 1 # Starting line for this lexer instance
   lexer key "filename" input_path
   lexer key "boot_debug" boot_debug
+  lexer key "trace" trace
   lexer key "arena" global_arena # Assuming arena is passed to lexer
 
   # Initialize the list of pasted files to track dependencies
   pasted_files = list
   pasted_files set 0 input_path
 
+  if trace
+    "[TRACE] Starting lexer..."
+  
   tokens = lex lexer # Call the lexer
-
+  
+  if trace
+    "[TRACE] Lexed " + tostr (len tokens) + " tokens"
+  
   parser = dict
   parser key "tokens" tokens
   parser key "pos" 0
@@ -189,14 +205,21 @@ do main
   parser key "arena" global_arena # Assuming arena is passed to parser
   parser key "defines" CLI_DEFINES # Pass CLI defines to the parser
   parser key "boot_debug" boot_debug
+  parser key "trace" trace
   parser key "in_func" 0 # Initialize in_func
   parser key "current_func" "none" # Initialize current_func
   parser key "constants" list # Initialize constants
   parser key "pasted_files" pasted_files # Pass tracking list to parser
   parser key "once_registry" dict
 
+  if trace
+    "[TRACE] Starting parser..."
+  
   prog = parse_program parser # Call the parser
-
+  
+  if trace
+    "[TRACE] Parsed AST"
+  
   if debug_ast
     # dump_ast_json prog "debug_ast.json" # Assuming this function exists in vii.vii or C runtime
     # For now, let's just print a message as dump_ast_json is a C function
@@ -204,6 +227,8 @@ do main
     "AST would be dumped to debug_ast.json"
 
   if output_name != "none"
+    if trace
+      "[TRACE] Compiling to binary: " + output_name
     compile_to_bin prog output_name keep_c # Call the compiler
     exit 0
 
@@ -214,7 +239,11 @@ do main
   global key "BOOT_DEBUG" boot_debug
 
   global_table = table_new global
+  if trace
+    "[TRACE] Starting interpreter..."
   res = val_unwrap (eval prog global_table)
+  if trace
+    "[TRACE] Interpreter returned"
 
   if (res at "kind") != VAL_NONE and (res at "kind") != VAL_BREAK
     val_print res

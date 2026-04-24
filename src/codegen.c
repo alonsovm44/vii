@@ -358,6 +358,11 @@ static void emit_c_stmt(Node *n, int indent, FILE *f) {
             emit_c_expr(n->left, f);
             fprintf(f, ");\n");
             break;
+        case ND_VAR:
+            // Bare function names in statement position should be called
+            fprintf(f, "{ Value* _v = runtime_var_get(env, \"%s\"); ", n->name);
+            fprintf(f, "if (_v && _v->kind == VAL_FUNC) _v = runtime_call(_v, env, 0, NULL); }\n");
+            break;
         default:
             emit_c_expr(n, f);
             fprintf(f, ";\n");
@@ -459,11 +464,15 @@ void compile_to_bin(Node *prog, const char *out_name, bool keep_c) {
     
     if (has_main) {
         // The main Vii program has a 'do main' function - call it as entry point
-        fprintf(f, "  Value *program_result = io_func_main(env, 0, NULL);\n");
+        // Convert io_args list to Value** array for the function call
+        fprintf(f, "  Value** args = malloc(io_args->item_count * sizeof(Value*));\n");
+        fprintf(f, "  for (int i = 0; i < io_args->item_count; i++) args[i] = io_args->items[i];\n");
+        fprintf(f, "  Value *program_result = io_func_main(env, io_args->item_count, args);\n");
         fprintf(f, "  if (program_result->kind != VAL_NONE && program_result->kind != VAL_BREAK) {\n");
         fprintf(f, "    val_print(program_result);\n");
         fprintf(f, "    printf(\"\\n\");\n");
         fprintf(f, "  }\n");
+        fprintf(f, "  free(args);\n");
     } else {
         // No main function - execute top-level statements directly
         Node *block = prog;
