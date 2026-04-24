@@ -10,7 +10,7 @@
 
 ## What Makes Vii Unique?
 
-**Vii** (pronounced like *vee*) is a self-hosting programming language born in Mexico that proves you don't need complex syntax to build powerful systems. It's designed for humans first—eliminating the punctuation soup that makes traditional languages intimidating.
+**Vii** (pronounced like *vee*) is a programming language born in Mexico that proves you don't need complex syntax to build powerful systems. It's designed for humans first—eliminating the punctuation soup that makes traditional languages intimidating.
 
 ### 🌟 Core Philosophy
 
