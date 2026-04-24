@@ -1,60 +1,7 @@
-# Vii Build Script — Matches Makefile exactly
+CC str = "gcc "
+CFLAGS str = " -Wall -Wextra -O3 -std=c99 -lm "
 
-CC = "gcc"
-CFLAGS = "-Wall -Wextra -O3 -std=c99"
+SRCS = "src/main.c src/ui.c src/lexer.c src/parser.c src/interp.c src/codegen.c src/value.c"
 
-SRCS = list
-SRCS push "src/main.c"
-SRCS push "src/ui.c"
-SRCS push "src/value.c"
-SRCS push "src/lexer.c"
-SRCS push "src/parser.c"
-SRCS push "src/interp.c"
-SRCS push "src/codegen.c"
-
-# Derive object files (like $(SRCS:.c=.o))
-OBJS = list
-for src in SRCS
-  parts = src split "."
-  obj = (parts at 0) + ".o"
-  OBJS push obj
-
-# all: vii
-do all
-  vii
-
-# vii: $(OBJS)
-do vii
-  # Link: $(CC) $(CFLAGS) -o vii $(OBJS)
-  obj_files = ""
-  for obj in OBJS
-    obj_files = obj_files + obj + " "
-  sys CC + " " + CFLAGS + " -o vii " + obj_files
-
-# src/%.o: src/%.c src/vii.h
-do compile
-  for src in SRCS
-    # Compile: $(CC) $(CFLAGS) -c -o $@ $<
-    parts = src split "."
-    obj = (parts at 0) + ".o"
-    sys CC + " " + CFLAGS + " -c -o " + obj + " " + src
-
-# clean:
-do clean
-  sys "rm -f vii src/*.o"
-
-# run: vii
-do run
-  vii
-  sys "./vii examples/fizzbuzz.vii"
-
-# Main
-target = arg at 1
-if target == "" or target == "all"
-  all
-else if target == "compile"
-  compile
-else if target == "clean"
-  clean
-else if target == "run"
-  run
+TARGET str = "vii"
+sys (CC + CFLAGS + SRCS + " -o " + TARGET)

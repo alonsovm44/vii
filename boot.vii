@@ -1,0 +1,6 @@
+
+VII = "vii " 
+SRC = " src/bootstrapping/main.vii " 
+TARGET = " vii_boot_"
+
+sys (VII + SRC + " -o " + TARGET)

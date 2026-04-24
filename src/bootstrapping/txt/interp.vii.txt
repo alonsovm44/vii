@@ -1,0 +1,513 @@
+#! ONCE
+
+# Global step counter for the heartbeat tracker
+interp_steps = 0
+
+# Global cache to store and reuse unique string values
+STRING_CACHE = dict
+
+# ──────────────────────── Value Constructors ────────────────────────
+
+do val_num n
+  v = dict
+  v key "kind" VAL_NUM
+  v key "num" n
+  v
+
+do val_str s
+  # Check if we already have a VAL_STR object for this string data
+  res = STRING_CACHE at s
+  if type res != "none"
+    out res
+
+  v = dict
+  v key "kind" VAL_STR
+  v key "str" s
+  STRING_CACHE key s v
+  v
+
+do val_none
+  v = dict
+  v key "kind" VAL_NONE
+  v
+
+do val_break
+  v = dict
+  v key "kind" VAL_BREAK
+  v
+
+do val_skip
+  v = dict
+  v key "kind" VAL_SKIP
+  v
+
+do val_out val
+  v = dict
+  v key "kind" VAL_OUT
+  v key "inner" val
+  v
+
+do val_bit n
+  v = dict
+  v key "kind" VAL_BIT
+  v key "num" n
+  v
+
+do val_print v
+  k = v at "kind"
+  if k == VAL_NUM
+    out tostr (v at "num")
+  else if k == VAL_STR
+    out v at "str"
+  else if k == VAL_BIT
+    out tostr (v at "num")
+  else if k == VAL_NONE
+    out "none"
+  else if k == VAL_LIST
+    items = v at "items"
+    res_str = "["
+    i = 0
+    while i < len items
+      res_str = res_str + val_print (items at i)
+      if i < (len items - 1)
+        res_str = res_str + ", "
+      i = i + 1
+    out res_str + "]"
+  else if k == VAL_DICT
+    out "{dict}"
+
+do val_truthy v
+  k = v at "kind"
+  if k == VAL_NUM
+    out (v at "num") != 0
+  else if k == VAL_STR
+    out len (v at "str") > 0
+  else if k == VAL_LIST
+    out len (v at "items") > 0
+  else if k == VAL_BIT
+    out v at "num"
+  0
+
+do val_unwrap v
+  curr = v
+  depth = 0
+  while type curr != "none"
+    k = curr at "kind"
+    if k == VAL_REF
+      curr = curr at "target"
+    else if k == VAL_OUT
+      curr = curr at "inner"
+    else
+      break
+    depth = depth + 1
+    if depth > 100
+      "Runtime error: circular reference in unwrap"
+      exit 1
+  curr
+
+# ──────────────────────── Scope / Table Logic ────────────────────────
+
+FUNCS = dict
+
+do table_get env_ name
+  curr = env_
+  while type curr != "none"
+    val = curr at name
+    if type val != "none"
+      out val
+    curr = curr at "parent"
+  val_none
+
+do table_set env_ name val
+  # Constant check
+  if is_all_caps name
+    existing = env_ at name
+    if type existing != "none"
+      "Runtime error: cannot reassign constant " + name
+      exit 1
+  env_ key name val
+
+# ──────────────────────── Evaluation ────────────────────────
+
+do eval_block block env_
+  last = val_none
+  body = block at "body"
+  i = 0
+  while i < len body
+    last = eval (body at i) env_
+    k = last at "kind" # Get the kind of the evaluated value
+    if k == VAL_BREAK or k == VAL_OUT or k == VAL_SKIP # Check for VAL_SKIP as well
+      out last
+    i = i + 1
+  last
+
+do eval n env_
+  if type n == "none"
+    IF DEBUG
+      "DEBUG: eval got none"
+      "DEBUG: eval kind = " + tostr (n at "kind")
+    out val_none
+
+  # Heartbeat Tracker: Prints progress every 1000 steps if BOOT_DEBUG is enabled
+  interp_steps = interp_steps + 1
+  db_flag = table_get env_ "BOOT_DEBUG"
+  if (db_flag at "kind") == VAL_BIT and (db_flag at "num") == 1
+    # Show step 1 and then every 500 steps to monitor progress
+    if interp_steps == 1 or interp_steps % 500 == 0
+      msg = "[INTERP] Step " + tostr interp_steps + ": Node " + tostr (n at "kind") + " at " + (n at "filename") + ":" + tostr (n at "line") + "\n"
+      "" put msg
+
+  k = n at "kind"
+
+  if k == ND_NUM
+    out val_num (n at "num")
+
+  if k == ND_STR
+    out val_str (n at "str")
+
+  if k == ND_UMINUS
+    v = val_unwrap (eval (n at "left") env_)
+    out val_num (0 - (v at "num"))
+
+  if k == ND_VAR
+    res = table_get env_ (n at "name")
+    if (res at "kind") == VAL_NONE
+      # Check for zero-arg function call shortcut
+      fn = FUNCS at (n at "name")
+      if type fn != "none"
+        scope = dict
+        scope key "parent" env_
+        res = eval_block (fn at "left") scope
+        if (res at "kind") == VAL_OUT
+          out res at "inner"
+        out res
+      "Runtime error: undefined variable " + (n at "name") + " in " + (n at "filename") + " on line " + tostr (n at "line")
+      exit 1
+    out res
+
+  if k == ND_SKIP
+    out val_skip
+
+  if k == ND_ASSIGN
+    val = eval (n at "right") env_
+    left = n at "left"
+    if (left at "kind") == ND_VAR
+      table_set env_ (left at "name") (val_unwrap val)
+    else if (left at "kind") == ND_AT
+      # Handle list/dict mutation
+      target = val_unwrap (eval (left at "left") env_)
+      idx = val_unwrap (eval (left at "right") env_)
+      if (target at "kind") == VAL_LIST
+        (target at "items") set (idx at "num") val
+      else if (target at "kind") == VAL_DICT
+        if (idx at "kind") != VAL_STR
+          "Runtime error: dict key must be string"
+          exit 1
+        (target at "fields") key (idx at "str") val
+    out val
+
+  if k == ND_BINOP
+    op = n at "op"
+    l = val_unwrap (eval (n at "left") env_)
+    # Short circuit
+    if op == TOK_AND
+      if not (val_truthy l)
+          out val_num 0
+      out eval (n at "right") env_
+    if op == TOK_OR
+      if val_truthy l
+        out val_num 1
+      out eval (n at "right") env_
+
+    r = val_unwrap (eval (n at "right") env_)
+    
+    # Numeric & Bit Ops
+    if ((l at "kind") == VAL_NUM or (l at "kind") == VAL_BIT) and ((r at "kind") == VAL_NUM or (r at "kind") == VAL_BIT)
+      lv = l at "num"
+      rv = r at "num"
+      if op == TOK_PLUS
+        out val_num (lv + rv)
+      if op == TOK_MINUS
+        out val_num (lv - rv)
+      if op == TOK_STAR
+        out val_num (lv * rv)
+      if op == TOK_SLASH
+        out val_num (lv / rv)
+      if op == TOK_LT
+        out val_bit (lv < rv)
+      if op == TOK_GT
+        out val_bit (lv > rv)
+      if op == TOK_LTE
+        out val_bit (lv <= rv)
+      if op == TOK_GTE
+        out val_bit (lv >= rv)
+      if op == TOK_EQEQ
+        out val_bit (lv == rv)
+      if op == TOK_NE
+        out val_bit (lv != rv)
+
+    # String Ops
+    if (l at "kind") == VAL_STR or (r at "kind") == VAL_STR
+      if op == TOK_PLUS
+        ls = ""; rs = ""
+        if (l at "kind") == VAL_STR
+          ls = l at "str"
+        else
+          ls = tostr (l at "num")
+        if (r at "kind") == VAL_STR
+          rs = r at "str"
+        else 
+          rs = tostr (r at "num")
+        out val_str (ls + rs)
+
+      if (l at "kind") == VAL_STR and (r at "kind") == VAL_STR
+        ls = l at "str"
+        rs = r at "str"
+        if op == TOK_LT
+          out val_bit (ls < rs)
+        if op == TOK_GT
+          out val_bit (ls > rs)
+        if op == TOK_LTE
+          out val_bit (ls <= rs)
+        if op == TOK_GTE
+          out val_bit (ls >= rs)
+        if op == TOK_EQEQ
+          out val_bit (ls == rs)
+        if op == TOK_NE
+          out val_bit (ls != rs)
+    IF DEBUG
+      if k != ND_PRINT
+        "DEBUG: eval returning val_none for kind " + tostr k
+    out val_none
+
+  if k == ND_IF
+    cond = eval (n at "left") env_
+    if val_truthy cond
+      out eval_block n env_
+    else if type (n at "right") != "none"
+      right = n at "right"
+      if (right at "kind") == ND_BLOCK
+        out eval_block right env_
+      out eval right env_
+    out val_none
+
+  if k == ND_WHILE
+    while val_truthy (eval (n at "left") env_)
+      res = eval_block (n at "body" at 0) env_
+      if (res at "kind") == VAL_BREAK
+        break
+      if (res at "kind") == VAL_SKIP
+        skip # This will continue the while loop
+      if (res at "kind") == VAL_OUT
+        out res
+    out val_none
+
+  if k == ND_FOR
+    lst = val_unwrap (eval (n at "left") env_)
+    items = lst at "items"
+    i = 0
+    while i < len items
+      table_set env_ (n at "name") (items at i)
+      res = eval_block (n at "body" at 0) env_
+      if (res at "kind") == VAL_BREAK
+        break
+      if (res at "kind") == VAL_SKIP
+        i = i + 1
+        skip
+      if (res at "kind") == VAL_OUT
+        out res
+      i = i + 1
+    out val_none
+
+  if k == ND_DO
+    FUNCS key (n at "name") n
+    out val_none
+
+  if k == ND_CALL
+    fn = FUNCS at (n at "left" at "name")
+    if type fn == "none"
+      "Runtime error: undefined function " + (n at "left" at "name") + " in " + (n at "filename") + " on line " + tostr (n at "line")
+      exit 1
+    
+    args = n at "body"
+    params = fn at "body"
+    scope = dict
+    scope key "parent" env_
+    
+    i = 0
+    while i < len args
+      val = eval (args at i) env_
+      table_set scope (params at i at "name") val
+      i = i + 1
+      
+    res = eval_block (fn at "left") scope
+    if (res at "kind") == VAL_OUT
+      out res at "inner"
+    out res
+
+  if k == ND_SPLIT
+    s = val_unwrap (eval (n at "left") env_)
+    d = val_unwrap (eval (n at "right") env_)
+    res = dict
+    res key "kind" VAL_LIST
+    res key "items" (split (s at "str") (d at "str"))
+    out res
+
+  if k == ND_TRIM
+    v = val_unwrap (eval (n at "left") env_)
+    out val_str (trim (v at "str"))
+
+  if k == ND_REPLACE
+    v = val_unwrap (eval (n at "left") env_)
+    target = val_unwrap (eval ((n at "body") at 0) env_)
+    repl = val_unwrap (eval ((n at "body") at 1) env_)
+    out val_str (replace (v at "str") (target at "str") (repl at "str"))
+
+  if k == ND_SAFE
+    out eval (n at "left") env_
+
+  if k == ND_OUT
+    out val_out (eval (n at "left") env_)
+
+  if k == ND_BREAK
+    out val_break
+
+  if k == ND_PRINT
+    v_print = val_unwrap (eval (n at "left") env_)
+    "" put (val_print v_print + "\n")
+    v_print
+
+  if k == ND_BLOCK
+    out eval_block n env_
+
+  if k == ND_ASK
+    out val_str ask
+
+  if k == ND_ASKFILE
+    path = eval (n at "left") env_
+    content = (path at "str") ask
+    out val_str content
+
+  if k == ND_LEN
+    v = eval (n at "left") env_
+    if (v at "kind") == VAL_STR
+      out val_num (len (v at "str"))
+    if (v at "kind") == VAL_LIST
+      out val_num (len (v at "items"))
+    out val_num 0
+
+  if k == ND_LIST
+    v = dict
+    v key "kind" VAL_LIST
+    v key "items" list
+    out v
+
+  if k == ND_DICT
+    v = dict
+    v key "kind" VAL_DICT
+    v key "fields" dict
+    out v
+
+  if k == ND_KEY
+    target = val_unwrap (eval (n at "left") env_)
+    key_val = val_unwrap (eval ((n at "body") at 0) env_)
+    val = val_unwrap (eval ((n at "body") at 1) env_)
+    if (key_val at "kind") != VAL_STR
+      "Runtime error: dict key must be string"
+      exit 1
+    (target at "fields") key (key_val at "str") val
+    out val
+
+  if k == ND_SET
+    target = val_unwrap (eval (n at "left") env_)
+    idx = val_unwrap (eval ((n at "body") at 0) env_)
+    val = eval ((n at "body") at 1) env_
+    if (target at "kind") == VAL_LIST
+      items = target at "items"
+      items set (idx at "num") val
+    out val
+
+  if k == ND_KEYS
+    d = val_unwrap (eval (n at "left") env_)
+    fields = d at "fields"
+    ks = keys fields # This relies on the host 'vii' executable supporting 'keys'
+    res = dict
+    res key "kind" VAL_LIST
+    res key "items" ks
+    out res
+
+  if k == ND_AT
+    target = val_unwrap (eval (n at "left") env_)
+    idx = val_unwrap (eval (n at "right") env_)
+    if (target at "kind") == VAL_LIST
+      out (target at "items") at (idx at "num")
+    if (target at "kind") == VAL_DICT
+      res = (target at "fields") at (idx at "str")
+      if type res == "none"
+        out val_none
+      out res
+    out val_none
+
+  if k == ND_SLICE
+    target = val_unwrap (eval (n at "left") env_)
+    start = val_unwrap (eval ((n at "body") at 0) env_)
+    end = val_unwrap (eval ((n at "body") at 1) env_)
+    s = start at "num"
+    e = end at "num"
+    if (target at "kind") == VAL_STR
+      out val_str (slice (target at "str") s e)
+    if (target at "kind") == VAL_LIST
+      res = dict
+      res key "kind" VAL_LIST
+      res key "items" (slice (target at "items") s e)
+      out res
+    out val_none
+
+  if k == ND_PUT
+    path = eval (n at "left") env_
+    data = eval (n at "right") env_
+    (path at "str") put (data at "str")
+    out val_none
+
+  if k == ND_SYS
+    cmd = eval (n at "left") env_
+    out val_num (sys (cmd at "str"))
+
+  if k == ND_ENV
+    var = eval (n at "left") env_
+    out val_str (env_ (var at "str"))
+
+  if k == ND_ARG
+    out table_get env_ "arg"
+
+  if k == ND_TIME
+    out val_num time
+
+  if k == ND_TYPE
+    v = eval (n at "left") env_
+    tk = v at "kind"
+    if tk == VAL_NUM
+      out val_str "num"
+    if tk == VAL_STR
+      out val_str "str"
+    if tk == VAL_LIST
+      out val_str "list"
+    if tk == VAL_DICT
+      out val_str "dict"
+    if tk == VAL_BIT
+      out val_str "bit"
+    out val_str "none"
+
+  if k == ND_REF
+    # Pointer semantics: wrap the actual value container in a reference kind
+    target = table_get env_ (n at "left" at "name")
+    res = dict
+    res key "kind" VAL_REF
+    res key "target" target
+    out res
+
+  if k == ND_EXIT
+    v = eval (n at "left") env_
+    exit (v at "num")
+
+  val_none

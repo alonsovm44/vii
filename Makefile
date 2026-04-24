@@ -16,6 +16,6 @@ clean:
 	rm -f vii src/*.o
 
 
-	./vii examples/fizzbuzz.vii
+	./vii samples/fizzbuzz.vii
 
 .PHONY: all clean run

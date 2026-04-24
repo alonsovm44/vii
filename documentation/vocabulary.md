@@ -1,6 +1,6 @@
-# Vii Vocabulary Reference (v1.2.5)
+# Vii Vocabulary Reference (v1.3.0)
 
-Vii measures minimalism by concept count. There are exactly 48 words/symbols/concepts to learn.
+Vii measures minimalism by concept count. There are exactly 33 keywords to learn.
 
 ## 1. Control Flow
 
@@ -10,14 +10,18 @@ Vii measures minimalism by concept count. There are exactly 48 words/symbols/con
 | `if` | `if x == 1` | Executes block if condition is non-zero. |
 | `else` | `else` | Fallback for `if` or `while` (via `else if`). |
 | `while` | `while x < 10` | Repeats block while condition is non-zero. |
-| `break` | `break` | Immediately exits the current `while` loop. |
+| `for` | `for item in list` | Iterates over each item in a list. |
+| `break` | `break` | Immediately exits the current loop. |
+| `skip` | `skip` | Skips to next iteration of current loop. |
+| `out` | `out value` | Returns a value from function early. |
 
 ### Compile-Time (Macros)
 | Word | Use | Description |
 | :--- | :--- | :--- |
 | `IF` | `IF WIN` | Resolved during parsing. Dead branches are discarded. |
-| `ELSE IF`| `ELSE IF UNIX`| Conditional fallback for compile-time `IF`. |
+| `ELSE IF` | `ELSE IF UNIX` | Conditional fallback for compile-time `IF`. |
 | `ELSE` | `ELSE` | Fallback for compile-time `IF`. |
+| `ENDIF` | `ENDIF` | Ends a compile-time `IF` block. |
 
 ## 2. Abstraction
 | Word | Use | Description |
@@ -40,7 +44,8 @@ Vii measures minimalism by concept count. There are exactly 48 words/symbols/con
 | :--- | :--- | :--- |
 | `ask` | `ask` / `path ask` | Reads from stdin (keyboard) or reads a file if a path is provided. |
 | `put` | `path put data` | Writes data to a file. Overwrites by default. |
-| `append`| `path put d append`| Flag for `put` to add data to the end of a file instead of overwriting. |
+| `append` | `path put d append` | Flag for `put` to append instead of overwrite. |
+| `print` | `print value` | Explicitly prints a value to stdout. |
 
 ## 5. Environment & DevOps
 | Word | Use | Description |
@@ -51,25 +56,30 @@ Vii measures minimalism by concept count. There are exactly 48 words/symbols/con
 | `sys` | `sys "ls"` | Executes a shell command and returns the exit code. |
 | `env` | `env "PATH"` | Retrieves an environment variable string. |
 | `exit` | `exit 0` | Terminates the process with the given exit code. |
+| `keys` | `keys dict` | Returns list of keys from a dictionary. |
 
 ## 6. Metadata & Comments
 | Word | Use | Description |
 | :--- | :--- | :--- |
 | `#` | `# comment` | Single-line comment. |
-| `#{ }#`| `#{ block }#` | Multiline comment block. |
+| `#{ }#` | `#{ block }#` | Multiline comment block. |
+| `#! ONCE` | `#! ONCE` | Shebang for file inclusion (prevents double paste). |
 
-## 6. Conversion & Introspection
+## 7. Conversion & Introspection
 | Word | Use | Description |
 | :--- | :--- | :--- |
 | `len` | `len x` | Returns length of string, list, or dictionary. |
-| `type` | `type x` | Returns string representation of type ("num", "str", "list", "dict"). |
-| `slice`| `slice s 0 5` | Extracts a sub-portion of a string or list. |
+| `type` | `type x` | Returns string representation of type ("num", "str", "list", "dict", "bit"). |
+| `slice` | `slice s 0 5` | Extracts a sub-portion of a string or list. |
 | `ord` | `ord "A"` | Returns numeric ASCII/Unicode code of the first character. |
 | `chr` | `chr 65` | Returns a single-character string from a numeric code. |
-| `tonum`| `tonum "5"` | Converts a string to a number. |
-| `tostr`| `tostr 5` | Converts a number to a string. |
+| `tonum` | `tonum "5"` | Converts a string to a number. |
+| `tostr` | `tostr 5` | Converts a number to a string. |
+| `split` | `split str "delim"` | Splits string by delimiter into list. |
+| `trim` | `trim str` | Removes leading/trailing whitespace. |
+| `replace` | `replace str "old" "new"` | Replaces substring in string. |
 
-## 7. Logic & Math Operators
+## 8. Logic & Math Operators
 
 ### Assignment
 | Symbol | Description |
@@ -85,6 +95,7 @@ Vii measures minimalism by concept count. There are exactly 48 words/symbols/con
 | `>` | Greater than |
 | `Lte` | Less than or equal to |
 | `Gte` | Greater than or equal to |
+| `not` | Logical NOT (unary). |
 
 ### Arithmetic (Numbers only)
 | Symbol | Description |
@@ -107,10 +118,19 @@ Vii measures minimalism by concept count. There are exactly 48 words/symbols/con
 | `and` | True if both sides are non-zero. Short-circuits. |
 | `or` | True if either side is non-zero. Short-circuits. |
 
-## 8. Special Platform Constants
+## 9. Special Platform Constants
 Used specifically with the compile-time `IF` macro:
 - `WIN`: Truthy if compiling on a Windows environment.
 - `UNIX`: Truthy if compiling on Linux, macOS, or other Unix-like systems.
+
+---
+## Vii 1.3.0 New Features
+
+- **Shebang Support**: `#! ONCE` prevents files from being pasted multiple times
+- **Bootstrapping**: Vii compiler can compile itself (see `src/bootstraping/`)
+- **Compiled Binary Output**: `vii file.vii -o binary` generates native executables
+- **Type Hints**: `do func->num x y` for function return types
+- **Implicit Print**: Top-level expressions automatically print their value
 
 ---
 Examples:
