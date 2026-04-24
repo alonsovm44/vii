@@ -16,7 +16,6 @@
 
 1. **Zero Punctuation Fatigue**: No braces, brackets, semicolons, or commas. Python asks "why not?" — Vii asks **"why?"**
 2. **Implicit Everything**: Values print automatically. Functions return the last expression. Code flows like thoughts.
-3. **Bootstrapped**: Vii compiles itself. The compiler is written in Vii and generates optimized C.
 
 ### 🎯 Perfect For
 
