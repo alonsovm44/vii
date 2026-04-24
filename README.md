@@ -5,7 +5,6 @@
 [![Version](https://img.shields.io/badge/version-1.3.0-blue.svg)](https://github.com/alonsovm44/vii)
 [![Language](https://img.shields.io/badge/language-C-orange.svg)](https://en.wikipedia.org/wiki/C_(programming_language))
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![Bootstrapped](https://img.shields.io/badge/bootstrapped-yes-purple.svg)]()
 [![Made in Mexico](https://img.shields.io/badge/🇲🇽_Made_in-Mexico-00A859.svg)]()
 [![IDE Extension](https://img.shields.io/badge/VS_Code_Extension-Available-007ACC.svg)](https://github.com/alonsovm44/vii-lang-extension/releases)
 
@@ -52,7 +51,7 @@ You can learn Vii in an afternoon. The entire language fits in your head.
 | **Math** | `+`, `-`, `*`, `/`, `%`, `=`, `==`, `!=`, `<`, `>`, `Lte`, `Gte` | Operators |
 | **Comments** | `#`, `#{ }#` | Line and block comments |
 
-> 💡 **Convention**: `UPPERCASE` = constants/macros, `lowercase` = variables/functions
+> 💡 **Convention**: `UPPERCASE` = immutable constants/macros, `lowercase` = variables/functions
 
 ## Quick Start
 
@@ -157,8 +156,7 @@ Vii Source (.vii)
 **Design Principles:**
 - **Learnable in 1 hour** — Only 33 keywords
 - **Writeable in 1 minute** — No punctuation to forget
-- **Bootstrapped** — The ultimate test of a language
-- **Mexican** — Born in Mexico City, built with Latin American pragmatism
+- **Mexican** — Born in Mazatlan, built with Latin American pragmatism
 
 ## IDE Support
 
