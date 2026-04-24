@@ -1,7 +1,7 @@
 CC str = "gcc "
 CFLAGS str = " -Wall -Wextra -O3 -std=c99 -lm "
 
-SRCS = "src/main.c src/ui.c src/lexer.c src/parser.c src/interp.c src/codegen.c src/value.c"
+SRCS str = "src/main.c src/ui.c src/lexer.c src/parser.c src/interp.c src/codegen.c src/value.c"
 
 TARGET str = "vii"
 sys (CC + CFLAGS + SRCS + " -o " + TARGET)
