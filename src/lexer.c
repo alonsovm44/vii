@@ -82,8 +82,14 @@ void lex(Lexer *l, const char *filename) {
         /* skip spaces */
         if (c == ' ' || c == '\t') { l->pos++; continue; }
 
-        /* comment */
+        /* shebang or comment */
         if (c == '#') {
+            /* Check for #! ONCE shebang at very beginning of file */
+            if (l->pos == 0 && l->src[1] == '!' && strncmp(l->src + 2, " ONCE", 5) == 0) {
+                lex_push(l, (Token){TOK_SHEBANG, arena_strdup(l->arena, "#! ONCE"), 0, l->line, 0});
+                l->pos += 7; /* skip past #! ONCE */
+                continue;
+            }
             while (l->src[l->pos] && l->src[l->pos] != '\n' && l->src[l->pos] != '\r') l->pos++;
             continue;
         }

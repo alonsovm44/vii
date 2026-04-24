@@ -633,6 +633,12 @@ static Node *parse_block(Parser *p, bool is_function) {
 Node *parse_program(Parser *p) {
     parser_current_filename = p->filename;
     Node *prog = nd_new(ND_BLOCK);
+
+    if (peek(p)->kind == TOK_SHEBANG) {
+        advance(p);
+        skip_newlines(p);
+    }
+
     while (peek(p)->kind != TOK_EOF) {
         if (peek(p)->kind == TOK_NEWLINE || peek(p)->kind == TOK_SEMICOLON) { advance(p); continue; }
         nd_push(prog, parse_stmt(p));

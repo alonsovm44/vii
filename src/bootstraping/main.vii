@@ -212,30 +212,12 @@ do main
   # Set cli_args in the global scope for the interpreted program
   global key "arg" cli_args
   global key "BOOT_DEBUG" boot_debug
-  
 
   global_table = table_new global
-  eval_result = eval prog global_table
-  res = val_unwrap eval_result
+  res = val_unwrap (eval prog global_table)
 
-  # The implicit print logic is handled by the Vii interpreter's ND_PRINT node.
-  # If the last statement was an implicit print, it's already printed.
-  # If not, and there's a result, print it.
-  # This part is tricky because the C main.c explicitly checks for ND_PRINT.
-  # In Vii, the `eval` function should return the final value, and the top-level
-  # `main` function in Vii would implicitly print it if it's the last expression.
-  # Always print the result of the program if it's not none or break.
-  res_kind = res at "kind"
-  is_none = res_kind == VAL_NONE
-  is_break = res_kind == VAL_BREAK
-  if is_none
-    ""
-  else if is_break
-    0
-  else
-    printed = val_print res
-    msg = printed + "\n"
-    "" put msg
+  if (res at "kind") != VAL_NONE and (res at "kind") != VAL_BREAK
+    val_print res
   exit 0
 
 # Start the compiler
