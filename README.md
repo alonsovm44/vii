@@ -1,168 +1,177 @@
-# Vii — A Minimalist Programming Language
+# Vii 🇲🇽 — The Mexican Programming Language
 
- [Language extension for Windsurf / VS Code:](https://github.com/alonsovm44/vii-lang-extension/releases)
+**A bootstrapped, minimalist language that compiles to C. Made with 💚 in Mexico.**
 
-![Version](https://img.shields.io/badge/version-1.1.4-blue.svg)
-![Version](https://img.shields.io/badge/version-1.2.5-blue.svg)
-![Language](https://img.shields.io/badge/language-C-orange.svg)
-![License](https://img.shields.io/badge/license-MIT-green.svg)
+[![Version](https://img.shields.io/badge/version-1.3.0-blue.svg)](https://github.com/alonsovm44/vii)
+[![Language](https://img.shields.io/badge/language-C-orange.svg)](https://en.wikipedia.org/wiki/C_(programming_language))
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![Bootstrapped](https://img.shields.io/badge/bootstrapped-yes-purple.svg)]()
+[![Made in Mexico](https://img.shields.io/badge/🇲🇽_Made_in-Mexico-00A859.svg)]()
+[![IDE Extension](https://img.shields.io/badge/VS_Code_Extension-Available-007ACC.svg)](https://github.com/alonsovm44/vii-lang-extension/releases)
 
-# The one liner
->Vii is a minimalist programming language designed for those just getting into coding and as an alternative to DevOps bash scripting. 
+## What Makes Vii Unique?
+
+**Vii** (pronounced like *vee*) is a self-hosting programming language born in Mexico that proves you don't need complex syntax to build powerful systems. It's designed for humans first—eliminating the punctuation soup that makes traditional languages intimidating.
+
+### 🌟 Core Philosophy
+
+1. **Zero Punctuation Fatigue**: No braces, brackets, semicolons, or commas. Python asks "why not?" — Vii asks **"why?"**
+2. **Implicit Everything**: Values print automatically. Functions return the last expression. Code flows like thoughts.
+3. **Bootstrapped**: Vii compiles itself. The compiler is written in Vii and generates optimized C.
+
+### 🎯 Perfect For
+
+- **DevOps** replacing messy bash scripts
+- **Beginners** learning their first language
+- **C developers** wanting faster iteration
+- **Anyone** who believes code should read like poetry
 
 ## The 3 Rules
 
-- **Minimal Punctuation**: No `{ }`, `[ ]`, `;`, `,`, or `:`. Parentheses `( )` are optional for grouping. Punctuation is the #1 cause of beginner syntax errors.
-- **Implicit Output & Return**: If a line results in a value and isn't saved, it prints automatically. Inside a function, the final evaluated line is implicitly returned.
-- **Indentation Only**: Spaces are the only structural syntax used to group blocks of code.
+| Rule | What It Means | Example |
+|------|---------------|---------|
+| **Minimal Punctuation** | No `{ }`, `[ ]`, `;`, `,`, or `:` | `if x > 5` instead of `if (x > 5) {` |
+| **Implicit Output** | Unsaved values print automatically | `"hello world"` → prints immediately |
+| **Indentation Only** | Spaces define structure | 2 spaces = new block |
 
-## The Complete Vocabulary (33 Keywords)
+## Complete Vocabulary — Only 33 Keywords
 
-1. **Control Flow**: `if`, `else`, `while`, `break`
-2. **Macros**: `IF`, `ELSE`, `WIN`, `UNIX`
-3. **Abstraction**: `do`, `->`
-4. **Memory**: `list`, `dict`, `ref`, `at`, `set`, `key`
-5. **Universal I/O**: `ask`, `put`, `append`
-6. **Environment**: `arg`, `paste`, `time`, `sys`, `env`, `exit`
-7. **Conversion**: `len`, `type`, `slice`, `ord`, `chr`, `tonum`, `tostr`
-8. **Logic**: `and`, `or`
-9. **Operators**: `=`, `==`, `!=`, `<`, `>`, `Lte`, `Gte`, `+`, `-`, `*`, `/`, `%`
-10. **Meta**: `#` (comment), `#{ }#` (multiline)
+You can learn Vii in an afternoon. The entire language fits in your head.
 
-> Reserved words cannot be used as variable names. ALL_CAPS names are reserved for constants and macros.
+| Category | Keywords | Purpose |
+|----------|----------|---------|
+| **Control Flow** | `if`, `else`, `while`, `break` | Branching and loops |
+| **Functions** | `do`, `->` | Define and return |
+| **Data** | `list`, `dict`, `ref` | Collections and references |
+| **Access** | `at`, `set`, `key` | Get, set, and key operations |
+| **I/O** | `ask`, `put`, `append` | Read, write, append |
+| **System** | `arg`, `paste`, `time`, `sys`, `env`, `exit` | CLI, modules, time, shell, vars |
+| **Transform** | `len`, `type`, `slice`, `ord`, `chr`, `tonum`, `tostr` | Type conversion |
+| **Logic** | `and`, `or` | Boolean operators |
+| **Macros** | `IF`, `ELSE`, `WIN`, `UNIX` | Compile-time conditionals |
+| **Math** | `+`, `-`, `*`, `/`, `%`, `=`, `==`, `!=`, `<`, `>`, `Lte`, `Gte` | Operators |
+| **Comments** | `#`, `#{ }#` | Line and block comments |
 
-## Build
+> 💡 **Convention**: `UPPERCASE` = constants/macros, `lowercase` = variables/functions
 
+## Quick Start
+
+### Build from Source
 ```bash
-gcc -Wall -O3 -std=c99 -o vii src/main.c src/ui.c src/value.c src/lexer.c src/parser.c src/interp.c src/codegen.c
-```
+# Single command
+gcc -O3 src/*.c -o vii -lm
 
-Or with Make:
-1. Clone the repo, then
-```bash
+# Or use Make
 make
 ```
 
-## Run
-
+### Run a Script
 ```bash
-./vii examples/fizzbuzz.vii
-./vii examples/guess.vii
-./vii examples/lists.vii
-./vii examples/fileio.vii
-./vii examples/args.vii hello world
-./vii examples/paste.vii
+./vii samples/demo.vii
+./vii samples/fizzbuzz.vii
+./vii samples/guess.vii arg1 arg2
 ```
 
-### CLI
+### Compile to Native Binary
 ```bash
-vii --version    # prints 1.1.4
-vii --help       # prints usage and vocabulary
-vii --debug file.vii # generates debug_ast.json
+./vii samples/fizzbuzz.vii -o fizzbuzz    # Creates ./fizzbuzz
+./fizzbuzz                                  # Runs native code
 ```
 
-## Compile
-
+### CLI Options
 ```bash
-./vii examples/fizzbuzz.vii -o fizzbuzz 
+vii --version           # Show version (1.3.0)
+vii --help              # Show usage and all keywords  
+vii --debug file.vii    # Generate debug_ast.json
+vii -o binary file.vii  # Compile to native executable
 ```
-This produces a C executable
+
+## Example: FizzBuzz in Vii
+
+```vii
+# FizzBuzz — the classic interview question
+
+do fizzbuzz n
+  while n Lte 100
+    if n % 15 == 0
+      "fizzbuzz"
+    else if n % 3 == 0
+      "fizz"
+    else if n % 5 == 0
+      "buzz"
+    else
+      n
+    n = n + 1
+
+fizzbuzz 1
+```
+
+Notice: **No braces. No semicolons. No commas.** Just logic.
 
 ## Standard Library
 
-Vii ships with a modular standard library in `lib/`. Use `paste` to include any module:
+Include modules with `paste`:
 
 ```vii
-paste "lib/std.vii"
-paste "lib/math.vii"
+paste "lib/std.vii"   # Core utilities
+paste "lib/math.vii"  # Math functions
+paste "lib/str.vii"   # String helpers
+paste "lib/list.vii"  # List operations
+paste "lib/io.vii"    # File I/O
+paste "lib/random.vii" # Random numbers
 ```
 
-### lib/std.vii — Core Utilities
+| Module | Function | Description |
+|--------|----------|-------------|
+| **std** | `abs x`, `min a b`, `max a b` | Basic utilities |
+| **std** | `clamp val lo hi`, `sign x` | Range operations |
+| **math** | `pow base exp`, `sqrt n` | Exponents & roots |
+| **math** | `factorial n`, `fib n`, `gcd a b` | Number theory |
+| **str** | `upper s`, `lower s`, `trim s` | String transforms |
+| **str** | `split s delim`, `contains s sub` | String search |
+| **list** | `push lst val`, `pop lst` | List operations |
+| **list** | `map lst fn`, `filter lst fn` | Functional tools |
+| **io** | `read_file path`, `write_file path data` | File I/O |
+| **random** | `random_01`, `random_int_in_range min max` | Random numbers |
 
-| Function | Description |
-|----------|-------------|
-| `abs x` | Absolute value |
-| `min a b` | Minimum of two numbers |
-| `max a b` | Maximum of two numbers |
-| `clamp val lo hi` | Clamp value to range |
-| `sign x` | Sign: -1, 0, or 1 |
-| `negate x` | Negate a number |
-| `is_zero x` | Is value zero? |
-| `is_positive x` | Is value positive? |
-| `is_negative x` | Is value negative? |
-| `swap a b` | Swap two values |
-| `identity x` | Returns its input |
+## Architecture
 
-### lib/math.vii — Math Utilities
+```
+Vii Source (.vii)
+       ↓
+   Lexer → Tokens
+       ↓
+   Parser → AST
+       ↓
+   CodeGen → C Code (.c)
+       ↓
+   GCC → Native Binary
+```
 
-| Function | Description |
-|----------|-------------|
-| `pow base exp` | Exponentiation (integer exp) |
-| `sqrt n` | Square root (Newton's method) |
-| `even n` | Is even? |
-| `odd n` | Is odd? |
-| `factorial n` | Factorial |
-| `fib n` | Fibonacci number |
-| `gcd a b` | Greatest common divisor |
-| `lcm a b` | Least common multiple |
-| `percent part total` | Percentage |
-| `avg a b` | Average of two numbers |
-| `lerp a b t` | Linear interpolation |
-| `floor n` | Floor of a number |
+**Self-Hosting**: The compiler itself is written in Vii (`src/bootstraping/main.vii`).
 
-### lib/str.vii — String Utilities
+## Why Vii?
 
-| Function | Description |
-|----------|-------------|
-| `upper s` | Convert to uppercase |
-| `lower s` | Convert to lowercase |
-| `str_reverse s` | Reverse a string |
-| `repeat s n` | Repeat string n times |
-| `starts_with s prefix` | Check prefix |
-| `ends_with s suffix` | Check suffix |
-| `trim_left s` | Trim leading spaces |
-| `trim_right s` | Trim trailing spaces |
-| `trim s` | Trim both sides |
-| `contains s sub` | Check if substring exists |
-| `split s delim` | Split by single-char delimiter |
-| `pad_left s len char` | Pad on the left |
-| `pad_right s len char` | Pad on the right |
-| `count_char s c` | Count character occurrences |
+> *"We created Vii because we were tired of languages that need 10 symbols to print 'hello world'. Vii needs 2: quotes and the string itself."*
 
-### lib/list.vii — List Utilities
+**Design Principles:**
+- **Learnable in 1 hour** — Only 33 keywords
+- **Writeable in 1 minute** — No punctuation to forget
+- **Bootstrapped** — The ultimate test of a language
+- **Mexican** — Born in Mexico City, built with Latin American pragmatism
 
-| Function | Description |
-|----------|-------------|
-| `push lst val` | Append to list |
-| `pop lst` | Remove last element |
-| `first lst` | Get first element |
-| `last lst` | Get last element |
-| `contains lst val` | Check if value exists |
-| `reverse lst` | Reverse list (new list) |
-| `join lst sep` | Join elements with separator |
-| `range start end` | Create range list |
-| `fill val n` | Fill list with n copies |
-| `sum lst` | Sum all elements |
-| `slice lst start end` | Get slice of list |
-| `count lst val` | Count occurrences |
-| `index_of lst val` | Find first index (-1 if not found) |
-| `remove_at lst idx` | Remove element at index |
-| `map lst fn` | Map function over list |
-| `filter lst fn` | Filter list by predicate |
+## IDE Support
 
-### lib/io.vii — I/O Utilities
+- **[VS Code / Windsurf Extension](https://github.com/alonsovm44/vii-lang-extension/releases)**
+- Syntax highlighting
+- Auto-indentation
+- Keyword snippets
 
-| Function | Description |
-|----------|-------------|
-| `append path data` | Append to file |
-| `exists path` | Check if file exists |
-| `println val` | Print with newline |
-| `read_file path` | Read file as string |
-| `write_file path data` | Write string to file |
+---
 
-### lib/random.vii — Random Utilities
-
-| Function | Description |
-|----------|-------------|
-| `random_01` | Random float 0.0–1.0 (LCG) |
-| `random_int_in_range min max` | Random integer in range |
+<p align="center">
+  Made with 💚 in Mexico 🇲🇽<br>
+  <a href="https://github.com/alonsovm44/vii">GitHub</a> •
+  <a href="https://github.com/alonsovm44/vii-lang-extension">VS Code Extension</a> •
+  <a href="LICENSE">MIT License</a>
+</p>
