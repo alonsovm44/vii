@@ -1,4 +1,4 @@
-# Vii 🇲🇽 — The Mexican Programming Language
+# Vii 
 
 **A minimalist language that compiles to C.**
 
@@ -10,7 +10,7 @@
 
 ## What Makes Vii Unique?
 
-**Vii** (pronounced like *vee*) is a programming language born in Mexico that proves you don't need complex syntax to build powerful systems. It's designed for humans first—eliminating the punctuation soup that makes traditional languages intimidating.
+**Vii** (pronounced like *vee*) is a programming language born in Mexico that proves you don't need complex syntax to build powerful systems. It's designed for humans first, eliminating the punctuation soup that makes traditional languages intimidating.
 
 ### 🌟 Core Philosophy
 
@@ -28,8 +28,8 @@
 
 | Rule | What It Means | Example |
 |------|---------------|---------|
-| **Minimal Punctuation** | No `{ }`, `[ ]`, `;`, `,`, or `:` | `if x > 5` instead of `if (x > 5) {` |
-| **Implicit Output** | Unsaved values print automatically | `"hello world"` → prints immediately |
+| **Minimal Punctuation** | No `{ }`, `[ ]`, `,`, or `:` | `if x > 5` instead of `if (x > 5) {` |
+| **Implicit Output** | Unsaved values print automatically | `"hello world"` prints immediately |
 | **Indentation Only** | Spaces define structure | 2 spaces = new block |
 
 ## Complete Vocabulary — Only 33 Keywords
@@ -145,17 +145,8 @@ Vii Source (.vii)
        ↓
    GCC → Native Binary
 ```
-
-**Self-Hosting**: The compiler itself is written in Vii (`src/bootstraping/main.vii`).
-
-## Why Vii?
-
-> *"We created Vii because we were tired of languages that need 10 symbols to print 'hello world'. Vii needs 2: quotes and the string itself."*
-
-**Design Principles:**
-- **Learnable in 1 hour** — Only 33 keywords
-- **Writeable in 1 minute** — No punctuation to forget
-- **Mexican** — Born in Mazatlan, built with Latin American pragmatism
+## Boostrapping
+Progress has been made in writing Vii in Vii (look at bootstrapping sub folder in src/). Contributing would help a lot thanks
 
 ## IDE Support
 
