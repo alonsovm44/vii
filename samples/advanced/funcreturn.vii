@@ -1,4 +1,4 @@
-# currently not supported as of 1.4.0
+# Function return and argument types - supported as of 1.4.0
 do i32func->i32 x->i32
   x+1
 
