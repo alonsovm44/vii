@@ -49,7 +49,7 @@ do str_contains s sub
   out 0
 
 do main
-  global_arena = arena_create(512*1024*1024) # Assuming arena_create is available from vii.vii or C runtime
+  global_arena = arena_create(64*1024*1024) # Assuming arena_create is available from vii.vii or C runtime
   
   input_path = "none"
   output_name = "none"

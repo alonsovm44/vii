@@ -1,3 +1,12 @@
+## v1.3.0 2026-04-25
+
+Added:
+
+Removed:
+
+Improved/Fixed:
+
+- removed the eval_steps tracer from interp.c and fixed buffer overflow in codegen.c
 ## v1.2.5 2026-04-21
 
 Added:

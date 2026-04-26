@@ -137,15 +137,6 @@ Value *eval_block(Node *block, Table *env) {
 Value *eval(Node *n, Table *env) {
     if (!n) return val_none();
 
-    /* --- EXECUTION HEARTBEAT TRACER --- */
-    static long long eval_steps = 0;
-    eval_steps++;
-    
-    if (eval_steps % 500000 == 0) {
-        fprintf(stderr, "[TRACER] 500k steps... Kind: %d | Name: %s | Str: %s | Line: %d\n", n->kind, n->name ? n->name : "N/A", n->str ? n->str : "N/A", n->line);
-    }
-    /* ---------------------------------- */
-
     switch (n->kind) {
         case ND_NUM:   return val_num(n->num);
         case ND_STR:   return val_str(n->str);
@@ -610,6 +601,20 @@ Value *eval(Node *n, Table *env) {
         case ND_EXIT: exit((int)eval(n->left, env)->num); return val_none();
         case ND_CALL: {
             const char *fname = n->left->name;
+            /* Handle built-in runtime functions */
+            if (strcmp(fname, "arena_create") == 0) {
+                if (n->body_count < 1) runtime_error(n, "arena_create requires a size argument");
+                Value *size_val = eval(n->body[0], env);
+                if (size_val->kind != VAL_NUM) runtime_error(n, "arena_create requires a numeric size");
+                /* Arena is global, just return a dummy non-none value */
+                return val_num(1);
+            }
+            if (strcmp(fname, "table_new") == 0) {
+                Value *v = arena_alloc(global_arena, sizeof(Value));
+                v->kind = VAL_DICT;
+                v->fields = table_new(NULL);
+                return v;
+            }
             Func *fn = func_find(fname);
             if (!fn) { runtime_error(n, "undefined function '%s'", fname); }
             int argc = n->body_count;

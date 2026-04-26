@@ -178,6 +178,9 @@ int main(int argc, char **argv) {
 
     /* Otherwise, Interpret */
     Table *global = table_new(NULL);
+    /* Bind CLI args as 'arg' for bootstrapping compiler compatibility */
+    extern Value *cli_args;
+    table_set(global, "arg", cli_args);
     if (trace) fprintf(stderr, "[TRACE] Starting interpreter...\n");
     Value *res = eval(prog, global); // Evaluate the entire program
     if (trace) fprintf(stderr, "[TRACE] Interpreter returned kind=%d\n", res ? res->kind : -1);

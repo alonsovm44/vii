@@ -159,9 +159,9 @@ static Value* io_func_get_kw_kind(Table* parent, int argc, Value** argv) {
   if(argc > 0) table_set(env, "text", argv[0]);
   table_set(env, "kind", runtime_at(runtime_var_get(env, "KW_MAP"), runtime_var_get(env, "text")));
   if (val_truthy(runtime_binop(40, runtime_type(runtime_var_get(env, "kind")), val_str("none")))) {
-    { Value* _v = runtime_var_get(env, "TOK_IDENT"); if (_v && _v->kind == VAL_FUNC) _v = runtime_call(_v, env, 0, NULL); }
+    runtime_var_get(env, "TOK_IDENT");
   } else {
-    { Value* _v = runtime_var_get(env, "kind"); if (_v && _v->kind == VAL_FUNC) _v = runtime_call(_v, env, 0, NULL); }
+    runtime_var_get(env, "kind");
   }
   return val_none();
 }
@@ -655,31 +655,31 @@ runtime_call(table_get(env, "skip_newlines"), env, 1, (Value*[]){runtime_var_get
 table_set(env, "n", runtime_call(table_get(env, "parse_expr"), env, 1, (Value*[]){runtime_var_get(env, "p")}));
 runtime_call(table_get(env, "skip_newlines"), env, 1, (Value*[]){runtime_var_get(env, "p")});
 runtime_call(table_get(env, "expect"), env, 2, (Value*[]){runtime_var_get(env, "p"), runtime_var_get(env, "TOK_RPAREN")});
-{ Value* _v = runtime_var_get(env, "n"); if (_v && _v->kind == VAL_FUNC) _v = runtime_call(_v, env, 0, NULL); }
+runtime_var_get(env, "n");
   } else {
     if (val_truthy(runtime_binop(40, runtime_var_get(env, "k"), runtime_var_get(env, "TOK_MINUS")))) {
       runtime_call(table_get(env, "advance"), env, 1, (Value*[]){runtime_var_get(env, "p")});
 table_set(env, "n", runtime_call(table_get(env, "nd_new"), env, 2, (Value*[]){runtime_var_get(env, "ND_UMINUS"), runtime_var_get(env, "t")}));
 runtime_key(runtime_var_get(env, "n"), val_str("left"), runtime_call(table_get(env, "parse_primary"), env, 1, (Value*[]){runtime_var_get(env, "p")}));
-{ Value* _v = runtime_var_get(env, "n"); if (_v && _v->kind == VAL_FUNC) _v = runtime_call(_v, env, 0, NULL); }
+runtime_var_get(env, "n");
     } else {
       if (val_truthy(runtime_binop(40, runtime_var_get(env, "k"), runtime_var_get(env, "TOK_NOT")))) {
         runtime_call(table_get(env, "advance"), env, 1, (Value*[]){runtime_var_get(env, "p")});
 table_set(env, "n", runtime_call(table_get(env, "nd_new"), env, 2, (Value*[]){runtime_var_get(env, "ND_NOT"), runtime_var_get(env, "t")}));
 runtime_key(runtime_var_get(env, "n"), val_str("left"), runtime_call(table_get(env, "parse_primary"), env, 1, (Value*[]){runtime_var_get(env, "p")}));
-{ Value* _v = runtime_var_get(env, "n"); if (_v && _v->kind == VAL_FUNC) _v = runtime_call(_v, env, 0, NULL); }
+runtime_var_get(env, "n");
       } else {
         if (val_truthy(runtime_binop(40, runtime_var_get(env, "k"), runtime_var_get(env, "TOK_NUM")))) {
           runtime_call(table_get(env, "advance"), env, 1, (Value*[]){runtime_var_get(env, "p")});
 table_set(env, "n", runtime_call(table_get(env, "nd_new"), env, 2, (Value*[]){runtime_var_get(env, "ND_NUM"), runtime_var_get(env, "t")}));
 runtime_key(runtime_var_get(env, "n"), val_str("num"), runtime_at(runtime_var_get(env, "t"), val_str("num")));
-{ Value* _v = runtime_var_get(env, "n"); if (_v && _v->kind == VAL_FUNC) _v = runtime_call(_v, env, 0, NULL); }
+runtime_var_get(env, "n");
         } else {
           if (val_truthy(runtime_binop(40, runtime_var_get(env, "k"), runtime_var_get(env, "TOK_STR")))) {
             runtime_call(table_get(env, "advance"), env, 1, (Value*[]){runtime_var_get(env, "p")});
 table_set(env, "n", runtime_call(table_get(env, "nd_new"), env, 2, (Value*[]){runtime_var_get(env, "ND_STR"), runtime_var_get(env, "t")}));
 runtime_key(runtime_var_get(env, "n"), val_str("str"), runtime_at(runtime_var_get(env, "t"), val_str("text")));
-{ Value* _v = runtime_var_get(env, "n"); if (_v && _v->kind == VAL_FUNC) _v = runtime_call(_v, env, 0, NULL); }
+runtime_var_get(env, "n");
           } else {
             if (val_truthy(runtime_binop(40, runtime_var_get(env, "k"), runtime_var_get(env, "TOK_ASK")))) {
               runtime_call(table_get(env, "advance"), env, 1, (Value*[]){runtime_var_get(env, "p")});
@@ -693,50 +693,50 @@ runtime_call(table_get(env, "nd_new"), env, 2, (Value*[]){runtime_var_get(env, "
                   runtime_call(table_get(env, "advance"), env, 1, (Value*[]){runtime_var_get(env, "p")});
 table_set(env, "n", runtime_call(table_get(env, "nd_new"), env, 2, (Value*[]){runtime_var_get(env, "ND_KEYS"), runtime_var_get(env, "t")}));
 runtime_key(runtime_var_get(env, "n"), val_str("left"), runtime_call(table_get(env, "parse_postfix"), env, 1, (Value*[]){runtime_var_get(env, "p")}));
-{ Value* _v = runtime_var_get(env, "n"); if (_v && _v->kind == VAL_FUNC) _v = runtime_call(_v, env, 0, NULL); }
+runtime_var_get(env, "n");
                 } else {
                   if (val_truthy(runtime_binop(40, runtime_var_get(env, "k"), runtime_var_get(env, "TOK_LEN")))) {
                     runtime_call(table_get(env, "advance"), env, 1, (Value*[]){runtime_var_get(env, "p")});
 table_set(env, "n", runtime_call(table_get(env, "nd_new"), env, 2, (Value*[]){runtime_var_get(env, "ND_LEN"), runtime_var_get(env, "t")}));
 runtime_key(runtime_var_get(env, "n"), val_str("left"), runtime_call(table_get(env, "parse_postfix"), env, 1, (Value*[]){runtime_var_get(env, "p")}));
-{ Value* _v = runtime_var_get(env, "n"); if (_v && _v->kind == VAL_FUNC) _v = runtime_call(_v, env, 0, NULL); }
+runtime_var_get(env, "n");
                   } else {
                     if (val_truthy(runtime_binop(40, runtime_var_get(env, "k"), runtime_var_get(env, "TOK_ORD")))) {
                       runtime_call(table_get(env, "advance"), env, 1, (Value*[]){runtime_var_get(env, "p")});
 table_set(env, "n", runtime_call(table_get(env, "nd_new"), env, 2, (Value*[]){runtime_var_get(env, "ND_ORD"), runtime_var_get(env, "t")}));
 runtime_key(runtime_var_get(env, "n"), val_str("left"), runtime_call(table_get(env, "parse_postfix"), env, 1, (Value*[]){runtime_var_get(env, "p")}));
-{ Value* _v = runtime_var_get(env, "n"); if (_v && _v->kind == VAL_FUNC) _v = runtime_call(_v, env, 0, NULL); }
+runtime_var_get(env, "n");
                     } else {
                       if (val_truthy(runtime_binop(40, runtime_var_get(env, "k"), runtime_var_get(env, "TOK_CHR")))) {
                         runtime_call(table_get(env, "advance"), env, 1, (Value*[]){runtime_var_get(env, "p")});
 table_set(env, "n", runtime_call(table_get(env, "nd_new"), env, 2, (Value*[]){runtime_var_get(env, "ND_CHR"), runtime_var_get(env, "t")}));
 runtime_key(runtime_var_get(env, "n"), val_str("left"), runtime_call(table_get(env, "parse_postfix"), env, 1, (Value*[]){runtime_var_get(env, "p")}));
-{ Value* _v = runtime_var_get(env, "n"); if (_v && _v->kind == VAL_FUNC) _v = runtime_call(_v, env, 0, NULL); }
+runtime_var_get(env, "n");
                       } else {
                         if (val_truthy(runtime_binop(40, runtime_var_get(env, "k"), runtime_var_get(env, "TOK_TONUM")))) {
                           runtime_call(table_get(env, "advance"), env, 1, (Value*[]){runtime_var_get(env, "p")});
 table_set(env, "n", runtime_call(table_get(env, "nd_new"), env, 2, (Value*[]){runtime_var_get(env, "ND_TONUM"), runtime_var_get(env, "t")}));
 runtime_key(runtime_var_get(env, "n"), val_str("left"), runtime_call(table_get(env, "parse_postfix"), env, 1, (Value*[]){runtime_var_get(env, "p")}));
-{ Value* _v = runtime_var_get(env, "n"); if (_v && _v->kind == VAL_FUNC) _v = runtime_call(_v, env, 0, NULL); }
+runtime_var_get(env, "n");
                         } else {
                           if (val_truthy(runtime_binop(40, runtime_var_get(env, "k"), runtime_var_get(env, "TOK_TOSTR")))) {
                             runtime_call(table_get(env, "advance"), env, 1, (Value*[]){runtime_var_get(env, "p")});
 table_set(env, "n", runtime_call(table_get(env, "nd_new"), env, 2, (Value*[]){runtime_var_get(env, "ND_TOSTR"), runtime_var_get(env, "t")}));
 runtime_key(runtime_var_get(env, "n"), val_str("left"), runtime_call(table_get(env, "parse_postfix"), env, 1, (Value*[]){runtime_var_get(env, "p")}));
-{ Value* _v = runtime_var_get(env, "n"); if (_v && _v->kind == VAL_FUNC) _v = runtime_call(_v, env, 0, NULL); }
+runtime_var_get(env, "n");
                           } else {
                             if (val_truthy(runtime_binop(40, runtime_var_get(env, "k"), runtime_var_get(env, "TOK_SPLIT")))) {
                               runtime_call(table_get(env, "advance"), env, 1, (Value*[]){runtime_var_get(env, "p")});
 table_set(env, "n", runtime_call(table_get(env, "nd_new"), env, 2, (Value*[]){runtime_var_get(env, "ND_SPLIT"), runtime_var_get(env, "t")}));
 runtime_key(runtime_var_get(env, "n"), val_str("left"), runtime_call(table_get(env, "parse_primary"), env, 1, (Value*[]){runtime_var_get(env, "p")}));
 runtime_key(runtime_var_get(env, "n"), val_str("right"), runtime_call(table_get(env, "parse_primary"), env, 1, (Value*[]){runtime_var_get(env, "p")}));
-{ Value* _v = runtime_var_get(env, "n"); if (_v && _v->kind == VAL_FUNC) _v = runtime_call(_v, env, 0, NULL); }
+runtime_var_get(env, "n");
                             } else {
                               if (val_truthy(runtime_binop(40, runtime_var_get(env, "k"), runtime_var_get(env, "TOK_TRIM")))) {
                                 runtime_call(table_get(env, "advance"), env, 1, (Value*[]){runtime_var_get(env, "p")});
 table_set(env, "n", runtime_call(table_get(env, "nd_new"), env, 2, (Value*[]){runtime_var_get(env, "ND_TRIM"), runtime_var_get(env, "t")}));
 runtime_key(runtime_var_get(env, "n"), val_str("left"), runtime_call(table_get(env, "parse_primary"), env, 1, (Value*[]){runtime_var_get(env, "p")}));
-{ Value* _v = runtime_var_get(env, "n"); if (_v && _v->kind == VAL_FUNC) _v = runtime_call(_v, env, 0, NULL); }
+runtime_var_get(env, "n");
                               } else {
                                 if (val_truthy(runtime_binop(40, runtime_var_get(env, "k"), runtime_var_get(env, "TOK_REPLACE")))) {
                                   runtime_call(table_get(env, "advance"), env, 1, (Value*[]){runtime_var_get(env, "p")});
@@ -744,13 +744,13 @@ table_set(env, "n", runtime_call(table_get(env, "nd_new"), env, 2, (Value*[]){ru
 runtime_key(runtime_var_get(env, "n"), val_str("left"), runtime_call(table_get(env, "parse_primary"), env, 1, (Value*[]){runtime_var_get(env, "p")}));
 runtime_call(table_get(env, "nd_push"), env, 2, (Value*[]){runtime_var_get(env, "n"), runtime_call(table_get(env, "parse_primary"), env, 1, (Value*[]){runtime_var_get(env, "p")})});
 runtime_call(table_get(env, "nd_push"), env, 2, (Value*[]){runtime_var_get(env, "n"), runtime_call(table_get(env, "parse_primary"), env, 1, (Value*[]){runtime_var_get(env, "p")})});
-{ Value* _v = runtime_var_get(env, "n"); if (_v && _v->kind == VAL_FUNC) _v = runtime_call(_v, env, 0, NULL); }
+runtime_var_get(env, "n");
                                 } else {
                                   if (val_truthy(runtime_binop(40, runtime_var_get(env, "k"), runtime_var_get(env, "TOK_SAFE")))) {
                                     runtime_call(table_get(env, "advance"), env, 1, (Value*[]){runtime_var_get(env, "p")});
 table_set(env, "n", runtime_call(table_get(env, "nd_new"), env, 2, (Value*[]){runtime_var_get(env, "ND_SAFE"), runtime_var_get(env, "t")}));
 runtime_key(runtime_var_get(env, "n"), val_str("left"), runtime_call(table_get(env, "parse_primary"), env, 1, (Value*[]){runtime_var_get(env, "p")}));
-{ Value* _v = runtime_var_get(env, "n"); if (_v && _v->kind == VAL_FUNC) _v = runtime_call(_v, env, 0, NULL); }
+runtime_var_get(env, "n");
                                   } else {
                                     if (val_truthy(runtime_binop(40, runtime_var_get(env, "k"), runtime_var_get(env, "TOK_SLICE")))) {
                                       runtime_call(table_get(env, "advance"), env, 1, (Value*[]){runtime_var_get(env, "p")});
@@ -758,13 +758,13 @@ table_set(env, "n", runtime_call(table_get(env, "nd_new"), env, 2, (Value*[]){ru
 runtime_key(runtime_var_get(env, "n"), val_str("left"), runtime_call(table_get(env, "parse_primary"), env, 1, (Value*[]){runtime_var_get(env, "p")}));
 runtime_call(table_get(env, "nd_push"), env, 2, (Value*[]){runtime_var_get(env, "n"), runtime_call(table_get(env, "parse_primary"), env, 1, (Value*[]){runtime_var_get(env, "p")})});
 runtime_call(table_get(env, "nd_push"), env, 2, (Value*[]){runtime_var_get(env, "n"), runtime_call(table_get(env, "parse_primary"), env, 1, (Value*[]){runtime_var_get(env, "p")})});
-{ Value* _v = runtime_var_get(env, "n"); if (_v && _v->kind == VAL_FUNC) _v = runtime_call(_v, env, 0, NULL); }
+runtime_var_get(env, "n");
                                     } else {
                                       if (val_truthy(runtime_binop(40, runtime_var_get(env, "k"), runtime_var_get(env, "TOK_TYPE")))) {
                                         runtime_call(table_get(env, "advance"), env, 1, (Value*[]){runtime_var_get(env, "p")});
 table_set(env, "n", runtime_call(table_get(env, "nd_new"), env, 2, (Value*[]){runtime_var_get(env, "ND_TYPE"), runtime_var_get(env, "t")}));
 runtime_key(runtime_var_get(env, "n"), val_str("left"), runtime_call(table_get(env, "parse_primary"), env, 1, (Value*[]){runtime_var_get(env, "p")}));
-{ Value* _v = runtime_var_get(env, "n"); if (_v && _v->kind == VAL_FUNC) _v = runtime_call(_v, env, 0, NULL); }
+runtime_var_get(env, "n");
                                       } else {
                                         if (val_truthy(runtime_binop(40, runtime_var_get(env, "k"), runtime_var_get(env, "TOK_TIME")))) {
                                           runtime_call(table_get(env, "advance"), env, 1, (Value*[]){runtime_var_get(env, "p")});
@@ -774,25 +774,25 @@ runtime_call(table_get(env, "nd_new"), env, 2, (Value*[]){runtime_var_get(env, "
                                             runtime_call(table_get(env, "advance"), env, 1, (Value*[]){runtime_var_get(env, "p")});
 table_set(env, "n", runtime_call(table_get(env, "nd_new"), env, 2, (Value*[]){runtime_var_get(env, "ND_SYS"), runtime_var_get(env, "t")}));
 runtime_key(runtime_var_get(env, "n"), val_str("left"), runtime_call(table_get(env, "parse_postfix"), env, 1, (Value*[]){runtime_var_get(env, "p")}));
-{ Value* _v = runtime_var_get(env, "n"); if (_v && _v->kind == VAL_FUNC) _v = runtime_call(_v, env, 0, NULL); }
+runtime_var_get(env, "n");
                                           } else {
                                             if (val_truthy(runtime_binop(40, runtime_var_get(env, "k"), runtime_var_get(env, "TOK_REF")))) {
                                               runtime_call(table_get(env, "advance"), env, 1, (Value*[]){runtime_var_get(env, "p")});
 table_set(env, "n", runtime_call(table_get(env, "nd_new"), env, 2, (Value*[]){runtime_var_get(env, "ND_REF"), runtime_var_get(env, "t")}));
 runtime_key(runtime_var_get(env, "n"), val_str("left"), runtime_call(table_get(env, "parse_primary"), env, 1, (Value*[]){runtime_var_get(env, "p")}));
-{ Value* _v = runtime_var_get(env, "n"); if (_v && _v->kind == VAL_FUNC) _v = runtime_call(_v, env, 0, NULL); }
+runtime_var_get(env, "n");
                                             } else {
                                               if (val_truthy(runtime_binop(40, runtime_var_get(env, "k"), runtime_var_get(env, "TOK_ENV")))) {
                                                 runtime_call(table_get(env, "advance"), env, 1, (Value*[]){runtime_var_get(env, "p")});
 table_set(env, "n", runtime_call(table_get(env, "nd_new"), env, 2, (Value*[]){runtime_var_get(env, "ND_ENV"), runtime_var_get(env, "t")}));
 runtime_key(runtime_var_get(env, "n"), val_str("left"), runtime_call(table_get(env, "parse_postfix"), env, 1, (Value*[]){runtime_var_get(env, "p")}));
-{ Value* _v = runtime_var_get(env, "n"); if (_v && _v->kind == VAL_FUNC) _v = runtime_call(_v, env, 0, NULL); }
+runtime_var_get(env, "n");
                                               } else {
                                                 if (val_truthy(runtime_binop(40, runtime_var_get(env, "k"), runtime_var_get(env, "TOK_EXIT")))) {
                                                   runtime_call(table_get(env, "advance"), env, 1, (Value*[]){runtime_var_get(env, "p")});
 table_set(env, "n", runtime_call(table_get(env, "nd_new"), env, 2, (Value*[]){runtime_var_get(env, "ND_EXIT"), runtime_var_get(env, "t")}));
 runtime_key(runtime_var_get(env, "n"), val_str("left"), runtime_call(table_get(env, "parse_postfix"), env, 1, (Value*[]){runtime_var_get(env, "p")}));
-{ Value* _v = runtime_var_get(env, "n"); if (_v && _v->kind == VAL_FUNC) _v = runtime_call(_v, env, 0, NULL); }
+runtime_var_get(env, "n");
                                                 } else {
                                                   if (val_truthy(runtime_binop(40, runtime_var_get(env, "k"), runtime_var_get(env, "TOK_LIST")))) {
                                                     runtime_call(table_get(env, "advance"), env, 1, (Value*[]){runtime_var_get(env, "p")});
@@ -849,13 +849,13 @@ exit((int)(val_num(1))->num);
 runtime_key(runtime_var_get(env, "p"), val_str("current_func"), runtime_var_get(env, "old_func"));
 runtime_key(runtime_var_get(env, "p"), val_str("in_func"), runtime_binop(42, runtime_at(runtime_var_get(env, "p"), val_str("in_func")), val_num(1)));
 runtime_call(table_get(env, "expect"), env, 2, (Value*[]){runtime_var_get(env, "p"), runtime_var_get(env, "TOK_DEDENT")});
-{ Value* _v = runtime_var_get(env, "n"); if (_v && _v->kind == VAL_FUNC) _v = runtime_call(_v, env, 0, NULL); }
+runtime_var_get(env, "n");
                                                       } else {
                                                         if (val_truthy(runtime_binop(40, runtime_var_get(env, "k"), runtime_var_get(env, "TOK_IDENT")))) {
                                                           runtime_call(table_get(env, "advance"), env, 1, (Value*[]){runtime_var_get(env, "p")});
 table_set(env, "n", runtime_call(table_get(env, "nd_new"), env, 2, (Value*[]){runtime_var_get(env, "ND_VAR"), runtime_var_get(env, "t")}));
 runtime_key(runtime_var_get(env, "n"), val_str("name"), runtime_at(runtime_var_get(env, "t"), val_str("text")));
-{ Value* _v = runtime_var_get(env, "n"); if (_v && _v->kind == VAL_FUNC) _v = runtime_call(_v, env, 0, NULL); }
+runtime_var_get(env, "n");
                                                         } else {
                                                           runtime_str_concat(runtime_tostr(val_str("Unexpected token: "))->str, runtime_tostr(runtime_at(runtime_var_get(env, "t"), val_str("text")))->str);
 exit((int)(val_num(1))->num);
@@ -1643,7 +1643,7 @@ if (val_truthy(runtime_binop(40, runtime_at(runtime_var_get(env, "res"), val_str
   break;
 }
 if (val_truthy(runtime_binop(40, runtime_at(runtime_var_get(env, "res"), val_str("kind")), runtime_var_get(env, "VAL_SKIP")))) {
-  { Value* _v = runtime_var_get(env, "skip"); if (_v && _v->kind == VAL_FUNC) _v = runtime_call(_v, env, 0, NULL); }
+  runtime_var_get(env, "skip");
 }
 if (val_truthy(runtime_binop(40, runtime_at(runtime_var_get(env, "res"), val_str("kind")), runtime_var_get(env, "VAL_OUT")))) {
   return val_out(runtime_var_get(env, "res"));
@@ -1663,7 +1663,7 @@ if (val_truthy(runtime_binop(40, runtime_at(runtime_var_get(env, "res"), val_str
 }
 if (val_truthy(runtime_binop(40, runtime_at(runtime_var_get(env, "res"), val_str("kind")), runtime_var_get(env, "VAL_SKIP")))) {
   table_set(env, "i", runtime_binop(41, runtime_var_get(env, "i"), val_num(1)));
-{ Value* _v = runtime_var_get(env, "skip"); if (_v && _v->kind == VAL_FUNC) _v = runtime_call(_v, env, 0, NULL); }
+runtime_var_get(env, "skip");
 }
 if (val_truthy(runtime_binop(40, runtime_at(runtime_var_get(env, "res"), val_str("kind")), runtime_var_get(env, "VAL_OUT")))) {
   return val_out(runtime_var_get(env, "res"));
@@ -1728,7 +1728,7 @@ return val_out(runtime_call(table_get(env, "val_str"), env, 1, (Value*[]){val_no
   if (val_truthy(runtime_binop(40, runtime_var_get(env, "k"), runtime_var_get(env, "ND_PRINT")))) {
     table_set(env, "v_print", runtime_call(table_get(env, "val_unwrap"), env, 1, (Value*[]){runtime_call(table_get(env, "eval"), env, 2, (Value*[]){runtime_at(runtime_var_get(env, "n"), val_str("left")), runtime_var_get(env, "env_")})}));
 runtime_put(val_str(""), runtime_binop(41, runtime_call(table_get(env, "val_print"), env, 1, (Value*[]){runtime_var_get(env, "v_print")}), val_str("\n")), 0);
-{ Value* _v = runtime_var_get(env, "v_print"); if (_v && _v->kind == VAL_FUNC) _v = runtime_call(_v, env, 0, NULL); }
+runtime_var_get(env, "v_print");
   }
   if (val_truthy(runtime_binop(40, runtime_var_get(env, "k"), runtime_var_get(env, "ND_BLOCK")))) {
     return val_out(runtime_call(table_get(env, "eval_block"), env, 2, (Value*[]){runtime_var_get(env, "n"), runtime_var_get(env, "env_")}));
@@ -2240,9 +2240,9 @@ static Value* io_func_compile_to_c(Table* parent, int argc, Value** argv) {
   Table* env = table_new(parent);
   if(argc > 0) table_set(env, "prog", argv[0]);
   table_set(env, "c_lines", val_list());
-  { Value* _v = runtime_var_get(env, "init_indent_cache"); if (_v && _v->kind == VAL_FUNC) _v = runtime_call(_v, env, 0, NULL); }
+  runtime_var_get(env, "init_indent_cache");
   table_set(env, "indent_lvl", val_num(0));
-  { Value* _v = runtime_var_get(env, "emit_runtime"); if (_v && _v->kind == VAL_FUNC) _v = runtime_call(_v, env, 0, NULL); }
+  runtime_var_get(env, "emit_runtime");
   runtime_call(table_get(env, "emit"), env, 1, (Value*[]){val_str("/* Generated by Vii Codegen */")});
   table_set(env, "body", runtime_at(runtime_var_get(env, "prog"), val_str("body")));
   table_set(env, "i", val_num(0));
@@ -2365,7 +2365,7 @@ static Value* io_func_main(Table* parent, int argc, Value** argv) {
   table_set(env, "trace", val_num(0));
   table_set(env, "argc", runtime_len(io_args));
   if (val_truthy(runtime_binop(47, runtime_var_get(env, "argc"), val_num(1)))) {
-    { Value* _v = runtime_var_get(env, "print_usage"); if (_v && _v->kind == VAL_FUNC) _v = runtime_call(_v, env, 0, NULL); }
+    runtime_var_get(env, "print_usage");
   }
   table_set(env, "i", val_num(0));
   while (val_truthy(runtime_binop(47, runtime_var_get(env, "i"), runtime_var_get(env, "argc")))) {
@@ -2420,7 +2420,7 @@ exit((int)(val_num(1))->num);
 exit((int)(val_num(0))->num);
                 } else {
                   if (val_truthy(runtime_binop(40, runtime_var_get(env, "current_arg"), val_str("--help")))) {
-                    { Value* _v = runtime_var_get(env, "print_usage"); if (_v && _v->kind == VAL_FUNC) _v = runtime_call(_v, env, 0, NULL); }
+                    runtime_var_get(env, "print_usage");
                   } else {
                     if (val_truthy(runtime_call(table_get(env, "str_contains"), env, 2, (Value*[]){runtime_var_get(env, "current_arg"), val_str("main.vii")}))) {
                       val_str("");
@@ -2457,7 +2457,7 @@ if (val_truthy(runtime_binop(40, runtime_var_get(env, "first_char"), val_str("-"
 table_set(env, "i", runtime_binop(41, runtime_var_get(env, "i"), val_num(1)));
   }
   if (val_truthy(runtime_binop(40, runtime_var_get(env, "input_path"), val_str("none")))) {
-    { Value* _v = runtime_var_get(env, "print_usage"); if (_v && _v->kind == VAL_FUNC) _v = runtime_call(_v, env, 0, NULL); }
+    runtime_var_get(env, "print_usage");
   }
   if (val_truthy(runtime_binop(51, runtime_var_get(env, "output_name"), val_str("none")))) {
     table_set(env, "has_exe", runtime_call(table_get(env, "str_contains"), env, 2, (Value*[]){runtime_var_get(env, "output_name"), val_str(".exe")}));
