@@ -210,10 +210,6 @@ extern Value *cli_args;
 extern char **cli_defines;
 extern int    cli_define_count;
 
-/* ──────────────────────── Codegen ──────────────────────── */
-
-void compile_to_bin(Node *prog, const char *out_name, bool keep_c);
-
 /* ──────────────────────── Debug ──────────────────────── */
 
 void dump_ast_json(Node *n, FILE *f, int indent);

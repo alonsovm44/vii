@@ -1,7 +1,7 @@
 CC = gcc
 CFLAGS = -Wall -Wextra -O3 -std=c99
 
-SRCS = src/main.c src/ui.c src/value.c src/lexer.c src/parser.c src/interp.c src/codegen.c
+SRCS = src/main.c src/ui.c src/value.c src/lexer.c src/parser.c src/interp.c
 OBJS = $(SRCS:.c=.o)
 
 all: vii

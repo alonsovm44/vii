@@ -777,3 +777,31 @@ Value *eval(Node *n, Table *env) {
     }
     return val_none();
 }
+
+/* ──────────────────────── Debug ──────────────────────── */
+
+void dump_ast_json(Node *n, FILE *f, int indent) {
+    for (int i = 0; i < indent; i++) fprintf(f, "  ");
+    fprintf(f, "{ ");
+    fprintf(f, "\"kind\": \"%d\", ", n->kind);
+    if (n->name) fprintf(f, "\"name\": \"%s\", ", n->name);
+    if (n->type_tag) fprintf(f, "\"type\": \"%s\", ", n->type_tag);
+    if (n->num != 0) fprintf(f, "\"num\": %g, ", n->num);
+    if (n->str) fprintf(f, "\"str\": \"%s\", ", n->str);
+    fprintf(f, "\"body_count\": %d", n->body_count);
+    if (n->body_count > 0) {
+        fprintf(f, ",\n");
+        for (int i = 0; i < indent; i++) fprintf(f, "  ");
+        fprintf(f, "  \"body\": [\n");
+        for (int i = 0; i < n->body_count; i++) {
+            dump_ast_json(n->body[i], f, indent + 2);
+            if (i < n->body_count - 1) fprintf(f, ",\n");
+        }
+        fprintf(f, "\n");
+        for (int i = 0; i < indent; i++) fprintf(f, "  ");
+        fprintf(f, "  ]");
+    }
+    if (n->left) { fprintf(f, ",\n"); for (int i = 0; i < indent; i++) fprintf(f, "  "); fprintf(f, "  \"left\": \n"); dump_ast_json(n->left, f, indent + 2); }
+    if (n->right) { fprintf(f, ",\n"); for (int i = 0; i < indent; i++) fprintf(f, "  "); fprintf(f, "  \"right\": \n"); dump_ast_json(n->right, f, indent + 2); }
+    fprintf(f, " }");
+}

@@ -173,10 +173,8 @@ int main(int argc, char **argv) {
     }
 
     const char *input_path = NULL;
-    const char *output_name = NULL;
     const char *bundle_name = NULL;
     bool debug_ast = false;
-    bool keep_c = false;
 
     if (argc < 2) goto usage;
 
@@ -184,11 +182,6 @@ int main(int argc, char **argv) {
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "--debug") == 0) {
             debug_ast = true;
-        } else if (strcmp(argv[i], "-o") == 0) {
-            if (i + 1 < argc) output_name = argv[++i];
-            else { fprintf(stderr, "Error: -o requires a filename\n"); return 1; }
-        } else if (strcmp(argv[i], "-k") == 0 || strcmp(argv[i], "--keep") == 0) {
-            keep_c = true;
         } else if (strcmp(argv[i], "-D") == 0 || strcmp(argv[i], "--define") == 0) {
             if (i + 1 < argc) add_define(argv[++i]);
             else { fprintf(stderr, "Error: -D requires a name\n"); return 1; }
@@ -215,27 +208,20 @@ int main(int argc, char **argv) {
     }
     if (strcmp(argv[1], "--help") == 0) {
         printf("vii - a minimalist programming language\n");
-        printf("Usage: vii <file.vii> [-o program] [-k] [args...]\n");
+        printf("Usage: vii <file.vii> [args...]\n");
         printf("       vii --version\n");
         printf("       vii --help\n");
         printf("       vii --debug <file.vii>\n");
         printf("       vii <file.vii> --bundle <output.exe>\n\n");
         printf("Options:\n");
-        printf("  -o <name>      Compile to executable via C codegen\n");
         printf("  --bundle <out> Bundle script + interpreter into standalone binary\n");
-        printf("  -k, --keep     Keep transpiled .c source\n");
         printf("  -D <name>      Define compile-time flag for IF macros\n\n");
         
         return 0;
     }
 
-    /* Windows .exe handling */
+    /* Windows .exe handling for bundle */
 #ifdef _WIN32
-    char win_out[512];
-    if (output_name && !strstr(output_name, ".exe") && !strstr(output_name, ".EXE")) {
-        snprintf(win_out, sizeof(win_out), "%s.exe", output_name);
-        output_name = win_out;
-    }
     char win_bundle[512];
     if (bundle_name && !strstr(bundle_name, ".exe") && !strstr(bundle_name, ".EXE")) {
         snprintf(win_bundle, sizeof(win_bundle), "%s.exe", bundle_name);
@@ -328,9 +314,7 @@ int main(int argc, char **argv) {
     cli_args = val_list();
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "--debug") == 0) continue;
-        if (strcmp(argv[i], "-o") == 0) { i++; continue; }
         if (strcmp(argv[i], "--bundle") == 0) { i++; continue; }
-        if (strcmp(argv[i], "-k") == 0 || strcmp(argv[i], "--keep") == 0) continue;
         if (strcmp(argv[i], "-D") == 0 || strcmp(argv[i], "--define") == 0) { i++; continue; }
         if (strcmp(argv[i], "--trace") == 0) continue;
         if (input_path && strcmp(argv[i], input_path) == 0) continue;
@@ -362,13 +346,7 @@ int main(int argc, char **argv) {
         }
     }
 
-    if (output_name) {
-        compile_to_bin(prog, output_name, keep_c);
-        free(src);
-        return 0;
-    }
-
-    /* Otherwise, Interpret */
+    /* Interpret the program */
     Table *global = table_new(NULL);
     /* Bind CLI args as 'arg' for bootstrapping compiler compatibility */
     extern Value *cli_args;
@@ -397,6 +375,7 @@ int main(int argc, char **argv) {
     return 0;
 
 usage:
-    fprintf(stderr, "Usage: vii <file.vii> [-o program] [args...]\n");
+    fprintf(stderr, "Usage: vii <file.vii> [args...]\n");
+    fprintf(stderr, "       vii <file.vii> --bundle <output.exe>\n");
     return 1;
 }
