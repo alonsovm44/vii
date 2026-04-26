@@ -1,3 +1,7 @@
 #! ONCE 
-x = 10
-x
+x num = ask
+
+if x >= 10 
+  "hayo"
+else 
+  "no hayo"
