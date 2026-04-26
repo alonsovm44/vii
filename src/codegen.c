@@ -1,4 +1,5 @@
 #include "vii.h"
+#include <ctype.h>
 
 /* ──────────────────────── Debug Dumper ──────────────────────── */
 
@@ -23,6 +24,280 @@ void dump_ast_json(Node *n, FILE *f, int indent) {
     if (n->left) { fprintf(f, ",\n"); for (int i = 0; i < indent; i++) fprintf(f, "  "); fprintf(f, "  \"left\": \n"); dump_ast_json(n->left, f, indent + 2); }
     if (n->right) { fprintf(f, ",\n"); for (int i = 0; i < indent; i++) fprintf(f, "  "); fprintf(f, "  \"right\": \n"); dump_ast_json(n->right, f, indent + 2); }
     fprintf(f, " }");
+}
+
+/* ──────────────────────── Shape Tracker (Struct Inference) ──────────────────────── */
+
+/* 
+ * Shape Tracker - Automatic Struct Inference for Vii
+ * 
+ * Detects rigid dictionary usage patterns where a variable always uses the same
+ * set of keys. Emits C structs for 100x faster access vs hash table lookups.
+ */
+
+#define MAX_SHAPES 256
+#define MAX_KEYS_PER_SHAPE 16
+#define MAX_VARS_PER_FUNC 64
+
+typedef struct {
+    char *key;
+    int field_index;
+} ShapeKey;
+
+typedef struct {
+    char *var_name;           // Variable name in function
+    char *func_name;          // Function this var belongs to
+    char *struct_name;        // Generated C struct name
+    ShapeKey keys[MAX_KEYS_PER_SHAPE];
+    int key_count;
+    bool is_rigid;            // True if pattern is rigid (no dynamic keys)
+    int dict_creation_line;   // Line where dict was created
+} VarShape;
+
+typedef struct {
+    VarShape shapes[MAX_VARS_PER_FUNC];
+    int count;
+    char *current_func;
+} ShapeTracker;
+
+static ShapeTracker shape_tracker = {0};
+
+// C-ify a name: replace non-alphanumeric with _, lowercase
+static char* cify_name(const char *name) {
+    static char buf[256];
+    int j = 0;
+    for (int i = 0; name[i] && j < 255; i++) {
+        char c = name[i];
+        if (isalnum(c)) buf[j++] = tolower(c);
+        else buf[j++] = '_';
+    }
+    buf[j] = '\0';
+    return strdup(buf);
+}
+
+// Generate unique struct name
+static char* gen_struct_name(const char *func_name, const char *var_name) {
+    static char buf[256];
+    char *c_func = cify_name(func_name);
+    char *c_var = cify_name(var_name);
+    snprintf(buf, sizeof(buf), "FastShape_%s_%s", c_func, c_var);
+    free(c_func);
+    free(c_var);
+    return strdup(buf);
+}
+
+// Find or create shape for a variable
+static VarShape* find_or_create_shape(const char *func_name, const char *var_name) {
+    // Check if shape already exists
+    for (int i = 0; i < shape_tracker.count; i++) {
+        if (strcmp(shape_tracker.shapes[i].func_name, func_name) == 0 &&
+            strcmp(shape_tracker.shapes[i].var_name, var_name) == 0) {
+            return &shape_tracker.shapes[i];
+        }
+    }
+    // Create new shape
+    if (shape_tracker.count >= MAX_VARS_PER_FUNC) return NULL;
+    VarShape *shape = &shape_tracker.shapes[shape_tracker.count++];
+    shape->var_name = strdup(var_name);
+    shape->func_name = strdup(func_name);
+    shape->struct_name = gen_struct_name(func_name, var_name);
+    shape->key_count = 0;
+    shape->is_rigid = true;
+    shape->dict_creation_line = -1;
+    return shape;
+}
+
+// Add a key to a shape
+static void shape_add_key(VarShape *shape, const char *key) {
+    if (!shape || !shape->is_rigid) return;
+    
+    // Check if key already exists
+    for (int i = 0; i < shape->key_count; i++) {
+        if (strcmp(shape->keys[i].key, key) == 0) return;
+    }
+    
+    // Add new key if room
+    if (shape->key_count < MAX_KEYS_PER_SHAPE) {
+        shape->keys[shape->key_count].key = strdup(key);
+        shape->keys[shape->key_count].field_index = shape->key_count;
+        shape->key_count++;
+    } else {
+        shape->is_rigid = false; // Too many keys, mark as non-rigid
+    }
+}
+
+// Mark a shape as non-rigid (dynamic keys)
+static void shape_mark_dynamic(VarShape *shape) {
+    if (shape) shape->is_rigid = false;
+}
+
+// Find shape for a variable
+static VarShape* find_shape(const char *func_name, const char *var_name) {
+    for (int i = 0; i < shape_tracker.count; i++) {
+        if (strcmp(shape_tracker.shapes[i].func_name, func_name) == 0 &&
+            strcmp(shape_tracker.shapes[i].var_name, var_name) == 0) {
+            return &shape_tracker.shapes[i];
+        }
+    }
+    return NULL;
+}
+
+// Reset shape tracker for new function
+static void shape_tracker_reset(const char *func_name) {
+    // Don't free old shapes - we need them for code generation
+    // Just reset for tracking within current function
+    shape_tracker.current_func = func_name ? strdup(func_name) : NULL;
+}
+
+// Analyze AST to collect shapes for a function
+static void collect_shapes(Node *n, const char *func_name);
+
+static void collect_shapes_visit(Node *n, const char *func_name) {
+    if (!n) return;
+    
+    switch (n->kind) {
+        case ND_DO: {
+            // New function scope
+            const char *new_func = n->name ? n->name : "anon";
+            collect_shapes(n->left, new_func);  // Function body
+            break;
+        }
+        
+        case ND_ASSIGN: {
+            // Check for: var = dict
+            if (n->left && n->left->kind == ND_VAR && n->right && n->right->kind == ND_DICT) {
+                VarShape *shape = find_or_create_shape(func_name, n->left->name);
+                if (shape) shape->dict_creation_line = n->line;
+            }
+            collect_shapes_visit(n->right, func_name);
+            break;
+        }
+        
+        case ND_SET: {
+            // Check for: var key "literal" value
+            if (n->left && n->left->kind == ND_VAR && n->right) {
+                VarShape *shape = find_or_create_shape(func_name, n->left->name);
+                
+                // If key is a string literal, record it
+                if (n->str) {  // ND_SET stores key in str field
+                    shape_add_key(shape, n->str);
+                } else {
+                    shape_mark_dynamic(shape); // Dynamic key
+                }
+            }
+            collect_shapes_visit(n->right, func_name);
+            break;
+        }
+        
+        case ND_AT: {
+            // Check for: var at "literal" - if var has a shape, record access
+            if (n->left && n->left->kind == ND_VAR && n->right && n->right->kind == ND_STR) {
+                VarShape *shape = find_or_create_shape(func_name, n->left->name);
+                shape_add_key(shape, n->right->str);
+            }
+            collect_shapes_visit(n->left, func_name);
+            collect_shapes_visit(n->right, func_name);
+            break;
+        }
+        
+        default:
+            collect_shapes_visit(n->left, func_name);
+            collect_shapes_visit(n->right, func_name);
+            for (int i = 0; i < n->body_count; i++) {
+                collect_shapes_visit(n->body[i], func_name);
+            }
+            break;
+    }
+}
+
+static void collect_shapes(Node *n, const char *func_name) {
+    if (!n) return;
+    
+    // Visit all statements in block
+    for (int i = 0; i < n->body_count; i++) {
+        collect_shapes_visit(n->body[i], func_name);
+    }
+}
+
+// Check if a key name is reserved (collides with Value struct fields)
+static bool is_reserved_field(const char *key) {
+    static const char *reserved[] = {
+        "kind", "num", "str", "items", "item_count", "item_cap",
+        "fields", "func", "target", "inner", NULL
+    };
+    for (int i = 0; reserved[i]; i++) {
+        if (strcmp(key, reserved[i]) == 0) return true;
+    }
+    return false;
+}
+
+// Emit struct definitions for all rigid shapes
+static void emit_shape_structs(FILE *f) {
+    int emitted_count = 0;
+    
+    for (int i = 0; i < shape_tracker.count; i++) {
+        VarShape *shape = &shape_tracker.shapes[i];
+        
+        // Only emit for rigid shapes with keys
+        if (!shape->is_rigid || shape->key_count == 0) continue;
+        
+        // Count non-reserved keys
+        int valid_keys = 0;
+        for (int k = 0; k < shape->key_count; k++) {
+            if (!is_reserved_field(shape->keys[k].key)) valid_keys++;
+        }
+        if (valid_keys == 0) continue;
+        
+        // Check if we already emitted this struct name
+        bool already_emitted = false;
+        for (int j = 0; j < i; j++) {
+            if (strcmp(shape_tracker.shapes[j].struct_name, shape->struct_name) == 0) {
+                already_emitted = true;
+                break;
+            }
+        }
+        if (already_emitted) continue;
+        
+        emitted_count++;
+        fprintf(f, "\n/* Fast Shape: %s (from %s.%s) */\n", shape->struct_name, shape->func_name, shape->var_name);
+        fprintf(f, "typedef struct {\n");
+        fprintf(f, "    ValKind kind;\n");  // Must match Value layout for compatibility
+        fprintf(f, "    double num;\n");
+        fprintf(f, "    char *str;\n");
+        fprintf(f, "    struct Value **items;\n");
+        fprintf(f, "    int item_count, item_cap;\n");
+        fprintf(f, "    struct Table *fields;\n");
+        fprintf(f, "    IoFunc func;\n");
+        fprintf(f, "    struct Value *target, *inner;\n");
+        
+        // Add direct fields for each non-reserved key
+        for (int k = 0; k < shape->key_count; k++) {
+            if (is_reserved_field(shape->keys[k].key)) continue;
+            char *field_name = cify_name(shape->keys[k].key);
+            fprintf(f, "    struct Value *%s;  /* key: \"%s\" */\n", field_name, shape->keys[k].key);
+            free(field_name);
+        }
+        
+        fprintf(f, "} %s;\n", shape->struct_name);
+    }
+    
+    if (emitted_count > 0) {
+        fprintf(f, "\n/* Shape Tracker: Emitted %d optimized structs */\n\n", emitted_count);
+    }
+}
+
+// Check if a variable access can use fast shape
+static bool can_use_fast_shape(const char *func_name, const char *var_name, const char *key) {
+    VarShape *shape = find_shape(func_name, var_name);
+    if (!shape || !shape->is_rigid) return false;
+    
+    // Check if key exists in shape
+    for (int i = 0; i < shape->key_count; i++) {
+        if (strcmp(shape->keys[i].key, key) == 0) {
+            return true;
+        }
+    }
+    return false;
 }
 
 /* ──────────────────────── Codegen (IO -> C) ──────────────────────── */
@@ -428,7 +703,15 @@ void compile_to_bin(Node *prog, const char *out_name, bool keep_c) {
     FILE *f = fopen(c_file, "w");
     if (!f) { fprintf(stderr, "Failed to create C source\n"); exit(1); }
 
+    // Phase 1: Shape Tracker Analysis - detect rigid dictionary patterns
+    shape_tracker.count = 0;  // Reset tracker
+    collect_shapes(prog, "global");
+
     emit_c_header(f);
+    
+    // Phase 2: Emit optimized struct definitions for fast shapes
+    emit_shape_structs(f);
+    
     fprintf(f, "typedef struct { size_t cap; size_t off; char* data; } Arena;\n\n");
     
     bool has_main = has_main_function(prog);

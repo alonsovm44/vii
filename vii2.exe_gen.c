@@ -60,7 +60,7 @@ static Value* runtime_len(Value* v) { v = val_unwrap(v); if(v->kind==VAL_STR) re
 static Value* runtime_ord(Value* v) { v = val_unwrap(v); if(v->kind==VAL_STR&&v->str[0]) return val_num((unsigned char)v->str[0]); return val_num(0); }
 static Value* runtime_chr(Value* v) { v = val_unwrap(v); char b[2]={v->num,0}; return val_str(b); }
 static Value* runtime_tonum(Value* v) { v = val_unwrap(v); if(v->kind==VAL_STR){ char*e; double d=strtod(v->str,&e); return val_num(*e==0&&e!=v->str?d:0); } if(v->kind==VAL_NUM) return v; return val_num(0); }
-static Value* runtime_str_concat(const char* a, const char* b) { char buf[2048]; snprintf(buf, 2048, "%s%s", a, b); return val_str(buf); }
+static Value* runtime_str_concat(const char* a, const char* b) { size_t len_a = strlen(a), len_b = strlen(b); char* buf = malloc(len_a + len_b + 1); if (!buf) return val_str(""); memcpy(buf, a, len_a); memcpy(buf + len_a, b, len_b + 1); Value* r = val_str(buf); free(buf); return r; }
 static Value* runtime_put(Value* p, Value* d, int a) { p = val_unwrap(p); d = val_unwrap(d); if(p->kind!=VAL_STR) return val_none(); FILE* f; if(p->str[0]=='\0') f=stdout; else f=fopen(p->str, a?"a":"w"); if(!f) return val_none(); if(d->kind==VAL_STR) fprintf(f,"%s",d->str); else if(d->kind==VAL_NUM) fprintf(f,d->num==(long long)d->num?"%lld":"%g",(long long)d->num); else if(d->kind==VAL_BIT) fprintf(f,"%s",d->num?"1":"0"); else if(d->kind==VAL_NONE) { /* print nothing */ } if(f!=stdout) fclose(f); return val_none(); }
 static Value* runtime_tostr(Value* v) { v = val_unwrap(v); char b[64]; if(v->kind==VAL_NUM){ if(v->num==(long long)v->num) snprintf(b,64,"%lld",(long long)v->num); else snprintf(b,64,"%g",v->num); return val_str(b); } if(v->kind==VAL_STR) return v; return val_str(""); }
 static Value* runtime_slice(Value* v, Value* sv, Value* ev) { v = val_unwrap(v); sv = val_unwrap(sv); ev = val_unwrap(ev); int s=(int)sv->num, e=(int)ev->num; if(v->kind==VAL_STR){ int l=strlen(v->str); if(s<0)s+=l; if(e<0)e+=l; if(s<0)s=0; if(e>l)e=l; if(s>=e)return val_str(""); int n=e-s; char *b=malloc(n+1); memcpy(b,v->str+s,n); b[n]=0; Value *res=val_str(b); free(b); return res; } if(v->kind==VAL_LIST){ int l=v->item_count; if(s<0)s+=l; if(e<0)e+=l; if(s<0)s=0; if(e>l)e=l; Value *res=val_list(); if(s>=e)return res; for(int i=s;i<e;i++){ if(res->item_count>=res->item_cap){ res->item_cap*=2; res->items=realloc(res->items,res->item_cap*sizeof(Value*)); } res->items[res->item_count++]=v->items[i]; } return res; } return val_none(); }
@@ -74,6 +74,715 @@ static Value* runtime_env(Value* v) { v = val_unwrap(v); if(v->kind!=VAL_STR) re
 static Value* io_val_print(Table* t, int argc, Value** argv) { if(argc > 0) { val_print(argv[0]); printf("\n"); fflush(stdout); return argv[0]; } return val_none(); }
 static Value* io_val_unwrap(Table* t, int argc, Value** argv) { if(argc > 0) return val_unwrap(argv[0]); return val_none(); }
 static Value* io_table_new(Table* t, int argc, Value** argv) { Value *v = val_dict(); if(argc > 0) { Value *p = val_unwrap(argv[0]); if(p->kind == VAL_DICT) v->fields->parent = p->fields; } return v; }
+
+/* Fast Shape: FastShape_lex_lexer_ctx (from lex.lexer_ctx) */
+typedef struct {
+    ValKind kind;
+    double num;
+    char *str;
+    struct Value **items;
+    int item_count, item_cap;
+    struct Table *fields;
+    IoFunc func;
+    struct Value *target, *inner;
+    struct Value *pos;  /* key: "pos" */
+    struct Value *line;  /* key: "line" */
+    struct Value *boot_debug;  /* key: "boot_debug" */
+    struct Value *src;  /* key: "src" */
+    struct Value *filename;  /* key: "filename" */
+} FastShape_lex_lexer_ctx;
+
+/* Fast Shape: FastShape_nd_new_t (from nd_new.t) */
+typedef struct {
+    ValKind kind;
+    double num;
+    char *str;
+    struct Value **items;
+    int item_count, item_cap;
+    struct Table *fields;
+    IoFunc func;
+    struct Value *target, *inner;
+    struct Value *line;  /* key: "line" */
+    struct Value *filename;  /* key: "filename" */
+    struct Value *pos;  /* key: "pos" */
+} FastShape_nd_new_t;
+
+/* Fast Shape: FastShape_nd_push_node (from nd_push.node) */
+typedef struct {
+    ValKind kind;
+    double num;
+    char *str;
+    struct Value **items;
+    int item_count, item_cap;
+    struct Table *fields;
+    IoFunc func;
+    struct Value *target, *inner;
+    struct Value *body;  /* key: "body" */
+} FastShape_nd_push_node;
+
+/* Fast Shape: FastShape_track_constant_p (from track_constant.p) */
+typedef struct {
+    ValKind kind;
+    double num;
+    char *str;
+    struct Value **items;
+    int item_count, item_cap;
+    struct Table *fields;
+    IoFunc func;
+    struct Value *target, *inner;
+    struct Value *constants;  /* key: "constants" */
+    struct Value *filename;  /* key: "filename" */
+} FastShape_track_constant_p;
+
+/* Fast Shape: FastShape_peek_p (from peek.p) */
+typedef struct {
+    ValKind kind;
+    double num;
+    char *str;
+    struct Value **items;
+    int item_count, item_cap;
+    struct Table *fields;
+    IoFunc func;
+    struct Value *target, *inner;
+    struct Value *tokens;  /* key: "tokens" */
+    struct Value *pos;  /* key: "pos" */
+} FastShape_peek_p;
+
+/* Fast Shape: FastShape_advance_p (from advance.p) */
+typedef struct {
+    ValKind kind;
+    double num;
+    char *str;
+    struct Value **items;
+    int item_count, item_cap;
+    struct Table *fields;
+    IoFunc func;
+    struct Value *target, *inner;
+    struct Value *pos;  /* key: "pos" */
+} FastShape_advance_p;
+
+/* Fast Shape: FastShape_expect_t (from expect.t) */
+typedef struct {
+    ValKind kind;
+    double num;
+    char *str;
+    struct Value **items;
+    int item_count, item_cap;
+    struct Table *fields;
+    IoFunc func;
+    struct Value *target, *inner;
+    struct Value *kind;  /* key: "kind" */
+    struct Value *line;  /* key: "line" */
+} FastShape_expect_t;
+
+/* Fast Shape: FastShape_expect_p (from expect.p) */
+typedef struct {
+    ValKind kind;
+    double num;
+    char *str;
+    struct Value **items;
+    int item_count, item_cap;
+    struct Table *fields;
+    IoFunc func;
+    struct Value *target, *inner;
+    struct Value *filename;  /* key: "filename" */
+} FastShape_expect_p;
+
+/* Fast Shape: FastShape_skip_newlines_t (from skip_newlines.t) */
+typedef struct {
+    ValKind kind;
+    double num;
+    char *str;
+    struct Value **items;
+    int item_count, item_cap;
+    struct Table *fields;
+    IoFunc func;
+    struct Value *target, *inner;
+    struct Value *kind;  /* key: "kind" */
+} FastShape_skip_newlines_t;
+
+/* Fast Shape: FastShape_infer_node_type_n (from infer_node_type.n) */
+typedef struct {
+    ValKind kind;
+    double num;
+    char *str;
+    struct Value **items;
+    int item_count, item_cap;
+    struct Table *fields;
+    IoFunc func;
+    struct Value *target, *inner;
+    struct Value *kind;  /* key: "kind" */
+    struct Value *op;  /* key: "op" */
+    struct Value *type_tag;  /* key: "type_tag" */
+    struct Value *name;  /* key: "name" */
+} FastShape_infer_node_type_n;
+
+/* Fast Shape: FastShape_infer_node_type_fn_ctx (from infer_node_type.fn_ctx) */
+typedef struct {
+    ValKind kind;
+    double num;
+    char *str;
+    struct Value **items;
+    int item_count, item_cap;
+    struct Table *fields;
+    IoFunc func;
+    struct Value *target, *inner;
+    struct Value *body;  /* key: "body" */
+} FastShape_infer_node_type_fn_ctx;
+
+/* Fast Shape: FastShape_infer_node_type_param (from infer_node_type.param) */
+typedef struct {
+    ValKind kind;
+    double num;
+    char *str;
+    struct Value **items;
+    int item_count, item_cap;
+    struct Table *fields;
+    IoFunc func;
+    struct Value *target, *inner;
+    struct Value *name;  /* key: "name" */
+    struct Value *type_tag;  /* key: "type_tag" */
+} FastShape_infer_node_type_param;
+
+/* Fast Shape: FastShape_parse_primary_t (from parse_primary.t) */
+typedef struct {
+    ValKind kind;
+    double num;
+    char *str;
+    struct Value **items;
+    int item_count, item_cap;
+    struct Table *fields;
+    IoFunc func;
+    struct Value *target, *inner;
+    struct Value *kind;  /* key: "kind" */
+    struct Value *text;  /* key: "text" */
+    struct Value *pos;  /* key: "pos" */
+    struct Value *line;  /* key: "line" */
+    struct Value *num;  /* key: "num" */
+} FastShape_parse_primary_t;
+
+/* Fast Shape: FastShape_parse_primary_p (from parse_primary.p) */
+typedef struct {
+    ValKind kind;
+    double num;
+    char *str;
+    struct Value **items;
+    int item_count, item_cap;
+    struct Table *fields;
+    IoFunc func;
+    struct Value *target, *inner;
+    struct Value *in_func;  /* key: "in_func" */
+    struct Value *current_func;  /* key: "current_func" */
+    struct Value *filename;  /* key: "filename" */
+} FastShape_parse_primary_p;
+
+/* Fast Shape: FastShape_parse_primary_n (from parse_primary.n) */
+typedef struct {
+    ValKind kind;
+    double num;
+    char *str;
+    struct Value **items;
+    int item_count, item_cap;
+    struct Table *fields;
+    IoFunc func;
+    struct Value *target, *inner;
+    struct Value *type_tag;  /* key: "type_tag" */
+    struct Value *left;  /* key: "left" */
+    struct Value *name;  /* key: "name" */
+} FastShape_parse_primary_n;
+
+/* Fast Shape: FastShape_parse_primary_block (from parse_primary.block) */
+typedef struct {
+    ValKind kind;
+    double num;
+    char *str;
+    struct Value **items;
+    int item_count, item_cap;
+    struct Table *fields;
+    IoFunc func;
+    struct Value *target, *inner;
+    struct Value *body;  /* key: "body" */
+} FastShape_parse_primary_block;
+
+/* Fast Shape: FastShape_parse_primary_do_tok (from parse_primary.do_tok) */
+typedef struct {
+    ValKind kind;
+    double num;
+    char *str;
+    struct Value **items;
+    int item_count, item_cap;
+    struct Table *fields;
+    IoFunc func;
+    struct Value *target, *inner;
+    struct Value *line;  /* key: "line" */
+} FastShape_parse_primary_do_tok;
+
+/* Fast Shape: FastShape_parse_postfix_t (from parse_postfix.t) */
+typedef struct {
+    ValKind kind;
+    double num;
+    char *str;
+    struct Value **items;
+    int item_count, item_cap;
+    struct Table *fields;
+    IoFunc func;
+    struct Value *target, *inner;
+    struct Value *kind;  /* key: "kind" */
+} FastShape_parse_postfix_t;
+
+/* Fast Shape: FastShape_parse_postfix_expr (from parse_postfix.expr) */
+typedef struct {
+    ValKind kind;
+    double num;
+    char *str;
+    struct Value **items;
+    int item_count, item_cap;
+    struct Table *fields;
+    IoFunc func;
+    struct Value *target, *inner;
+    struct Value *kind;  /* key: "kind" */
+} FastShape_parse_postfix_expr;
+
+/* Fast Shape: FastShape_parse_expr_t (from parse_expr.t) */
+typedef struct {
+    ValKind kind;
+    double num;
+    char *str;
+    struct Value **items;
+    int item_count, item_cap;
+    struct Table *fields;
+    IoFunc func;
+    struct Value *target, *inner;
+    struct Value *kind;  /* key: "kind" */
+    struct Value *pos;  /* key: "pos" */
+    struct Value *line;  /* key: "line" */
+} FastShape_parse_expr_t;
+
+/* Fast Shape: FastShape_parse_expr_left (from parse_expr.left) */
+typedef struct {
+    ValKind kind;
+    double num;
+    char *str;
+    struct Value **items;
+    int item_count, item_cap;
+    struct Table *fields;
+    IoFunc func;
+    struct Value *target, *inner;
+    struct Value *kind;  /* key: "kind" */
+    struct Value *name;  /* key: "name" */
+    struct Value *type_tag;  /* key: "type_tag" */
+} FastShape_parse_expr_left;
+
+/* Fast Shape: FastShape_parse_expr_p (from parse_expr.p) */
+typedef struct {
+    ValKind kind;
+    double num;
+    char *str;
+    struct Value **items;
+    int item_count, item_cap;
+    struct Table *fields;
+    IoFunc func;
+    struct Value *target, *inner;
+    struct Value *tokens;  /* key: "tokens" */
+    struct Value *pos;  /* key: "pos" */
+    struct Value *current_func;  /* key: "current_func" */
+    struct Value *filename;  /* key: "filename" */
+} FastShape_parse_expr_p;
+
+/* Fast Shape: FastShape_parse_expr_next (from parse_expr.next) */
+typedef struct {
+    ValKind kind;
+    double num;
+    char *str;
+    struct Value **items;
+    int item_count, item_cap;
+    struct Table *fields;
+    IoFunc func;
+    struct Value *target, *inner;
+    struct Value *kind;  /* key: "kind" */
+} FastShape_parse_expr_next;
+
+/* Fast Shape: FastShape_parse_expr_n (from parse_expr.n) */
+typedef struct {
+    ValKind kind;
+    double num;
+    char *str;
+    struct Value **items;
+    int item_count, item_cap;
+    struct Table *fields;
+    IoFunc func;
+    struct Value *target, *inner;
+    struct Value *right;  /* key: "right" */
+} FastShape_parse_expr_n;
+
+/* Fast Shape: FastShape_parse_expr_op_tok (from parse_expr.op_tok) */
+typedef struct {
+    ValKind kind;
+    double num;
+    char *str;
+    struct Value **items;
+    int item_count, item_cap;
+    struct Table *fields;
+    IoFunc func;
+    struct Value *target, *inner;
+    struct Value *line;  /* key: "line" */
+} FastShape_parse_expr_op_tok;
+
+/* Fast Shape: FastShape_resolve_condition_p (from resolve_condition.p) */
+typedef struct {
+    ValKind kind;
+    double num;
+    char *str;
+    struct Value **items;
+    int item_count, item_cap;
+    struct Table *fields;
+    IoFunc func;
+    struct Value *target, *inner;
+    struct Value *defines;  /* key: "defines" */
+} FastShape_resolve_condition_p;
+
+/* Fast Shape: FastShape_parse_when_stmt_p (from parse_when_stmt.p) */
+typedef struct {
+    ValKind kind;
+    double num;
+    char *str;
+    struct Value **items;
+    int item_count, item_cap;
+    struct Table *fields;
+    IoFunc func;
+    struct Value *target, *inner;
+    struct Value *in_func;  /* key: "in_func" */
+} FastShape_parse_when_stmt_p;
+
+/* Fast Shape: FastShape_parse_stmt_t (from parse_stmt.t) */
+typedef struct {
+    ValKind kind;
+    double num;
+    char *str;
+    struct Value **items;
+    int item_count, item_cap;
+    struct Table *fields;
+    IoFunc func;
+    struct Value *target, *inner;
+    struct Value *kind;  /* key: "kind" */
+    struct Value *text;  /* key: "text" */
+    struct Value *line;  /* key: "line" */
+} FastShape_parse_stmt_t;
+
+/* Fast Shape: FastShape_parse_stmt_p (from parse_stmt.p) */
+typedef struct {
+    ValKind kind;
+    double num;
+    char *str;
+    struct Value **items;
+    int item_count, item_cap;
+    struct Table *fields;
+    IoFunc func;
+    struct Value *target, *inner;
+    struct Value *filename;  /* key: "filename" */
+    struct Value *pasted_files;  /* key: "pasted_files" */
+    struct Value *boot_debug;  /* key: "boot_debug" */
+    struct Value *in_func;  /* key: "in_func" */
+    struct Value *current_func;  /* key: "current_func" */
+    struct Value *constants;  /* key: "constants" */
+} FastShape_parse_stmt_p;
+
+/* Fast Shape: FastShape_parse_stmt_expr (from parse_stmt.expr) */
+typedef struct {
+    ValKind kind;
+    double num;
+    char *str;
+    struct Value **items;
+    int item_count, item_cap;
+    struct Table *fields;
+    IoFunc func;
+    struct Value *target, *inner;
+    struct Value *kind;  /* key: "kind" */
+} FastShape_parse_stmt_expr;
+
+/* Fast Shape: FastShape_parse_block_block (from parse_block.block) */
+typedef struct {
+    ValKind kind;
+    double num;
+    char *str;
+    struct Value **items;
+    int item_count, item_cap;
+    struct Table *fields;
+    IoFunc func;
+    struct Value *target, *inner;
+    struct Value *body;  /* key: "body" */
+} FastShape_parse_block_block;
+
+/* Fast Shape: FastShape_parse_block_last (from parse_block.last) */
+typedef struct {
+    ValKind kind;
+    double num;
+    char *str;
+    struct Value **items;
+    int item_count, item_cap;
+    struct Table *fields;
+    IoFunc func;
+    struct Value *target, *inner;
+    struct Value *kind;  /* key: "kind" */
+} FastShape_parse_block_last;
+
+/* Fast Shape: FastShape_parse_program_t1 (from parse_program.t1) */
+typedef struct {
+    ValKind kind;
+    double num;
+    char *str;
+    struct Value **items;
+    int item_count, item_cap;
+    struct Table *fields;
+    IoFunc func;
+    struct Value *target, *inner;
+    struct Value *kind;  /* key: "kind" */
+} FastShape_parse_program_t1;
+
+/* Fast Shape: FastShape_parse_program_p (from parse_program.p) */
+typedef struct {
+    ValKind kind;
+    double num;
+    char *str;
+    struct Value **items;
+    int item_count, item_cap;
+    struct Table *fields;
+    IoFunc func;
+    struct Value *target, *inner;
+    struct Value *once_registry;  /* key: "once_registry" */
+    struct Value *filename;  /* key: "filename" */
+} FastShape_parse_program_p;
+
+/* Fast Shape: FastShape_val_print_v (from val_print.v) */
+typedef struct {
+    ValKind kind;
+    double num;
+    char *str;
+    struct Value **items;
+    int item_count, item_cap;
+    struct Table *fields;
+    IoFunc func;
+    struct Value *target, *inner;
+    struct Value *kind;  /* key: "kind" */
+    struct Value *items;  /* key: "items" */
+    struct Value *num;  /* key: "num" */
+    struct Value *str;  /* key: "str" */
+} FastShape_val_print_v;
+
+/* Fast Shape: FastShape_val_truthy_v (from val_truthy.v) */
+typedef struct {
+    ValKind kind;
+    double num;
+    char *str;
+    struct Value **items;
+    int item_count, item_cap;
+    struct Table *fields;
+    IoFunc func;
+    struct Value *target, *inner;
+    struct Value *kind;  /* key: "kind" */
+    struct Value *num;  /* key: "num" */
+    struct Value *items;  /* key: "items" */
+    struct Value *str;  /* key: "str" */
+} FastShape_val_truthy_v;
+
+/* Fast Shape: FastShape_val_unwrap_curr (from val_unwrap.curr) */
+typedef struct {
+    ValKind kind;
+    double num;
+    char *str;
+    struct Value **items;
+    int item_count, item_cap;
+    struct Table *fields;
+    IoFunc func;
+    struct Value *target, *inner;
+    struct Value *kind;  /* key: "kind" */
+    struct Value *inner;  /* key: "inner" */
+    struct Value *target;  /* key: "target" */
+} FastShape_val_unwrap_curr;
+
+/* Fast Shape: FastShape_table_get_curr (from table_get.curr) */
+typedef struct {
+    ValKind kind;
+    double num;
+    char *str;
+    struct Value **items;
+    int item_count, item_cap;
+    struct Table *fields;
+    IoFunc func;
+    struct Value *target, *inner;
+    struct Value *parent;  /* key: "parent" */
+} FastShape_table_get_curr;
+
+/* Fast Shape: FastShape_eval_block_block (from eval_block.block) */
+typedef struct {
+    ValKind kind;
+    double num;
+    char *str;
+    struct Value **items;
+    int item_count, item_cap;
+    struct Table *fields;
+    IoFunc func;
+    struct Value *target, *inner;
+    struct Value *body;  /* key: "body" */
+} FastShape_eval_block_block;
+
+/* Fast Shape: FastShape_eval_block_last (from eval_block.last) */
+typedef struct {
+    ValKind kind;
+    double num;
+    char *str;
+    struct Value **items;
+    int item_count, item_cap;
+    struct Table *fields;
+    IoFunc func;
+    struct Value *target, *inner;
+    struct Value *kind;  /* key: "kind" */
+} FastShape_eval_block_last;
+
+/* Fast Shape: FastShape_eval_db_flag (from eval.db_flag) */
+typedef struct {
+    ValKind kind;
+    double num;
+    char *str;
+    struct Value **items;
+    int item_count, item_cap;
+    struct Table *fields;
+    IoFunc func;
+    struct Value *target, *inner;
+    struct Value *kind;  /* key: "kind" */
+    struct Value *num;  /* key: "num" */
+} FastShape_eval_db_flag;
+
+/* Fast Shape: FastShape_eval_n (from eval.n) */
+typedef struct {
+    ValKind kind;
+    double num;
+    char *str;
+    struct Value **items;
+    int item_count, item_cap;
+    struct Table *fields;
+    IoFunc func;
+    struct Value *target, *inner;
+    struct Value *kind;  /* key: "kind" */
+    struct Value *filename;  /* key: "filename" */
+    struct Value *line;  /* key: "line" */
+    struct Value *num;  /* key: "num" */
+    struct Value *str;  /* key: "str" */
+    struct Value *left;  /* key: "left" */
+    struct Value *name;  /* key: "name" */
+    struct Value *right;  /* key: "right" */
+    struct Value *op;  /* key: "op" */
+    struct Value *body;  /* key: "body" */
+} FastShape_eval_n;
+
+/* Fast Shape: FastShape_eval_v (from eval.v) */
+typedef struct {
+    ValKind kind;
+    double num;
+    char *str;
+    struct Value **items;
+    int item_count, item_cap;
+    struct Table *fields;
+    IoFunc func;
+    struct Value *target, *inner;
+    struct Value *num;  /* key: "num" */
+    struct Value *str;  /* key: "str" */
+    struct Value *kind;  /* key: "kind" */
+    struct Value *items;  /* key: "items" */
+} FastShape_eval_v;
+
+/* Fast Shape: FastShape_eval_res (from eval.res) */
+typedef struct {
+    ValKind kind;
+    double num;
+    char *str;
+    struct Value **items;
+    int item_count, item_cap;
+    struct Table *fields;
+    IoFunc func;
+    struct Value *target, *inner;
+    struct Value *kind;  /* key: "kind" */
+    struct Value *inner;  /* key: "inner" */
+} FastShape_eval_res;
+
+/* Fast Shape: FastShape_eval_fn (from eval.fn) */
+typedef struct {
+    ValKind kind;
+    double num;
+    char *str;
+    struct Value **items;
+    int item_count, item_cap;
+    struct Table *fields;
+    IoFunc func;
+    struct Value *target, *inner;
+    struct Value *left;  /* key: "left" */
+    struct Value *body;  /* key: "body" */
+} FastShape_eval_fn;
+
+/* Fast Shape: FastShape_eval_left (from eval.left) */
+typedef struct {
+    ValKind kind;
+    double num;
+    char *str;
+    struct Value **items;
+    int item_count, item_cap;
+    struct Table *fields;
+    IoFunc func;
+    struct Value *target, *inner;
+    struct Value *kind;  /* key: "kind" */
+    struct Value *left;  /* key: "left" */
+    struct Value *right;  /* key: "right" */
+    struct Value *name;  /* key: "name" */
+} FastShape_eval_left;
+
+/* Fast Shape: FastShape_eval_target (from eval.target) */
+typedef struct {
+    ValKind kind;
+    double num;
+    char *str;
+    struct Value **items;
+    int item_count, item_cap;
+    struct Table *fields;
+    IoFunc func;
+    struct Value *target, *inner;
+    struct Value *kind;  /* key: "kind" */
+    struct Value *fields;  /* key: "fields" */
+    struct Value *str;  /* key: "str" */
+    struct Value *items;  /* key: "items" */
+} FastShape_eval_target;
+
+/* Fast Shape: FastShape_eval_idx (from eval.idx) */
+typedef struct {
+    ValKind kind;
+    double num;
+    char *str;
+    struct Value **items;
+    int item_count, item_cap;
+    struct Table *fields;
+    IoFunc func;
+    struct Value *target, *inner;
+    struct Value *kind;  /* key: "kind" */
+    struct Value *str;  /* key: "str" */
+    struct Value *num;  /* key: "num" */
+} FastShape_eval_idx;
+
+/* Fast Shape: FastShape_eval_l (from eval.l) */
+typedef struct {
+    ValKind kind;
+    double num;
+    char *str;
+    struct Value **items;
+    int item_count, item_cap;
+    struct Table *fields;
+    IoFunc func;
+    struct Value *target, *inner;
+    struct Value *kind;  /* key: "kind" */
+    struct Value *num;  /* key: "num" */
+    struct Value *str;  /* key: "str" */
+} FastShape_eval_l;
+
+/* Shape Tracker: Emitted 49 optimized structs */
+
 typedef struct { size_t cap; size_t off; char* data; } Arena;
 
 static Value* io_func_enable_ansi_colors(Table* parent, int argc, Value** argv) {
@@ -159,9 +868,9 @@ static Value* io_func_get_kw_kind(Table* parent, int argc, Value** argv) {
   if(argc > 0) table_set(env, "text", argv[0]);
   table_set(env, "kind", runtime_at(runtime_var_get(env, "KW_MAP"), runtime_var_get(env, "text")));
   if (val_truthy(runtime_binop(40, runtime_type(runtime_var_get(env, "kind")), val_str("none")))) {
-    runtime_var_get(env, "TOK_IDENT");
+    { Value* _v = runtime_var_get(env, "TOK_IDENT"); if (_v && _v->kind == VAL_FUNC) _v = runtime_call(_v, env, 0, NULL); }
   } else {
-    runtime_var_get(env, "kind");
+    { Value* _v = runtime_var_get(env, "kind"); if (_v && _v->kind == VAL_FUNC) _v = runtime_call(_v, env, 0, NULL); }
   }
   return val_none();
 }
@@ -655,31 +1364,31 @@ runtime_call(table_get(env, "skip_newlines"), env, 1, (Value*[]){runtime_var_get
 table_set(env, "n", runtime_call(table_get(env, "parse_expr"), env, 1, (Value*[]){runtime_var_get(env, "p")}));
 runtime_call(table_get(env, "skip_newlines"), env, 1, (Value*[]){runtime_var_get(env, "p")});
 runtime_call(table_get(env, "expect"), env, 2, (Value*[]){runtime_var_get(env, "p"), runtime_var_get(env, "TOK_RPAREN")});
-runtime_var_get(env, "n");
+{ Value* _v = runtime_var_get(env, "n"); if (_v && _v->kind == VAL_FUNC) _v = runtime_call(_v, env, 0, NULL); }
   } else {
     if (val_truthy(runtime_binop(40, runtime_var_get(env, "k"), runtime_var_get(env, "TOK_MINUS")))) {
       runtime_call(table_get(env, "advance"), env, 1, (Value*[]){runtime_var_get(env, "p")});
 table_set(env, "n", runtime_call(table_get(env, "nd_new"), env, 2, (Value*[]){runtime_var_get(env, "ND_UMINUS"), runtime_var_get(env, "t")}));
 runtime_key(runtime_var_get(env, "n"), val_str("left"), runtime_call(table_get(env, "parse_primary"), env, 1, (Value*[]){runtime_var_get(env, "p")}));
-runtime_var_get(env, "n");
+{ Value* _v = runtime_var_get(env, "n"); if (_v && _v->kind == VAL_FUNC) _v = runtime_call(_v, env, 0, NULL); }
     } else {
       if (val_truthy(runtime_binop(40, runtime_var_get(env, "k"), runtime_var_get(env, "TOK_NOT")))) {
         runtime_call(table_get(env, "advance"), env, 1, (Value*[]){runtime_var_get(env, "p")});
 table_set(env, "n", runtime_call(table_get(env, "nd_new"), env, 2, (Value*[]){runtime_var_get(env, "ND_NOT"), runtime_var_get(env, "t")}));
 runtime_key(runtime_var_get(env, "n"), val_str("left"), runtime_call(table_get(env, "parse_primary"), env, 1, (Value*[]){runtime_var_get(env, "p")}));
-runtime_var_get(env, "n");
+{ Value* _v = runtime_var_get(env, "n"); if (_v && _v->kind == VAL_FUNC) _v = runtime_call(_v, env, 0, NULL); }
       } else {
         if (val_truthy(runtime_binop(40, runtime_var_get(env, "k"), runtime_var_get(env, "TOK_NUM")))) {
           runtime_call(table_get(env, "advance"), env, 1, (Value*[]){runtime_var_get(env, "p")});
 table_set(env, "n", runtime_call(table_get(env, "nd_new"), env, 2, (Value*[]){runtime_var_get(env, "ND_NUM"), runtime_var_get(env, "t")}));
 runtime_key(runtime_var_get(env, "n"), val_str("num"), runtime_at(runtime_var_get(env, "t"), val_str("num")));
-runtime_var_get(env, "n");
+{ Value* _v = runtime_var_get(env, "n"); if (_v && _v->kind == VAL_FUNC) _v = runtime_call(_v, env, 0, NULL); }
         } else {
           if (val_truthy(runtime_binop(40, runtime_var_get(env, "k"), runtime_var_get(env, "TOK_STR")))) {
             runtime_call(table_get(env, "advance"), env, 1, (Value*[]){runtime_var_get(env, "p")});
 table_set(env, "n", runtime_call(table_get(env, "nd_new"), env, 2, (Value*[]){runtime_var_get(env, "ND_STR"), runtime_var_get(env, "t")}));
 runtime_key(runtime_var_get(env, "n"), val_str("str"), runtime_at(runtime_var_get(env, "t"), val_str("text")));
-runtime_var_get(env, "n");
+{ Value* _v = runtime_var_get(env, "n"); if (_v && _v->kind == VAL_FUNC) _v = runtime_call(_v, env, 0, NULL); }
           } else {
             if (val_truthy(runtime_binop(40, runtime_var_get(env, "k"), runtime_var_get(env, "TOK_ASK")))) {
               runtime_call(table_get(env, "advance"), env, 1, (Value*[]){runtime_var_get(env, "p")});
@@ -693,50 +1402,50 @@ runtime_call(table_get(env, "nd_new"), env, 2, (Value*[]){runtime_var_get(env, "
                   runtime_call(table_get(env, "advance"), env, 1, (Value*[]){runtime_var_get(env, "p")});
 table_set(env, "n", runtime_call(table_get(env, "nd_new"), env, 2, (Value*[]){runtime_var_get(env, "ND_KEYS"), runtime_var_get(env, "t")}));
 runtime_key(runtime_var_get(env, "n"), val_str("left"), runtime_call(table_get(env, "parse_postfix"), env, 1, (Value*[]){runtime_var_get(env, "p")}));
-runtime_var_get(env, "n");
+{ Value* _v = runtime_var_get(env, "n"); if (_v && _v->kind == VAL_FUNC) _v = runtime_call(_v, env, 0, NULL); }
                 } else {
                   if (val_truthy(runtime_binop(40, runtime_var_get(env, "k"), runtime_var_get(env, "TOK_LEN")))) {
                     runtime_call(table_get(env, "advance"), env, 1, (Value*[]){runtime_var_get(env, "p")});
 table_set(env, "n", runtime_call(table_get(env, "nd_new"), env, 2, (Value*[]){runtime_var_get(env, "ND_LEN"), runtime_var_get(env, "t")}));
 runtime_key(runtime_var_get(env, "n"), val_str("left"), runtime_call(table_get(env, "parse_postfix"), env, 1, (Value*[]){runtime_var_get(env, "p")}));
-runtime_var_get(env, "n");
+{ Value* _v = runtime_var_get(env, "n"); if (_v && _v->kind == VAL_FUNC) _v = runtime_call(_v, env, 0, NULL); }
                   } else {
                     if (val_truthy(runtime_binop(40, runtime_var_get(env, "k"), runtime_var_get(env, "TOK_ORD")))) {
                       runtime_call(table_get(env, "advance"), env, 1, (Value*[]){runtime_var_get(env, "p")});
 table_set(env, "n", runtime_call(table_get(env, "nd_new"), env, 2, (Value*[]){runtime_var_get(env, "ND_ORD"), runtime_var_get(env, "t")}));
 runtime_key(runtime_var_get(env, "n"), val_str("left"), runtime_call(table_get(env, "parse_postfix"), env, 1, (Value*[]){runtime_var_get(env, "p")}));
-runtime_var_get(env, "n");
+{ Value* _v = runtime_var_get(env, "n"); if (_v && _v->kind == VAL_FUNC) _v = runtime_call(_v, env, 0, NULL); }
                     } else {
                       if (val_truthy(runtime_binop(40, runtime_var_get(env, "k"), runtime_var_get(env, "TOK_CHR")))) {
                         runtime_call(table_get(env, "advance"), env, 1, (Value*[]){runtime_var_get(env, "p")});
 table_set(env, "n", runtime_call(table_get(env, "nd_new"), env, 2, (Value*[]){runtime_var_get(env, "ND_CHR"), runtime_var_get(env, "t")}));
 runtime_key(runtime_var_get(env, "n"), val_str("left"), runtime_call(table_get(env, "parse_postfix"), env, 1, (Value*[]){runtime_var_get(env, "p")}));
-runtime_var_get(env, "n");
+{ Value* _v = runtime_var_get(env, "n"); if (_v && _v->kind == VAL_FUNC) _v = runtime_call(_v, env, 0, NULL); }
                       } else {
                         if (val_truthy(runtime_binop(40, runtime_var_get(env, "k"), runtime_var_get(env, "TOK_TONUM")))) {
                           runtime_call(table_get(env, "advance"), env, 1, (Value*[]){runtime_var_get(env, "p")});
 table_set(env, "n", runtime_call(table_get(env, "nd_new"), env, 2, (Value*[]){runtime_var_get(env, "ND_TONUM"), runtime_var_get(env, "t")}));
 runtime_key(runtime_var_get(env, "n"), val_str("left"), runtime_call(table_get(env, "parse_postfix"), env, 1, (Value*[]){runtime_var_get(env, "p")}));
-runtime_var_get(env, "n");
+{ Value* _v = runtime_var_get(env, "n"); if (_v && _v->kind == VAL_FUNC) _v = runtime_call(_v, env, 0, NULL); }
                         } else {
                           if (val_truthy(runtime_binop(40, runtime_var_get(env, "k"), runtime_var_get(env, "TOK_TOSTR")))) {
                             runtime_call(table_get(env, "advance"), env, 1, (Value*[]){runtime_var_get(env, "p")});
 table_set(env, "n", runtime_call(table_get(env, "nd_new"), env, 2, (Value*[]){runtime_var_get(env, "ND_TOSTR"), runtime_var_get(env, "t")}));
 runtime_key(runtime_var_get(env, "n"), val_str("left"), runtime_call(table_get(env, "parse_postfix"), env, 1, (Value*[]){runtime_var_get(env, "p")}));
-runtime_var_get(env, "n");
+{ Value* _v = runtime_var_get(env, "n"); if (_v && _v->kind == VAL_FUNC) _v = runtime_call(_v, env, 0, NULL); }
                           } else {
                             if (val_truthy(runtime_binop(40, runtime_var_get(env, "k"), runtime_var_get(env, "TOK_SPLIT")))) {
                               runtime_call(table_get(env, "advance"), env, 1, (Value*[]){runtime_var_get(env, "p")});
 table_set(env, "n", runtime_call(table_get(env, "nd_new"), env, 2, (Value*[]){runtime_var_get(env, "ND_SPLIT"), runtime_var_get(env, "t")}));
 runtime_key(runtime_var_get(env, "n"), val_str("left"), runtime_call(table_get(env, "parse_primary"), env, 1, (Value*[]){runtime_var_get(env, "p")}));
 runtime_key(runtime_var_get(env, "n"), val_str("right"), runtime_call(table_get(env, "parse_primary"), env, 1, (Value*[]){runtime_var_get(env, "p")}));
-runtime_var_get(env, "n");
+{ Value* _v = runtime_var_get(env, "n"); if (_v && _v->kind == VAL_FUNC) _v = runtime_call(_v, env, 0, NULL); }
                             } else {
                               if (val_truthy(runtime_binop(40, runtime_var_get(env, "k"), runtime_var_get(env, "TOK_TRIM")))) {
                                 runtime_call(table_get(env, "advance"), env, 1, (Value*[]){runtime_var_get(env, "p")});
 table_set(env, "n", runtime_call(table_get(env, "nd_new"), env, 2, (Value*[]){runtime_var_get(env, "ND_TRIM"), runtime_var_get(env, "t")}));
 runtime_key(runtime_var_get(env, "n"), val_str("left"), runtime_call(table_get(env, "parse_primary"), env, 1, (Value*[]){runtime_var_get(env, "p")}));
-runtime_var_get(env, "n");
+{ Value* _v = runtime_var_get(env, "n"); if (_v && _v->kind == VAL_FUNC) _v = runtime_call(_v, env, 0, NULL); }
                               } else {
                                 if (val_truthy(runtime_binop(40, runtime_var_get(env, "k"), runtime_var_get(env, "TOK_REPLACE")))) {
                                   runtime_call(table_get(env, "advance"), env, 1, (Value*[]){runtime_var_get(env, "p")});
@@ -744,13 +1453,13 @@ table_set(env, "n", runtime_call(table_get(env, "nd_new"), env, 2, (Value*[]){ru
 runtime_key(runtime_var_get(env, "n"), val_str("left"), runtime_call(table_get(env, "parse_primary"), env, 1, (Value*[]){runtime_var_get(env, "p")}));
 runtime_call(table_get(env, "nd_push"), env, 2, (Value*[]){runtime_var_get(env, "n"), runtime_call(table_get(env, "parse_primary"), env, 1, (Value*[]){runtime_var_get(env, "p")})});
 runtime_call(table_get(env, "nd_push"), env, 2, (Value*[]){runtime_var_get(env, "n"), runtime_call(table_get(env, "parse_primary"), env, 1, (Value*[]){runtime_var_get(env, "p")})});
-runtime_var_get(env, "n");
+{ Value* _v = runtime_var_get(env, "n"); if (_v && _v->kind == VAL_FUNC) _v = runtime_call(_v, env, 0, NULL); }
                                 } else {
                                   if (val_truthy(runtime_binop(40, runtime_var_get(env, "k"), runtime_var_get(env, "TOK_SAFE")))) {
                                     runtime_call(table_get(env, "advance"), env, 1, (Value*[]){runtime_var_get(env, "p")});
 table_set(env, "n", runtime_call(table_get(env, "nd_new"), env, 2, (Value*[]){runtime_var_get(env, "ND_SAFE"), runtime_var_get(env, "t")}));
 runtime_key(runtime_var_get(env, "n"), val_str("left"), runtime_call(table_get(env, "parse_primary"), env, 1, (Value*[]){runtime_var_get(env, "p")}));
-runtime_var_get(env, "n");
+{ Value* _v = runtime_var_get(env, "n"); if (_v && _v->kind == VAL_FUNC) _v = runtime_call(_v, env, 0, NULL); }
                                   } else {
                                     if (val_truthy(runtime_binop(40, runtime_var_get(env, "k"), runtime_var_get(env, "TOK_SLICE")))) {
                                       runtime_call(table_get(env, "advance"), env, 1, (Value*[]){runtime_var_get(env, "p")});
@@ -758,13 +1467,13 @@ table_set(env, "n", runtime_call(table_get(env, "nd_new"), env, 2, (Value*[]){ru
 runtime_key(runtime_var_get(env, "n"), val_str("left"), runtime_call(table_get(env, "parse_primary"), env, 1, (Value*[]){runtime_var_get(env, "p")}));
 runtime_call(table_get(env, "nd_push"), env, 2, (Value*[]){runtime_var_get(env, "n"), runtime_call(table_get(env, "parse_primary"), env, 1, (Value*[]){runtime_var_get(env, "p")})});
 runtime_call(table_get(env, "nd_push"), env, 2, (Value*[]){runtime_var_get(env, "n"), runtime_call(table_get(env, "parse_primary"), env, 1, (Value*[]){runtime_var_get(env, "p")})});
-runtime_var_get(env, "n");
+{ Value* _v = runtime_var_get(env, "n"); if (_v && _v->kind == VAL_FUNC) _v = runtime_call(_v, env, 0, NULL); }
                                     } else {
                                       if (val_truthy(runtime_binop(40, runtime_var_get(env, "k"), runtime_var_get(env, "TOK_TYPE")))) {
                                         runtime_call(table_get(env, "advance"), env, 1, (Value*[]){runtime_var_get(env, "p")});
 table_set(env, "n", runtime_call(table_get(env, "nd_new"), env, 2, (Value*[]){runtime_var_get(env, "ND_TYPE"), runtime_var_get(env, "t")}));
 runtime_key(runtime_var_get(env, "n"), val_str("left"), runtime_call(table_get(env, "parse_primary"), env, 1, (Value*[]){runtime_var_get(env, "p")}));
-runtime_var_get(env, "n");
+{ Value* _v = runtime_var_get(env, "n"); if (_v && _v->kind == VAL_FUNC) _v = runtime_call(_v, env, 0, NULL); }
                                       } else {
                                         if (val_truthy(runtime_binop(40, runtime_var_get(env, "k"), runtime_var_get(env, "TOK_TIME")))) {
                                           runtime_call(table_get(env, "advance"), env, 1, (Value*[]){runtime_var_get(env, "p")});
@@ -774,25 +1483,25 @@ runtime_call(table_get(env, "nd_new"), env, 2, (Value*[]){runtime_var_get(env, "
                                             runtime_call(table_get(env, "advance"), env, 1, (Value*[]){runtime_var_get(env, "p")});
 table_set(env, "n", runtime_call(table_get(env, "nd_new"), env, 2, (Value*[]){runtime_var_get(env, "ND_SYS"), runtime_var_get(env, "t")}));
 runtime_key(runtime_var_get(env, "n"), val_str("left"), runtime_call(table_get(env, "parse_postfix"), env, 1, (Value*[]){runtime_var_get(env, "p")}));
-runtime_var_get(env, "n");
+{ Value* _v = runtime_var_get(env, "n"); if (_v && _v->kind == VAL_FUNC) _v = runtime_call(_v, env, 0, NULL); }
                                           } else {
                                             if (val_truthy(runtime_binop(40, runtime_var_get(env, "k"), runtime_var_get(env, "TOK_REF")))) {
                                               runtime_call(table_get(env, "advance"), env, 1, (Value*[]){runtime_var_get(env, "p")});
 table_set(env, "n", runtime_call(table_get(env, "nd_new"), env, 2, (Value*[]){runtime_var_get(env, "ND_REF"), runtime_var_get(env, "t")}));
 runtime_key(runtime_var_get(env, "n"), val_str("left"), runtime_call(table_get(env, "parse_primary"), env, 1, (Value*[]){runtime_var_get(env, "p")}));
-runtime_var_get(env, "n");
+{ Value* _v = runtime_var_get(env, "n"); if (_v && _v->kind == VAL_FUNC) _v = runtime_call(_v, env, 0, NULL); }
                                             } else {
                                               if (val_truthy(runtime_binop(40, runtime_var_get(env, "k"), runtime_var_get(env, "TOK_ENV")))) {
                                                 runtime_call(table_get(env, "advance"), env, 1, (Value*[]){runtime_var_get(env, "p")});
 table_set(env, "n", runtime_call(table_get(env, "nd_new"), env, 2, (Value*[]){runtime_var_get(env, "ND_ENV"), runtime_var_get(env, "t")}));
 runtime_key(runtime_var_get(env, "n"), val_str("left"), runtime_call(table_get(env, "parse_postfix"), env, 1, (Value*[]){runtime_var_get(env, "p")}));
-runtime_var_get(env, "n");
+{ Value* _v = runtime_var_get(env, "n"); if (_v && _v->kind == VAL_FUNC) _v = runtime_call(_v, env, 0, NULL); }
                                               } else {
                                                 if (val_truthy(runtime_binop(40, runtime_var_get(env, "k"), runtime_var_get(env, "TOK_EXIT")))) {
                                                   runtime_call(table_get(env, "advance"), env, 1, (Value*[]){runtime_var_get(env, "p")});
 table_set(env, "n", runtime_call(table_get(env, "nd_new"), env, 2, (Value*[]){runtime_var_get(env, "ND_EXIT"), runtime_var_get(env, "t")}));
 runtime_key(runtime_var_get(env, "n"), val_str("left"), runtime_call(table_get(env, "parse_postfix"), env, 1, (Value*[]){runtime_var_get(env, "p")}));
-runtime_var_get(env, "n");
+{ Value* _v = runtime_var_get(env, "n"); if (_v && _v->kind == VAL_FUNC) _v = runtime_call(_v, env, 0, NULL); }
                                                 } else {
                                                   if (val_truthy(runtime_binop(40, runtime_var_get(env, "k"), runtime_var_get(env, "TOK_LIST")))) {
                                                     runtime_call(table_get(env, "advance"), env, 1, (Value*[]){runtime_var_get(env, "p")});
@@ -849,13 +1558,13 @@ exit((int)(val_num(1))->num);
 runtime_key(runtime_var_get(env, "p"), val_str("current_func"), runtime_var_get(env, "old_func"));
 runtime_key(runtime_var_get(env, "p"), val_str("in_func"), runtime_binop(42, runtime_at(runtime_var_get(env, "p"), val_str("in_func")), val_num(1)));
 runtime_call(table_get(env, "expect"), env, 2, (Value*[]){runtime_var_get(env, "p"), runtime_var_get(env, "TOK_DEDENT")});
-runtime_var_get(env, "n");
+{ Value* _v = runtime_var_get(env, "n"); if (_v && _v->kind == VAL_FUNC) _v = runtime_call(_v, env, 0, NULL); }
                                                       } else {
                                                         if (val_truthy(runtime_binop(40, runtime_var_get(env, "k"), runtime_var_get(env, "TOK_IDENT")))) {
                                                           runtime_call(table_get(env, "advance"), env, 1, (Value*[]){runtime_var_get(env, "p")});
 table_set(env, "n", runtime_call(table_get(env, "nd_new"), env, 2, (Value*[]){runtime_var_get(env, "ND_VAR"), runtime_var_get(env, "t")}));
 runtime_key(runtime_var_get(env, "n"), val_str("name"), runtime_at(runtime_var_get(env, "t"), val_str("text")));
-runtime_var_get(env, "n");
+{ Value* _v = runtime_var_get(env, "n"); if (_v && _v->kind == VAL_FUNC) _v = runtime_call(_v, env, 0, NULL); }
                                                         } else {
                                                           runtime_str_concat(runtime_tostr(val_str("Unexpected token: "))->str, runtime_tostr(runtime_at(runtime_var_get(env, "t"), val_str("text")))->str);
 exit((int)(val_num(1))->num);
@@ -1643,7 +2352,7 @@ if (val_truthy(runtime_binop(40, runtime_at(runtime_var_get(env, "res"), val_str
   break;
 }
 if (val_truthy(runtime_binop(40, runtime_at(runtime_var_get(env, "res"), val_str("kind")), runtime_var_get(env, "VAL_SKIP")))) {
-  runtime_var_get(env, "skip");
+  { Value* _v = runtime_var_get(env, "skip"); if (_v && _v->kind == VAL_FUNC) _v = runtime_call(_v, env, 0, NULL); }
 }
 if (val_truthy(runtime_binop(40, runtime_at(runtime_var_get(env, "res"), val_str("kind")), runtime_var_get(env, "VAL_OUT")))) {
   return val_out(runtime_var_get(env, "res"));
@@ -1663,7 +2372,7 @@ if (val_truthy(runtime_binop(40, runtime_at(runtime_var_get(env, "res"), val_str
 }
 if (val_truthy(runtime_binop(40, runtime_at(runtime_var_get(env, "res"), val_str("kind")), runtime_var_get(env, "VAL_SKIP")))) {
   table_set(env, "i", runtime_binop(41, runtime_var_get(env, "i"), val_num(1)));
-runtime_var_get(env, "skip");
+{ Value* _v = runtime_var_get(env, "skip"); if (_v && _v->kind == VAL_FUNC) _v = runtime_call(_v, env, 0, NULL); }
 }
 if (val_truthy(runtime_binop(40, runtime_at(runtime_var_get(env, "res"), val_str("kind")), runtime_var_get(env, "VAL_OUT")))) {
   return val_out(runtime_var_get(env, "res"));
@@ -1728,7 +2437,7 @@ return val_out(runtime_call(table_get(env, "val_str"), env, 1, (Value*[]){val_no
   if (val_truthy(runtime_binop(40, runtime_var_get(env, "k"), runtime_var_get(env, "ND_PRINT")))) {
     table_set(env, "v_print", runtime_call(table_get(env, "val_unwrap"), env, 1, (Value*[]){runtime_call(table_get(env, "eval"), env, 2, (Value*[]){runtime_at(runtime_var_get(env, "n"), val_str("left")), runtime_var_get(env, "env_")})}));
 runtime_put(val_str(""), runtime_binop(41, runtime_call(table_get(env, "val_print"), env, 1, (Value*[]){runtime_var_get(env, "v_print")}), val_str("\n")), 0);
-runtime_var_get(env, "v_print");
+{ Value* _v = runtime_var_get(env, "v_print"); if (_v && _v->kind == VAL_FUNC) _v = runtime_call(_v, env, 0, NULL); }
   }
   if (val_truthy(runtime_binop(40, runtime_var_get(env, "k"), runtime_var_get(env, "ND_BLOCK")))) {
     return val_out(runtime_call(table_get(env, "eval_block"), env, 2, (Value*[]){runtime_var_get(env, "n"), runtime_var_get(env, "env_")}));
@@ -2240,9 +2949,9 @@ static Value* io_func_compile_to_c(Table* parent, int argc, Value** argv) {
   Table* env = table_new(parent);
   if(argc > 0) table_set(env, "prog", argv[0]);
   table_set(env, "c_lines", val_list());
-  runtime_var_get(env, "init_indent_cache");
+  { Value* _v = runtime_var_get(env, "init_indent_cache"); if (_v && _v->kind == VAL_FUNC) _v = runtime_call(_v, env, 0, NULL); }
   table_set(env, "indent_lvl", val_num(0));
-  runtime_var_get(env, "emit_runtime");
+  { Value* _v = runtime_var_get(env, "emit_runtime"); if (_v && _v->kind == VAL_FUNC) _v = runtime_call(_v, env, 0, NULL); }
   runtime_call(table_get(env, "emit"), env, 1, (Value*[]){val_str("/* Generated by Vii Codegen */")});
   table_set(env, "body", runtime_at(runtime_var_get(env, "prog"), val_str("body")));
   table_set(env, "i", val_num(0));
@@ -2354,7 +3063,7 @@ table_set(env, "i", runtime_binop(41, runtime_var_get(env, "i"), val_num(1)));
 
 static Value* io_func_main(Table* parent, int argc, Value** argv) {
   Table* env = table_new(parent);
-  table_set(env, "global_arena", runtime_call(table_get(env, "arena_create"), env, 1, (Value*[]){runtime_binop(43, val_num(512 * 1024), val_num(1024))}));
+  table_set(env, "global_arena", runtime_call(table_get(env, "arena_create"), env, 1, (Value*[]){runtime_binop(43, val_num(64 * 1024), val_num(1024))}));
   table_set(env, "input_path", val_str("none"));
   table_set(env, "output_name", val_str("none"));
   table_set(env, "keep_c", val_num(0));
@@ -2365,7 +3074,7 @@ static Value* io_func_main(Table* parent, int argc, Value** argv) {
   table_set(env, "trace", val_num(0));
   table_set(env, "argc", runtime_len(io_args));
   if (val_truthy(runtime_binop(47, runtime_var_get(env, "argc"), val_num(1)))) {
-    runtime_var_get(env, "print_usage");
+    { Value* _v = runtime_var_get(env, "print_usage"); if (_v && _v->kind == VAL_FUNC) _v = runtime_call(_v, env, 0, NULL); }
   }
   table_set(env, "i", val_num(0));
   while (val_truthy(runtime_binop(47, runtime_var_get(env, "i"), runtime_var_get(env, "argc")))) {
@@ -2420,7 +3129,7 @@ exit((int)(val_num(1))->num);
 exit((int)(val_num(0))->num);
                 } else {
                   if (val_truthy(runtime_binop(40, runtime_var_get(env, "current_arg"), val_str("--help")))) {
-                    runtime_var_get(env, "print_usage");
+                    { Value* _v = runtime_var_get(env, "print_usage"); if (_v && _v->kind == VAL_FUNC) _v = runtime_call(_v, env, 0, NULL); }
                   } else {
                     if (val_truthy(runtime_call(table_get(env, "str_contains"), env, 2, (Value*[]){runtime_var_get(env, "current_arg"), val_str("main.vii")}))) {
                       val_str("");
@@ -2457,7 +3166,7 @@ if (val_truthy(runtime_binop(40, runtime_var_get(env, "first_char"), val_str("-"
 table_set(env, "i", runtime_binop(41, runtime_var_get(env, "i"), val_num(1)));
   }
   if (val_truthy(runtime_binop(40, runtime_var_get(env, "input_path"), val_str("none")))) {
-    runtime_var_get(env, "print_usage");
+    { Value* _v = runtime_var_get(env, "print_usage"); if (_v && _v->kind == VAL_FUNC) _v = runtime_call(_v, env, 0, NULL); }
   }
   if (val_truthy(runtime_binop(51, runtime_var_get(env, "output_name"), val_str("none")))) {
     table_set(env, "has_exe", runtime_call(table_get(env, "str_contains"), env, 2, (Value*[]){runtime_var_get(env, "output_name"), val_str(".exe")}));
