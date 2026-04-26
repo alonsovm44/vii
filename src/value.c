@@ -87,3 +87,17 @@ Value* val_print(Value *v) {
     val_print_to(v, stdout);
     return v;
 }
+
+const char* val_kind_name(int kind) {
+    switch (kind) {
+        case VAL_NUM:  return "num";
+        case VAL_STR:  return "str";
+        case VAL_LIST: return "list";
+        case VAL_DICT: return "dict";
+        case VAL_BIT:  return "bit";
+        case VAL_REF:  return "ref";
+        case VAL_OUT:  return "out";
+        case VAL_NONE: return "none";
+        default:       return "unknown";
+    }
+}

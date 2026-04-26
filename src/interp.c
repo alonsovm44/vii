@@ -774,6 +774,52 @@ Value *eval(Node *n, Table *env) {
         }
         case ND_BLOCK:
             return eval_block(n, env);
+        case ND_CAST: {
+            /* Cast expression: value -> type */
+            Value *val = eval(n->left, env);
+            const char *target_type = n->type_tag;
+            
+            if (!target_type) {
+                runtime_error(n, "cast missing target type");
+            }
+            
+            /* For now, numeric casts just preserve the value but validate the type */
+            /* Future: implement actual bit-level conversions */
+            if (strcmp(target_type, "i8") == 0 || strcmp(target_type, "i16") == 0 ||
+                strcmp(target_type, "i32") == 0 || strcmp(target_type, "i64") == 0 ||
+                strcmp(target_type, "u8") == 0 || strcmp(target_type, "u16") == 0 ||
+                strcmp(target_type, "u32") == 0 || strcmp(target_type, "u64") == 0 ||
+                strcmp(target_type, "f32") == 0 || strcmp(target_type, "f64") == 0) {
+                /* Numeric cast - return as number for now */
+                return val;
+            } else if (strcmp(target_type, "str") == 0) {
+                /* Cast to string */
+                if (val->kind == VAL_NUM) {
+                    char buf[64];
+                    if (val->num == (double)(long long)val->num) {
+                        snprintf(buf, sizeof(buf), "%lld", (long long)val->num);
+                    } else {
+                        snprintf(buf, sizeof(buf), "%g", val->num);
+                    }
+                    return val_str(buf);
+                } else if (val->kind == VAL_STR) {
+                    return val;
+                } else {
+                    runtime_error(n, "cannot cast %s to str", val_kind_name(val->kind));
+                }
+            } else if (strcmp(target_type, "num") == 0) {
+                /* Cast to number */
+                if (val->kind == VAL_NUM) {
+                    return val;
+                } else if (val->kind == VAL_STR) {
+                    return val_num(atof(val->str));
+                } else {
+                    runtime_error(n, "cannot cast %s to num", val_kind_name(val->kind));
+                }
+            } else {
+                runtime_error(n, "unknown cast target type: %s", target_type);
+            }
+        }
     }
     return val_none();
 }

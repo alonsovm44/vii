@@ -58,6 +58,59 @@ static void track_constant(Parser *p, const char *name, int pos, int line) {
     parsed_constants[parsed_const_count++] = arena_intern(global_arena, name);
 }
 
+/* ──────────────────────── Type Inference ──────────────────────── */
+
+/* Track inferred types for untyped variables */
+typedef struct {
+    char *name;
+    char *inferred_type;
+} InferredVar;
+
+static InferredVar *inferred_vars = NULL;
+static int inferred_var_count = 0;
+static int inferred_var_cap = 0;
+
+/* Check if a numeric literal is an integer (no decimal point) */
+static bool is_integer_literal(Node *n) {
+    if (n->kind != ND_NUM) return false;
+    /* Check the original text for a decimal point */
+    /* We can't access the token text directly, so we check if the value is whole */
+    double val = n->num;
+    return val == (double)(int64_t)val;
+}
+
+/* Get inferred type for a variable, or NULL if not found */
+static const char* get_inferred_type(const char *name) {
+    for (int i = 0; i < inferred_var_count; i++) {
+        if (strcmp(inferred_vars[i].name, name) == 0) {
+            return inferred_vars[i].inferred_type;
+        }
+    }
+    return NULL;
+}
+
+/* Set inferred type for a variable */
+static void set_inferred_type(Arena *arena, const char *name, const char *type) {
+    /* Check if already exists and update */
+    for (int i = 0; i < inferred_var_count; i++) {
+        if (strcmp(inferred_vars[i].name, name) == 0) {
+            inferred_vars[i].inferred_type = arena_intern(arena, type);
+            return;
+        }
+    }
+    /* Add new entry */
+    if (inferred_var_count >= inferred_var_cap) {
+        int old_cap = inferred_var_cap;
+        inferred_var_cap = inferred_var_cap ? inferred_var_cap * 2 : 16;
+        InferredVar *new_vars = arena_alloc(arena, inferred_var_cap * sizeof(InferredVar));
+        if (inferred_vars) memcpy(new_vars, inferred_vars, old_cap * sizeof(InferredVar));
+        inferred_vars = new_vars;
+    }
+    inferred_vars[inferred_var_count].name = arena_intern(arena, name);
+    inferred_vars[inferred_var_count].inferred_type = arena_intern(arena, type);
+    inferred_var_count++;
+}
+
 /* ──────────────────────── Parser helpers ──────────────────────── */
 
 static Token *peek(Parser *p) { 
@@ -98,7 +151,10 @@ static bool is_primitive_numeric_type(const char *type_tag) {
 static const char *infer_node_type(Node *n, Node *fn_ctx) {
     if (!n) return "none";
     switch (n->kind) {
-        case ND_NUM: return "num";
+        case ND_NUM:
+            /* Type inference: integers default to i32, floats to f64 */
+            if (is_integer_literal(n)) return "i32";
+            return "f64";
         case ND_STR: return "str";
         case ND_VAR:
             if (n->type_tag) return n->type_tag;
@@ -110,12 +166,29 @@ static const char *infer_node_type(Node *n, Node *fn_ctx) {
                     }
                 }
             }
+            /* Check for inferred type from previous assignment */
+            {
+                const char *inferred = get_inferred_type(n->name);
+                if (inferred) return inferred;
+            }
             return "unknown";
         case ND_BINOP:
             if (n->op == TOK_EQEQ || n->op == TOK_NE || n->op == TOK_LT || n->op == TOK_GT ||
                 n->op == TOK_LTE || n->op == TOK_GTE || n->op == TOK_AND || n->op == TOK_OR)
                 return "bit";
-            return "num";
+            /* For arithmetic, infer based on operands if possible */
+            {
+                const char *left_type = infer_node_type(n->left, fn_ctx);
+                const char *right_type = infer_node_type(n->right, fn_ctx);
+                /* If both are specific numeric types, use the wider one */
+                if (is_primitive_numeric_type(left_type) && is_primitive_numeric_type(right_type)) {
+                    /* Prefer f64 > i64 > i32 */
+                    if (strcmp(left_type, "f64") == 0 || strcmp(right_type, "f64") == 0) return "f64";
+                    if (strcmp(left_type, "i64") == 0 || strcmp(right_type, "i64") == 0) return "i64";
+                    return "i32";
+                }
+                return "num";
+            }
         case ND_NOT: return "bit";
         case ND_BLOCK:
             if (n->body_count > 0) return infer_node_type(n->body[n->body_count - 1], fn_ctx);
@@ -127,6 +200,10 @@ static const char *infer_node_type(Node *n, Node *fn_ctx) {
         case ND_SPLIT: return "list";
         case ND_TRIM: return "str";
         case ND_REF: return "ptr";
+        case ND_CAST:
+            /* Cast expression returns the target type */
+            if (n->type_tag) return n->type_tag;
+            return "unknown";
         case ND_CALL: return "unknown"; /* Function return types are resolved at runtime or in a later pass */
         default: break;
     }
@@ -396,6 +473,22 @@ static Node *parse_postfix(Parser *p) {
             Node *af = nd_new(ND_ASKFILE);
             af->left = expr;
             expr = af;
+        } else if (peek(p)->kind == TOK_ARROW) {
+            /* Cast expression: expr -> type */
+            advance(p);
+            Node *cast = nd_new(ND_CAST);
+            cast->left = expr;
+            /* Expect a type token after -> */
+            if (peek(p)->kind == TOK_IDENT || peek(p)->kind == TOK_REF || peek(p)->kind == TOK_PTR || peek(p)->kind == TOK_BIT ||
+                peek(p)->kind == TOK_I8 || peek(p)->kind == TOK_I16 || peek(p)->kind == TOK_I32 || peek(p)->kind == TOK_I64 ||
+                peek(p)->kind == TOK_U8 || peek(p)->kind == TOK_U16 || peek(p)->kind == TOK_U32 || peek(p)->kind == TOK_U64 ||
+                peek(p)->kind == TOK_F32 || peek(p)->kind == TOK_F64) {
+                cast->type_tag = arena_intern(p->arena, advance(p)->text);
+            } else {
+                report_error(p->filename, p->src, peek(p)->pos, peek(p)->line, 
+                    "expected type name after '->' in cast expression");
+            }
+            expr = cast;
         } else if (peek(p)->kind != TOK_NEWLINE && peek(p)->kind != TOK_SEMICOLON && peek(p)->kind != TOK_DEDENT && peek(p)->kind != TOK_EOF &&
                    (peek(p)->kind == TOK_IDENT || peek(p)->kind == TOK_NUM || peek(p)->kind == TOK_LPAREN ||
                    peek(p)->kind == TOK_STR || peek(p)->kind == TOK_ASK ||
@@ -500,6 +593,25 @@ static Node *parse_expr(Parser *p) {
                 report_error(p->filename, p->src, op->pos, op->line, 
                     "type mismatch in assignment to '%s': expected '%s', found '%s'", 
                     left->name, left->type_tag, actual);
+            }
+        } else {
+            /* Type inference for untyped assignments */
+            if (left->kind == ND_VAR) {
+                const char *prev_inferred = get_inferred_type(left->name);
+                const char *actual = infer_node_type(assign->right, p->current_func);
+                
+                if (prev_inferred) {
+                    /* Variable already has inferred type - check for conflict */
+                    if (strcmp(actual, prev_inferred) != 0 &&
+                        !(is_primitive_numeric_type(prev_inferred) && is_primitive_numeric_type(actual))) {
+                        report_error(p->filename, p->src, op->pos, op->line,
+                            "type conflict for '%s': previously inferred '%s', found '%s'",
+                            left->name, prev_inferred, actual);
+                    }
+                } else if (strcmp(actual, "unknown") != 0) {
+                    /* First assignment - infer type */
+                    set_inferred_type(p->arena, left->name, actual);
+                }
             }
         }
         return assign;

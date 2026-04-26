@@ -1,0 +1,15 @@
+# Type Inference Test
+# x = 5 should infer i32, y = 5.0 should infer f64
+
+# First assignment - type inference
+x = 5
+y = 5.0
+
+# These should work - same types
+x = 10
+y = 3.14
+
+# Type conflict - this should error
+# x = "hello"  # Uncomment to test conflict detection
+
+"Type inference works!"

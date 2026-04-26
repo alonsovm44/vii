@@ -72,6 +72,7 @@ void   val_list_grow(Value *v);
 bool   val_truthy(Value *v);
 Value* val_print_to(Value *v, FILE *f);
 Value* val_print(Value *v);
+const char* val_kind_name(int kind);
 
 /* ──────────────────────── ALL_CAPS helper ──────────────────────── */
 
@@ -137,7 +138,8 @@ typedef enum {
     ND_PUT, ND_ARG, ND_LEN, ND_ORD, ND_CHR, ND_TONUM, ND_TOSTR, ND_SLICE, ND_SPLIT, ND_TRIM, ND_REPLACE, ND_TYPE, ND_TIME,
     ND_SYS, ND_ENV, ND_EXIT, ND_REF, ND_OUT, ND_NOT,
     ND_CALL, ND_BLOCK,
-    ND_PRINT
+    ND_PRINT,
+    ND_CAST
 } NdKind;
 
 typedef struct Node {
