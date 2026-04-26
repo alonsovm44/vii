@@ -510,53 +510,12 @@ do parse_stmt p
   if k == TOK_IDENT and text == "IF"
     out parse_when_stmt p
 
-  # 6.1 - paste statement
+  # Note: TOK_PASTE is now handled in the lexer (inline token insertion)
+  # If we somehow see a TOK_PASTE here, it's an internal error
   if k == TOK_PASTE
-    advance p
     t = peek p
-    if (t at "kind") != TOK_STR
-      "Error in " + (p at "filename") + " on line " + tostr (t at "line") + ": paste requires a string filename"
-      exit 1
-    filename = t at "text"
-    advance p
-
-    # 6.2 - Guard against circular dependencies and redundant pasting
-    p_files = p at "pasted_files"
-    already_done = 0
-    i = 0
-    if type p_files == "none"
-      p key "pasted_files" (list)
-      p_files = p at "pasted_files"
-    while i < len p_files
-      if (p_files at i) == filename
-        already_done = 1
-      i = i + 1
-    
-    if already_done
-      out nd_new ND_BLOCK t # Return an empty block for already processed files
-
-    if p at "boot_debug"
-      "Paste trace: inclusion of '" + filename + "' from '" + (p at "filename") + "'"
-
-    p_files set (len p_files) filename
-
-    # 6.2 - File inclusion with sub-lexer/sub-parser
-    src = filename ask
-    l_ctx = dict
-    l_ctx key "src" src; l_ctx key "pos" 0; l_ctx key "line" 1; l_ctx key "filename" filename
-    l_ctx key "trace" (p at "trace")
-    sub_tokens = lex l_ctx
-
-    sub_p = dict
-    sub_p key "tokens" sub_tokens; sub_p key "pos" 0; sub_p key "filename" filename; sub_p key "src" src
-    sub_p key "in_func" (p at "in_func"); sub_p key "current_func" (p at "current_func")
-    sub_p key "constants" (p at "constants")
-    sub_p key "pasted_files" p_files
-    sub_p key "trace" (p at "trace")
-    sub_p key "boot_debug" (p at "boot_debug")
-    sub_p key "defines" (p at "defines")
-    sub_p key "once_registry" (p at "once_registry")
-    out parse_program sub_p
+    "Error in " + (p at "filename") + " on line " + tostr (t at "line") + ": internal error - paste not expanded by lexer"
+    exit 1
 
   if k == TOK_FOR
     advance p

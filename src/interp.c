@@ -2,8 +2,6 @@
 #include <math.h>
 #include <time.h>
 
-extern FILE *log_fp;
-
 /* ──────────────────────── Table ──────────────────────── */
 
 static unsigned hash(const char *s) {
@@ -162,7 +160,7 @@ Value *eval(Node *n, Table *env) {
         case ND_VAR:   {
             Value *v = table_get(env, n->name);
             extern int trace;
-            if (trace) { fprintf(stderr, "[TRACE] VAR lookup: %s -> kind=%d\n", n->name, v ? v->kind : -1); if (log_fp) fprintf(log_fp, "[TRACE] VAR lookup: %s -> kind=%d\n", n->name, v ? v->kind : -1); }
+            if (trace) fprintf(stderr, "[TRACE] VAR lookup: %s -> kind=%d\n", n->name, v ? v->kind : -1);
             if (!v) {
                 Func *fn = func_find(n->name);
                 if (fn) {
@@ -195,8 +193,8 @@ Value *eval(Node *n, Table *env) {
                 }
                 table_set(env, n->left->name, val);
             } else if (n->left->kind == ND_AT) {
-                Value *list = eval(n->left->left, env);
-                Value *idx  = eval(n->left->right, env);
+                Value *list = val_unwrap(eval(n->left->left, env));
+                Value *idx  = val_unwrap(eval(n->left->right, env));
                 if (list->kind != VAL_LIST) { fprintf(stderr, "Runtime error: 'at' on non-list\n"); exit(1); }
                 int i = (int)idx->num;
                 if (i < 0) i += list->item_count;
@@ -445,47 +443,38 @@ Value *eval(Node *n, Table *env) {
                 Value *v = table_get(list->fields, idx->str);
                 return v ? v : val_none();
             }
-            if (list->kind == VAL_LIST) {
-                int i = (int)idx->num;
-                if (trace) { fprintf(stderr, "[TRACE] ND_AT list: item_count=%d, index=%d\n", list->item_count, i); }
-                if (i < 0) i += list->item_count;
-                if (i < 0 || i >= list->item_count) {
-                    if (trace) { fprintf(stderr, "[TRACE] ND_AT list: index out of bounds, returning none\n"); }
-                    return val_none();
-                }
-                if (trace) { fprintf(stderr, "[TRACE] ND_AT list: returning item[%d] with kind=%d\n", i, list->items[i] ? list->items[i]->kind : -1); }
-                return list->items[i];
-            }
-            /* String indexing: "hello" at 0 -> "h" */
             if (list->kind == VAL_STR) {
                 int i = (int)idx->num;
-                int len = strlen(list->str);
-                if (i < 0) i += len;
-                if (i < 0 || i >= len) return val_none();
+                if (i < 0) i += (int)strlen(list->str);
+                if (i < 0 || i >= (int)strlen(list->str)) return val_none();
                 char buf[2] = { list->str[i], '\0' };
                 return val_str(buf);
             }
-            return val_none();
+            if (list->kind != VAL_LIST) { 
+                fprintf(stderr, "Runtime error: 'at' on non-list (kind=%d, file=%s, line=%d)\n", 
+                    list->kind, n->filename ? n->filename : "unknown", n->line); 
+                exit(1); 
+            }
+            int i = (int)idx->num;
+            if (i < 0) i += list->item_count;
+            if (i < 0 || i >= list->item_count) return val_none();
+            return list->items[i];
         }
         case ND_SET: {
             Value *list = val_unwrap(eval(n->left, env));
             if (list->kind != VAL_LIST) { fprintf(stderr, "Runtime error: 'set' on non-list\n"); exit(1); }
-            Value *idx  = eval(n->body[0], env);
+            Value *idx  = val_unwrap(eval(n->body[0], env));
             Value *val  = eval(n->body[1], env);
             int i = (int)idx->num;
             if (i < 0) i += list->item_count;
-            if (trace) { fprintf(stderr, "[TRACE] ND_SET: list item_count=%d, setting index %d to kind=%d\n", list->item_count, i, val->kind); }
             if (i == list->item_count) {
                 if (list->item_count >= list->item_cap) {
-                    if (trace) { fprintf(stderr, "[TRACE] ND_SET: growing list from %d to %d\n", list->item_cap, list->item_cap * 2); }
                     val_list_grow(list);
                 }
                 list->items[list->item_count++] = val;
-                if (trace) { fprintf(stderr, "[TRACE] ND_SET: appended at %d, new count=%d\n", i, list->item_count); }
             } else {
                 if (i < 0 || i >= list->item_count) { fprintf(stderr, "Runtime error: index %d out of range\n", i); exit(1); }
                 list->items[i] = val;
-                if (trace) { fprintf(stderr, "[TRACE] ND_SET: updated index %d\n", i); }
             }
             return val;
         }
@@ -683,6 +672,7 @@ Value *eval(Node *n, Table *env) {
                 result[0] = '\0';
                 char *p = v->str;
                 size_t tl = strlen(t->str);
+                size_t rl = strlen(r->str);
                 while (*p) {
                     char *f = strstr(p, t->str);
                     if (f == p) {

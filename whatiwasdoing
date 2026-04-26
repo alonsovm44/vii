@@ -27,4 +27,5 @@ But it is not completely functional, it does not run scripts or transpile itself
 
 ---
 
- 
+25/04/2026 10:32 pm
+I left trying to fix the interpreter to work with the bootstrapped version

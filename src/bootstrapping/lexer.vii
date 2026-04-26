@@ -1,6 +1,97 @@
 #! ONCE
 # keyword list
 
+# Note: paste tracking moved to lexer_ctx to avoid global constant issues
+
+do read_file src filename
+  # Use ask operator to read file
+  src filename ask
+
+do has_shebang_once src
+  if (slice src 0 7) == "#! ONCE"
+    1
+  else
+    0
+
+do was_once_pasted->bit once_files filename
+  i = 0
+  while i < len once_files
+    if (once_files at i) == filename
+      1
+    i = i + 1
+  0
+
+do mark_once_pasted once_files filename
+  once_files set (len once_files) filename
+  once_files
+
+do is_paste_cycle->bit paste_stack filename
+  i = 0
+  while i < len paste_stack
+    if (paste_stack at i) == filename
+      1
+    i = i + 1
+  0
+
+do inline_paste tokens lexer_ctx filename
+  # Get or initialize paste tracking from lexer_ctx
+  paste_stack = lexer_ctx at "paste_stack"
+  if type paste_stack == "none"
+    paste_stack = list
+    
+  once_files = lexer_ctx at "once_files"
+  if type once_files == "none"
+    once_files = list
+  
+  # Check for circular paste
+  if is_paste_cycle paste_stack filename
+    report_error (lexer_ctx at "filename") (lexer_ctx at "src") (lexer_ctx at "pos") (lexer_ctx at "line") ("Circular paste detected: " + filename)
+    tokens
+  
+  # Check depth limit
+  if len paste_stack >= 32
+    report_error (lexer_ctx at "filename") (lexer_ctx at "src") (lexer_ctx at "pos") (lexer_ctx at "line") "Paste depth exceeded limit"
+    tokens
+  
+  # Read file contents using ask
+  src = ""
+  src = read_file src filename
+  
+  if src == ""
+    report_error (lexer_ctx at "filename") (lexer_ctx at "src") (lexer_ctx at "pos") (lexer_ctx at "line") ("Cannot read paste file: " + filename)
+    tokens
+  
+  # Check for #! ONCE guard
+  if has_shebang_once src
+    if was_once_pasted once_files filename
+      tokens  # Already pasted, skip
+    once_files = mark_once_pasted once_files filename
+  
+  # Push to paste stack for cycle detection
+  paste_stack set (len paste_stack) filename
+  
+  # Create sub-lexer context
+  sub_ctx = dict
+  sub_ctx key "src" src
+  sub_ctx key "pos" 0
+  sub_ctx key "line" 1
+  sub_ctx key "filename" filename
+  sub_ctx key "boot_debug" (lexer_ctx at "boot_debug")
+  sub_ctx key "trace" (lexer_ctx at "trace")
+  sub_ctx key "paste_stack" paste_stack
+  sub_ctx key "once_files" once_files
+  
+  # Recursively lex the sub-file
+  sub_tokens = lex sub_ctx
+  
+  # Append sub-tokens to parent (excluding final EOF)
+  i = 0
+  while i < (len sub_tokens) - 1
+    tokens set (len tokens) (sub_tokens at i)
+    i = i + 1
+  
+  tokens
+
 TK_KW = list
 TK_KW set 0 "if"
 TK_KW set 1 "else"
@@ -118,6 +209,7 @@ do lex lexer_ctx
   pos = lexer_ctx at "pos" # Initial position
   line = lexer_ctx at "line" # Initial line
   boot_debug = lexer_ctx at "boot_debug"
+  trace = lexer_ctx at "trace"
   at_start = 1
   indent_stack = list
   indent_stack set 0 0
@@ -265,12 +357,44 @@ do lex lexer_ctx
         pos = pos + 1
       
       text = slice src start pos
-      t = dict
-      t key "kind" (get_kw_kind text)
-      t key "text" text
-      t key "line" line # Use current line
-      t key "pos" start # Use current start
-      tokens set (len tokens) t
+      kind = get_kw_kind text
+      
+      # Inline paste handling: paste "filename"
+      if kind == TOK_PASTE
+        # Skip whitespace and optional newline
+        p = pos
+        while p < source_len and ((src at p) == " " or (src at p) == "\t")
+          p = p + 1
+        # Allow newline before string in paste statement
+        if (src at p) == "\n"
+          p = p + 1
+          while p < source_len and ((src at p) == " " or (src at p) == "\t")
+            p = p + 1
+        # Expect string
+        if (src at p) == "\""
+          p = p + 1  # skip opening quote
+          fn_start = p
+          while p < source_len and (src at p) != "\""
+            if (src at p) == "\\" and (p + 1) < source_len
+              p = p + 2
+            else
+              p = p + 1
+          fn_len = p - fn_start
+          paste_filename = slice src fn_start (fn_start + fn_len)
+          
+          # Inline the pasted file's tokens
+          tokens = inline_paste tokens lexer_ctx paste_filename
+          
+          if p < source_len and (src at p) == "\""
+            p = p + 1  # skip closing quote
+          pos = p
+      else
+        t = dict
+        t key "kind" kind
+        t key "text" text
+        t key "line" line # Use current line
+        t key "pos" start # Use current start
+        tokens set (len tokens) t
 
     # 8. Operators (multi-character first)
     else

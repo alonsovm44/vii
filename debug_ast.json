@@ -8022,27 +8022,32 @@
                           "body": [
                             { "kind": 41,
                               "body": [
-                                { "kind": 4,
+                                { "kind": 21,
                                   "left": 
+                                    { "kind": 1, "str": "" },
+                                  "right": 
                                     { "kind": 4,
                                       "left": 
                                         { "kind": 4,
                                           "left": 
                                             { "kind": 4,
                                               "left": 
-                                                { "kind": 1, "str": "Paste trace: inclusion of '" },
+                                                { "kind": 4,
+                                                  "left": 
+                                                    { "kind": 1, "str": "Paste trace: inclusion of '" },
+                                                  "right": 
+                                                    { "kind": 2, "name": "filename" } },
                                               "right": 
-                                                { "kind": 2, "name": "filename" } },
+                                                { "kind": 1, "str": "' from '" } },
                                           "right": 
-                                            { "kind": 1, "str": "' from '" } },
+                                            { "kind": 19,
+                                              "left": 
+                                                { "kind": 2, "name": "p" },
+                                              "right": 
+                                                { "kind": 1, "str": "filename" } } },
                                       "right": 
-                                        { "kind": 19,
-                                          "left": 
-                                            { "kind": 2, "name": "p" },
-                                          "right": 
-                                            { "kind": 1, "str": "filename" } } },
-                                  "right": 
-                                    { "kind": 1, "str": "'" } }
+                                        { "kind": 1, "str": "'
+" } } }
                               ] }
                           ],
                           "left": 
@@ -8067,6 +8072,104 @@
                             { "kind": 14,
                               "left": 
                                 { "kind": 2, "name": "filename" } } },
+                        { "kind": 6,
+                          "body": [
+                            { "kind": 41,
+                              "body": [
+                                { "kind": 21,
+                                  "left": 
+                                    { "kind": 1, "str": "" },
+                                  "right": 
+                                    { "kind": 4,
+                                      "left": 
+                                        { "kind": 4,
+                                          "left": 
+                                            { "kind": 4,
+                                              "left": 
+                                                { "kind": 4,
+                                                  "left": 
+                                                    { "kind": 1, "str": "Paste debug: file " },
+                                                  "right": 
+                                                    { "kind": 2, "name": "filename" } },
+                                              "right": 
+                                                { "kind": 1, "str": " len=" } },
+                                          "right": 
+                                            { "kind": 27,
+                                              "left": 
+                                                { "kind": 23,
+                                                  "left": 
+                                                    { "kind": 2, "name": "src" } } } },
+                                      "right": 
+                                        { "kind": 1, "str": " bytes
+" } } }
+                              ] }
+                          ],
+                          "left": 
+                            { "kind": 19,
+                              "left": 
+                                { "kind": 2, "name": "p" },
+                              "right": 
+                                { "kind": 1, "str": "boot_debug" } } },
+                        { "kind": 6,
+                          "body": [
+                            { "kind": 41,
+                              "body": [
+                                { "kind": 21,
+                                  "left": 
+                                    { "kind": 1, "str": "" },
+                                  "right": 
+                                    { "kind": 4,
+                                      "left": 
+                                        { "kind": 4,
+                                          "left": 
+                                            { "kind": 4,
+                                              "left": 
+                                                { "kind": 4,
+                                                  "left": 
+                                                    { "kind": 1, "str": "[TRACE] Pasting file: " },
+                                                  "right": 
+                                                    { "kind": 2, "name": "filename" } },
+                                              "right": 
+                                                { "kind": 1, "str": " (" } },
+                                          "right": 
+                                            { "kind": 27,
+                                              "left": 
+                                                { "kind": 23,
+                                                  "left": 
+                                                    { "kind": 2, "name": "src" } } } },
+                                      "right": 
+                                        { "kind": 1, "str": " bytes)
+" } } }
+                              ] }
+                          ],
+                          "left": 
+                            { "kind": 19,
+                              "left": 
+                                { "kind": 2, "name": "p" },
+                              "right": 
+                                { "kind": 1, "str": "trace" } } },
+                        { "kind": 6,
+                          "body": [
+                            { "kind": 41,
+                              "body": [
+                                { "kind": 4,
+                                  "left": 
+                                    { "kind": 1, "str": "Error: paste file not found or empty: " },
+                                  "right": 
+                                    { "kind": 2, "name": "filename" } },
+                                { "kind": 36,
+                                  "left": 
+                                    { "kind": 0, "val": 1 } }
+                              ] }
+                          ],
+                          "left": 
+                            { "kind": 4,
+                              "left": 
+                                { "kind": 23,
+                                  "left": 
+                                    { "kind": 2, "name": "src" } },
+                              "right": 
+                                { "kind": 0, "val": 0 } } },
                         { "kind": 3,
                           "left": 
                             { "kind": 2, "name": "l_ctx" },
@@ -8097,6 +8200,17 @@
                           "body": [
                             { "kind": 1, "str": "filename" },
                             { "kind": 2, "name": "filename" }
+                          ],
+                          "left": 
+                            { "kind": 2, "name": "l_ctx" } },
+                        { "kind": 17,
+                          "body": [
+                            { "kind": 1, "str": "trace" },
+                            { "kind": 19,
+                              "left": 
+                                { "kind": 2, "name": "p" },
+                              "right": 
+                                { "kind": 1, "str": "trace" } }
                           ],
                           "left": 
                             { "kind": 2, "name": "l_ctx" } },
@@ -8180,6 +8294,50 @@
                           "body": [
                             { "kind": 1, "str": "pasted_files" },
                             { "kind": 2, "name": "p_files" }
+                          ],
+                          "left": 
+                            { "kind": 2, "name": "sub_p" } },
+                        { "kind": 17,
+                          "body": [
+                            { "kind": 1, "str": "trace" },
+                            { "kind": 19,
+                              "left": 
+                                { "kind": 2, "name": "p" },
+                              "right": 
+                                { "kind": 1, "str": "trace" } }
+                          ],
+                          "left": 
+                            { "kind": 2, "name": "sub_p" } },
+                        { "kind": 17,
+                          "body": [
+                            { "kind": 1, "str": "boot_debug" },
+                            { "kind": 19,
+                              "left": 
+                                { "kind": 2, "name": "p" },
+                              "right": 
+                                { "kind": 1, "str": "boot_debug" } }
+                          ],
+                          "left": 
+                            { "kind": 2, "name": "sub_p" } },
+                        { "kind": 17,
+                          "body": [
+                            { "kind": 1, "str": "defines" },
+                            { "kind": 19,
+                              "left": 
+                                { "kind": 2, "name": "p" },
+                              "right": 
+                                { "kind": 1, "str": "defines" } }
+                          ],
+                          "left": 
+                            { "kind": 2, "name": "sub_p" } },
+                        { "kind": 17,
+                          "body": [
+                            { "kind": 1, "str": "once_registry" },
+                            { "kind": 19,
+                              "left": 
+                                { "kind": 2, "name": "p" },
+                              "right": 
+                                { "kind": 1, "str": "once_registry" } }
                           ],
                           "left": 
                             { "kind": 2, "name": "sub_p" } },

@@ -510,27 +510,6 @@ static Node *parse_stmt(Parser *p) {
         return parse_when_stmt(p);
     }
 
-    if (t->kind == TOK_PASTE) {
-        advance(p);
-        if (peek(p)->kind != TOK_STR) {
-            report_error(p->filename, p->src, peek(p)->pos, peek(p)->line, "paste requires a string filename");
-        }
-        const char *filename = peek(p)->text;
-        advance(p);
-        char *src = read_file(filename);
-        Lexer sub_lex = { .src = src, .pos = 0, .filename = arena_intern(p->arena, filename), .arena = p->arena };
-        lex(&sub_lex, sub_lex.filename);
-        Parser sub_p = { .tokens = sub_lex.tokens, .pos = 0, .src = src, .filename = filename, .arena = p->arena };
-        
-        const char *old_fname = parser_current_filename;
-        parser_current_filename = sub_p.filename;
-        Node *included = parse_program(&sub_p);
-        parser_current_filename = old_fname;
-        
-        free(src);
-        return included;
-    }
-
     if (t->kind == TOK_FOR) {
         advance(p);
         Node *n = nd_new(ND_FOR);
@@ -631,16 +610,20 @@ static Node *parse_block(Parser *p, bool is_function) {
 }
 
 Node *parse_program(Parser *p) {
+    extern int trace;
     parser_current_filename = p->filename;
     Node *prog = nd_new(ND_BLOCK);
 
+    if (trace) fprintf(stderr, "[PARSER] First token kind=%d, text='%s'\n", peek(p)->kind, peek(p)->text ? peek(p)->text : "(null)");
     if (peek(p)->kind == TOK_SHEBANG) {
+        if (trace) fprintf(stderr, "[PARSER] Skipping shebang token\n");
         advance(p);
         skip_newlines(p);
     }
 
     while (peek(p)->kind != TOK_EOF) {
         if (peek(p)->kind == TOK_NEWLINE || peek(p)->kind == TOK_SEMICOLON) { advance(p); continue; }
+        if (peek(p)->kind == TOK_SHEBANG) { advance(p); continue; }  /* Skip shebangs from pasted files */
         nd_push(prog, parse_stmt(p));
         skip_newlines(p);
     }
