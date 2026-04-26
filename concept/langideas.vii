@@ -143,8 +143,15 @@ thing ball # thing kind
 
 # 9. Kinds
 
-kind roundStuff
-  ball
-  disk
+kind roundStuff # kind name
+  ball # kind instance
+  disk # kind instance
 
+#inheritance
 
+thing ball -> roundStuff
+  
+
+# pointers
+
+x -> 12 

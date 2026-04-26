@@ -58,6 +58,87 @@ static void track_constant(Parser *p, const char *name, int pos, int line) {
     parsed_constants[parsed_const_count++] = arena_intern(global_arena, name);
 }
 
+/* ──────────────────────── Function Registry ──────────────────────── */
+
+/* Simple function signature tracking for argument type checking */
+typedef struct {
+    char *name;
+    char *return_type;
+    int param_count;
+    char **param_types;  /* NULL for untyped */
+} FuncSig;
+
+static FuncSig *func_registry = NULL;
+static int func_count = 0;
+static int func_cap = 0;
+
+static FuncSig* find_func_sig(const char *name) {
+    for (int i = 0; i < func_count; i++) {
+        if (strcmp(func_registry[i].name, name) == 0) {
+            return &func_registry[i];
+        }
+    }
+    return NULL;
+}
+
+static void register_func_sig(Node *fn) {
+    if (!fn || fn->kind != ND_FUNC) return;
+    
+    /* Grow if needed */
+    if (func_count >= func_cap) {
+        int old_cap = func_cap;
+        func_cap = func_cap ? func_cap * 2 : 8;
+        FuncSig *new_reg = arena_alloc(global_arena, func_cap * sizeof(FuncSig));
+        if (func_registry) memcpy(new_reg, func_registry, old_cap * sizeof(FuncSig));
+        func_registry = new_reg;
+    }
+    
+    FuncSig *sig = &func_registry[func_count++];
+    sig->name = fn->name;
+    sig->return_type = fn->type_tag;
+    sig->param_count = fn->body_count;
+    sig->param_types = arena_alloc(global_arena, fn->body_count * sizeof(char*));
+    for (int i = 0; i < fn->body_count; i++) {
+        sig->param_types[i] = fn->body[i]->type_tag;
+    }
+}
+
+/* Check function call arguments against registered signature */
+static void check_call_args(Parser *p, Node *call) {
+    if (!call || call->kind != ND_CALL || !call->left || call->left->kind != ND_VAR) return;
+    
+    const char *func_name = call->left->name;
+    FuncSig *sig = find_func_sig(func_name);
+    if (!sig) return; /* Function not found (might be forward ref or builtin) */
+    
+    int arg_count = call->body_count;
+    
+    /* Check argument count */
+    if (arg_count != sig->param_count) {
+        report_error(p->filename, p->src, call->line, call->line,
+            "function '%s' expects %d arguments, got %d",
+            func_name, sig->param_count, arg_count);
+        return;
+    }
+    
+    /* Check each argument type */
+    for (int i = 0; i < arg_count; i++) {
+        const char *expected = sig->param_types[i];
+        if (!expected) continue; /* Untyped parameter */
+        
+        const char *actual = infer_node_type(call->body[i], p->current_func);
+        bool compatible = (strcmp(actual, expected) == 0) ||
+                          (strcmp(expected, "bit") == 0 && strcmp(actual, "num") == 0) ||
+                          (is_primitive_numeric_type(expected) && strcmp(actual, "num") == 0);
+        
+        if (strcmp(actual, "unknown") != 0 && !compatible) {
+            report_error(p->filename, p->src, call->line, call->line,
+                "argument %d to '%s' type mismatch: expected '%s', found '%s'",
+                i + 1, func_name, expected, actual);
+        }
+    }
+}
+
 /* ──────────────────────── Parser helpers ──────────────────────── */
 
 static Token *peek(Parser *p) { 
@@ -209,7 +290,10 @@ static Node *parse_primary(Parser *p) {
             /* check for return type: do func->type */
             if (peek(p)->kind == TOK_ARROW) {
                 advance(p);
-                if (peek(p)->kind == TOK_IDENT || peek(p)->kind == TOK_REF || peek(p)->kind == TOK_PTR || peek(p)->kind == TOK_BIT)
+                if (peek(p)->kind == TOK_IDENT || peek(p)->kind == TOK_REF || peek(p)->kind == TOK_PTR || peek(p)->kind == TOK_BIT ||
+                    peek(p)->kind == TOK_I8 || peek(p)->kind == TOK_I16 || peek(p)->kind == TOK_I32 || peek(p)->kind == TOK_I64 ||
+                    peek(p)->kind == TOK_U8 || peek(p)->kind == TOK_U16 || peek(p)->kind == TOK_U32 || peek(p)->kind == TOK_U64 ||
+                    peek(p)->kind == TOK_F32 || peek(p)->kind == TOK_F64)
                     fn->type_tag = arena_intern(p->arena, advance(p)->text);
             }
 
@@ -224,7 +308,10 @@ static Node *parse_primary(Parser *p) {
                 }
                 if (peek(p)->kind == TOK_ARROW) {
                     advance(p);
-                    if (peek(p)->kind == TOK_IDENT || peek(p)->kind == TOK_REF || peek(p)->kind == TOK_PTR || peek(p)->kind == TOK_BIT)
+                    if (peek(p)->kind == TOK_IDENT || peek(p)->kind == TOK_REF || peek(p)->kind == TOK_PTR || peek(p)->kind == TOK_BIT ||
+                        peek(p)->kind == TOK_I8 || peek(p)->kind == TOK_I16 || peek(p)->kind == TOK_I32 || peek(p)->kind == TOK_I64 ||
+                        peek(p)->kind == TOK_U8 || peek(p)->kind == TOK_U16 || peek(p)->kind == TOK_U32 || peek(p)->kind == TOK_U64 ||
+                        peek(p)->kind == TOK_F32 || peek(p)->kind == TOK_F64)
                         param->type_tag = arena_intern(p->arena, advance(p)->text);
                 }
                 nd_push(fn, param);
@@ -245,7 +332,8 @@ static Node *parse_primary(Parser *p) {
                     Node *last = block->body[block->body_count - 1];
                     const char *actual = infer_node_type(last, fn);
                     bool compatible = (strcmp(actual, fn->type_tag) == 0) || 
-                                      (strcmp(fn->type_tag, "bit") == 0 && strcmp(actual, "num") == 0);
+                                      (strcmp(fn->type_tag, "bit") == 0 && strcmp(actual, "num") == 0) ||
+                                      (is_primitive_numeric_type(fn->type_tag) && strcmp(actual, "num") == 0);
                     if (strcmp(actual, "unknown") != 0 && !compatible) {
                         report_error(p->filename, p->src, do_tok->pos, do_tok->line, 
                             "return type mismatch in function '%s': expected '%s', found '%s'", 
@@ -253,6 +341,10 @@ static Node *parse_primary(Parser *p) {
                     }
                 }
             }
+            
+            /* Register function signature for argument type checking */
+            register_func_sig(fn);
+            
             return fn;
         }
         default:
@@ -340,6 +432,10 @@ static Node *parse_postfix(Parser *p) {
                    peek(p)->kind == TOK_ENV || peek(p)->kind == TOK_EXIT)) {
                 nd_push(call, parse_primary(p));
             }
+            
+            /* Check argument types against function signature */
+            check_call_args(p, call);
+            
             expr = call;
         } else {
             break;

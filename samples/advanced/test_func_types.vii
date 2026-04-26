@@ -1,0 +1,19 @@
+# Test function return and argument type checking
+
+# Valid: Function with primitive return and param types
+do add_i32->i32 a->i32 b->i32
+  a + b
+
+# Valid call with numeric literals (should work)
+result = add_i32 5 3
+result + "  <- add_i32 result"
+
+# Test with wrong argument type (should error)
+# do bad_call
+#   add_i32 "hello" 3
+
+# Test return type mismatch
+do bad_return->i32 x->i32
+  "this is a string"
+
+# This should error at parse time with return type mismatch

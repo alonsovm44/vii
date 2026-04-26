@@ -5,11 +5,15 @@
 #include <stdlib.h> 
 #include <string.h>
 #include <ctype.h>
+#include <stdint.h>
 #include <stdbool.h>
 #include <stdarg.h>
 
 #ifdef _WIN32
 #include <windows.h>
+#else
+#include <unistd.h>
+#include <sys/stat.h>
 #endif
 
 /* ──────────────────────── UI & Colors ──────────────────────── */

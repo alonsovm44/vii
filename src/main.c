@@ -43,9 +43,9 @@ void* arena_alloc(Arena *a, size_t size) {
     size_t aligned = (size + 7) & ~7;
     if (a->offset + aligned > a->capacity) {
         fprintf(stderr, "\n--- FATAL: Arena Memory Exhausted ---\n");
-        fprintf(stderr, "Capacity: %zu bytes\n", a->capacity);
-        fprintf(stderr, "Current Offset: %zu bytes\n", a->offset);
-        fprintf(stderr, "Requested: %zu bytes\n", size);
+        fprintf(stderr, "Capacity: %lu bytes\n", (unsigned long)a->capacity);
+        fprintf(stderr, "Current Offset: %lu bytes\n", (unsigned long)a->offset);
+        fprintf(stderr, "Requested: %lu bytes\n", (unsigned long)size);
         fprintf(stderr, "Hint: This usually indicates an infinite loop creating\n");
         fprintf(stderr, "dictionaries or strings in your Vii code.\n");
         fprintf(stderr, "Check for circular 'paste' calls or lexer loops.\n");
@@ -76,12 +76,105 @@ static void add_define(const char *name) {
     cli_defines[cli_define_count++] = arena_strdup(global_arena, name);
 }
 
+/* Check if this binary contains a bundled script and extract it */
+static char* extract_bundled_script(const char *exe_path, size_t *out_len) {
+    FILE *f = fopen(exe_path, "rb");
+    if (!f) return NULL;
+    
+    /* Seek to end to read footer */
+    fseek(f, 0, SEEK_END);
+    size_t file_size = ftell(f);
+    
+    /* Footer is 16 bytes: script_offset (8) + magic (8) */
+    if (file_size < 16) {
+        fclose(f);
+        return NULL;
+    }
+    
+    /* Read footer */
+    fseek(f, -16, SEEK_END);
+    uint64_t script_offset, magic;
+    fread(&script_offset, sizeof(script_offset), 1, f);
+    fread(&magic, sizeof(magic), 1, f);
+    fclose(f);
+    
+    /* Check magic number: "VIIBUNDL" */
+    if (magic != 0x56494942554E444C) {
+        return NULL;
+    }
+    
+    /* Validate script offset */
+    if (script_offset >= file_size - 16) {
+        return NULL;
+    }
+    
+    /* Read embedded script */
+    f = fopen(exe_path, "rb");
+    if (!f) return NULL;
+    
+    size_t script_len = file_size - 16 - script_offset;
+    char *script = malloc(script_len + 1);
+    if (!script) {
+        fclose(f);
+        return NULL;
+    }
+    
+    fseek(f, script_offset, SEEK_SET);
+    fread(script, 1, script_len, f);
+    script[script_len] = '\0';
+    fclose(f);
+    
+    *out_len = script_len;
+    return script;
+}
+
 int main(int argc, char **argv) {
     enable_ansi_colors();
     global_arena = arena_create(512 * 1024 * 1024); // 512MB Arena
 
+    /* Check if running as a bundled binary */
+    char exe_path[1024];
+#ifdef _WIN32
+    GetModuleFileName(NULL, exe_path, sizeof(exe_path));
+#else
+    ssize_t len = readlink("/proc/self/exe", exe_path, sizeof(exe_path) - 1);
+    if (len != -1) exe_path[len] = '\0';
+    else strcpy(exe_path, argv[0]);
+#endif
+    
+    size_t bundled_len = 0;
+    char *bundled_script = extract_bundled_script(exe_path, &bundled_len);
+    if (bundled_script) {
+        /* Running as bundled - execute embedded script */
+        if (trace) fprintf(stderr, "[TRACE] Running bundled script (%lu bytes)\n", (unsigned long)bundled_len);
+        
+        Lexer lexer = { .src = bundled_script, .pos = 0, .filename = "<bundled>", .arena = global_arena };
+        lex(&lexer, "<bundled>");
+        
+        Parser parser = { .tokens = lexer.tokens, .pos = 0, .src = bundled_script, .filename = "<bundled>", .arena = global_arena };
+        Node *prog = parse_program(&parser);
+        
+        Table *global = table_new(NULL);
+        cli_args = val_list();
+        for (int i = 1; i < argc; i++) {
+            if (cli_args->item_count >= cli_args->item_cap) val_list_grow(cli_args);
+            cli_args->items[cli_args->item_count++] = val_str(argv[i]);
+        }
+        table_set(global, "arg", cli_args);
+        
+        Value *res = eval(prog, global);
+        if (res && res->kind != VAL_NONE && res->kind != VAL_BREAK) {
+            val_print(res);
+            printf("\n");
+        }
+        
+        free(bundled_script);
+        return 0;
+    }
+
     const char *input_path = NULL;
     const char *output_name = NULL;
+    const char *bundle_name = NULL;
     bool debug_ast = false;
     bool keep_c = false;
 
@@ -106,6 +199,9 @@ int main(int argc, char **argv) {
                 log_fp = fopen(argv[++i], "w");
                 if (!log_fp) { fprintf(stderr, "Error: cannot open log file %s\n", argv[i]); return 1; }
             } else { fprintf(stderr, "Error: --log requires a filename\n"); return 1; }
+        } else if (strcmp(argv[i], "--bundle") == 0) {
+            if (i + 1 < argc) bundle_name = argv[++i];
+            else { fprintf(stderr, "Error: --bundle requires a filename\n"); return 1; }
         } else if (argv[i][0] != '-') {
             if (!input_path) input_path = argv[i];
         }
@@ -122,9 +218,11 @@ int main(int argc, char **argv) {
         printf("Usage: vii <file.vii> [-o program] [-k] [args...]\n");
         printf("       vii --version\n");
         printf("       vii --help\n");
-        printf("       vii --debug <file.vii>\n\n");
+        printf("       vii --debug <file.vii>\n");
+        printf("       vii <file.vii> --bundle <output.exe>\n\n");
         printf("Options:\n");
-        printf("  -o <name>      Compile to executable\n");
+        printf("  -o <name>      Compile to executable via C codegen\n");
+        printf("  --bundle <out> Bundle script + interpreter into standalone binary\n");
         printf("  -k, --keep     Keep transpiled .c source\n");
         printf("  -D <name>      Define compile-time flag for IF macros\n\n");
         
@@ -138,13 +236,100 @@ int main(int argc, char **argv) {
         snprintf(win_out, sizeof(win_out), "%s.exe", output_name);
         output_name = win_out;
     }
+    char win_bundle[512];
+    if (bundle_name && !strstr(bundle_name, ".exe") && !strstr(bundle_name, ".EXE")) {
+        snprintf(win_bundle, sizeof(win_bundle), "%s.exe", bundle_name);
+        bundle_name = win_bundle;
+    }
 #endif
+
+    /* Handle bundling: vii script.vii --bundle output.exe */
+    if (bundle_name) {
+        if (!input_path) {
+            fprintf(stderr, "Error: --bundle requires an input file\n");
+            return 1;
+        }
+        
+        /* Read the script content */
+        char *script_src = read_file(input_path);
+        if (!script_src) {
+            fprintf(stderr, "Error: cannot read input file %s\n", input_path);
+            return 1;
+        }
+        size_t script_len = strlen(script_src);
+        
+        /* Get path to current executable */
+        char exe_path[1024];
+#ifdef _WIN32
+        GetModuleFileName(NULL, exe_path, sizeof(exe_path));
+#else
+        ssize_t len = readlink("/proc/self/exe", exe_path, sizeof(exe_path) - 1);
+        if (len != -1) exe_path[len] = '\0';
+        else strcpy(exe_path, argv[0]);
+#endif
+        
+        /* Read the interpreter binary */
+        FILE *fexe = fopen(exe_path, "rb");
+        if (!fexe) {
+            fprintf(stderr, "Error: cannot read interpreter binary\n");
+            free(script_src);
+            return 1;
+        }
+        
+        fseek(fexe, 0, SEEK_END);
+        size_t exe_len = ftell(fexe);
+        fseek(fexe, 0, SEEK_SET);
+        
+        char *exe_data = malloc(exe_len);
+        if (!exe_data) {
+            fprintf(stderr, "Error: out of memory\n");
+            fclose(fexe);
+            free(script_src);
+            return 1;
+        }
+        fread(exe_data, 1, exe_len, fexe);
+        fclose(fexe);
+        
+        /* Create the bundle: exe + script + footer */
+        FILE *fout = fopen(bundle_name, "wb");
+        if (!fout) {
+            fprintf(stderr, "Error: cannot create bundle file %s\n", bundle_name);
+            free(exe_data);
+            free(script_src);
+            return 1;
+        }
+        
+        /* Write interpreter */
+        fwrite(exe_data, 1, exe_len, fout);
+        
+        /* Write script */
+        fwrite(script_src, 1, script_len, fout);
+        
+        /* Write bundle footer: magic + script offset */
+        uint64_t script_offset = exe_len;
+        uint64_t magic = 0x56494942554E444C; /* "VIIBUNDL" */
+        fwrite(&script_offset, sizeof(script_offset), 1, fout);
+        fwrite(&magic, sizeof(magic), 1, fout);
+        
+        fclose(fout);
+        free(exe_data);
+        free(script_src);
+        
+        /* Make executable on Unix */
+#ifndef _WIN32
+        chmod(bundle_name, 0755);
+#endif
+        
+        printf("Bundle created: %s\n", bundle_name);
+        return 0;
+    }
 
     /* build CLI arg list */
     cli_args = val_list();
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "--debug") == 0) continue;
         if (strcmp(argv[i], "-o") == 0) { i++; continue; }
+        if (strcmp(argv[i], "--bundle") == 0) { i++; continue; }
         if (strcmp(argv[i], "-k") == 0 || strcmp(argv[i], "--keep") == 0) continue;
         if (strcmp(argv[i], "-D") == 0 || strcmp(argv[i], "--define") == 0) { i++; continue; }
         if (strcmp(argv[i], "--trace") == 0) continue;
@@ -157,7 +342,7 @@ int main(int argc, char **argv) {
     }
 
     char *src = read_file(input_path);
-    if (trace) fprintf(stderr, "[TRACE] Read %zu bytes from %s\n", strlen(src), input_path);
+    if (trace) fprintf(stderr, "[TRACE] Read %lu bytes from %s\n", (unsigned long)strlen(src), input_path);
     Lexer lexer = { .src = src, .pos = 0, .filename = input_path, .arena = global_arena };
     if (trace) fprintf(stderr, "[TRACE] Starting lexer...\n");
     lex(&lexer, input_path);
