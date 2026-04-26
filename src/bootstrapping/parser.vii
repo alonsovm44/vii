@@ -157,7 +157,9 @@ do parse_primary p
 
   else if k == TOK_ARG
     advance p
-    nd_new ND_ARG t
+    n = nd_new ND_VAR t
+    n key "name" "arg"
+    n
 
   else if k == TOK_KEYS
     advance p

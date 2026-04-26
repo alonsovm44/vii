@@ -49,7 +49,14 @@ do str_contains s sub
   out 0
 
 do main
-  global_arena = arena_create(64*1024*1024) # Assuming arena_create is available from vii.vii or C runtime
+  # Increase arena size to 512MB to match C core
+  global_arena = arena_create(512*1024*1024) 
+  
+  # Ensure arg is available
+  # Safely capture the global arguments list.
+  args_list = list
+  if type arg == "list"
+    args_list = arg
   
   input_path = "none"
   output_name = "none"
@@ -58,28 +65,28 @@ do main
   debug_ast = 0
   implicit_print = 0
   target_set = 0
-  trace = 0
-  argc = len arg
+  trace_mode = 0
+  argc = len args_list
   
   # Ensure we have at least one argument (the input file)
   if argc < 1
     print_usage
   
   # Argument Parsing
-  # Start at 0 to be robust across different host interpreter arg-passing styles
+  # Use the cached args_list
   i = 0 
   while i < argc
-    current_arg = arg at i
+    current_arg = args_list at i
     if current_arg == "--debug"
       debug_ast = 1
     else if current_arg == "--bootdebug"
       boot_debug = 1
     else if current_arg == "--trace"
-      trace = 1
+      trace_mode = 1
     else if current_arg == "-o"
       next_i = i + 1
       if next_i < argc
-        output_name = arg at next_i
+        output_name = args_list at next_i
         i = next_i
       else
         color_red + "Error: -o requires a filename" + color_rst
@@ -91,7 +98,7 @@ do main
     else if current_arg == "-D"
       next_i = i + 1
       if next_i < argc
-        add_define arg at next_i
+        add_define args_list at next_i
         i = next_i
       else
         color_red + "Error: -D requires a name" + color_rst
@@ -99,7 +106,7 @@ do main
     else if current_arg == "--define"
       next_i = i + 1
       if next_i < argc
-        add_define arg at next_i
+        add_define args_list at next_i
         i = next_i
       else
         color_red + "Error: -D requires a name" + color_rst
@@ -142,7 +149,7 @@ do main
   cli_args = list
   i = 0 
   while i < argc
-    current_arg = arg at i
+    current_arg = args_list at i
     if current_arg == "--debug"
       i = i + 1 # Skip debug flag
     else if current_arg == "--bootdebug"
@@ -173,7 +180,7 @@ do main
 
   src_content = input_path ask # Read the source file
   
-  if trace
+  if trace_mode
     "[TRACE] Reading file: " + input_path
   
   lexer = dict
@@ -182,19 +189,19 @@ do main
   lexer key "line" 1 # Starting line for this lexer instance
   lexer key "filename" input_path
   lexer key "boot_debug" boot_debug
-  lexer key "trace" trace
+  lexer key "trace" trace_mode
   lexer key "arena" global_arena # Assuming arena is passed to lexer
 
   # Initialize the list of pasted files to track dependencies
   pasted_files = list
   pasted_files set 0 input_path
 
-  if trace
+  if trace_mode
     "[TRACE] Starting lexer..."
   
   tokens = lex lexer # Call the lexer
   
-  if trace
+  if trace_mode
     "[TRACE] Lexed " + tostr (len tokens) + " tokens"
   
   parser = dict
@@ -205,19 +212,19 @@ do main
   parser key "arena" global_arena # Assuming arena is passed to parser
   parser key "defines" CLI_DEFINES # Pass CLI defines to the parser
   parser key "boot_debug" boot_debug
-  parser key "trace" trace
+  parser key "trace" trace_mode
   parser key "in_func" 0 # Initialize in_func
   parser key "current_func" "none" # Initialize current_func
   parser key "constants" list # Initialize constants
   parser key "pasted_files" pasted_files # Pass tracking list to parser
   parser key "once_registry" dict
 
-  if trace
+  if trace_mode
     "[TRACE] Starting parser..."
   
   prog = parse_program parser # Call the parser
   
-  if trace
+  if trace_mode
     "[TRACE] Parsed AST"
   
   if debug_ast
@@ -227,7 +234,7 @@ do main
     "AST would be dumped to debug_ast.json"
 
   if output_name != "none"
-    if trace
+    if trace_mode
       "[TRACE] Compiling to binary: " + output_name
     compile_to_bin prog output_name keep_c # Call the compiler
     exit 0
@@ -239,13 +246,15 @@ do main
   global key "BOOT_DEBUG" boot_debug
 
   global_table = table_new global
-  if trace
+  if trace_mode
     "[TRACE] Starting interpreter..."
   res = val_unwrap (eval prog global_table)
-  if trace
+  if trace_mode
     "[TRACE] Interpreter returned"
 
-  if (res at "kind") != VAL_NONE and (res at "kind") != VAL_BREAK
+  # Check type safely to handle both native C values and bootstrapped dict-based values
+  t_res = type res
+  if t_res != "none" and t_res != "break"
     val_print res
   exit 0
 

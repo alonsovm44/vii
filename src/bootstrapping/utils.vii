@@ -1,0 +1,7 @@
+#! ONCE
+
+do printat x y char
+  ESC = chr 27
+  # ANSI sequence: ESC [ <row> ; <column> H
+  pos = ESC + "[" + tostr y + ";" + tostr x + "H"
+  "" put (pos + char)

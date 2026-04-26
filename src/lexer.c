@@ -183,7 +183,7 @@ static void lex_token(Lexer *l) {
     /* newline */
     if (c == '\n') {
         if (l->tok_count == 0 || l->tokens[l->tok_count-1].kind != TOK_NEWLINE)
-            lex_push(l, (Token){TOK_NEWLINE, NULL, 0, l->line, l->pos});
+            lex_push(l, (Token){TOK_NEWLINE, arena_strdup(l->arena, "\\n"), 0, l->line, l->pos});
         l->line++;
         l->pos++;
         l->at_line_start = true;
@@ -205,12 +205,12 @@ static void lex_token(Lexer *l) {
             if (spaces > l->indent) {
                 l->indents[++l->indent_top] = spaces;
                 l->indent = spaces;
-                lex_push(l, (Token){TOK_INDENT, NULL, 0, l->line, l->pos});
+                lex_push(l, (Token){TOK_INDENT, arena_strdup(l->arena, "<indent>"), 0, l->line, l->pos});
             }
             while (spaces < l->indent) {
                 l->indent_top--;
                 l->indent = l->indents[l->indent_top];
-                lex_push(l, (Token){TOK_DEDENT, NULL, 0, l->line, l->pos});
+                lex_push(l, (Token){TOK_DEDENT, arena_strdup(l->arena, "<dedent>"), 0, l->line, l->pos});
             }
             l->pos = p;
             l->at_line_start = false;

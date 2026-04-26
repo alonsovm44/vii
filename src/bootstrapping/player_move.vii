@@ -1,0 +1,33 @@
+paste "src/utils.vii"
+
+PLAYER_ICON = "@"
+
+# Use a dictionary for state so changes persist across functions
+player = dict
+player key "x" 10
+player key "y" 10
+
+do ask_move p
+  next = ask
+  if next == "w" 
+    p key "y" (p at "y" - 1)
+  else if next == "s" 
+    p key "y" (p at "y" + 1)
+  else if next == "a" 
+    p key "x" (p at "x" - 1)
+  else if next == "d" 
+    p key "x" (p at "x" + 1)
+  else
+    "" put "invalid move\n"
+    
+do render_player p
+  # Clear screen (optional, but keeps it clean)
+  # "" put ((chr 27) + "[2J") 
+  printat (p at "x") (p at "y") PLAYER_ICON
+
+do main p
+  ask_move p
+  render_player p
+
+while 1
+  main player
