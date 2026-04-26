@@ -544,6 +544,7 @@ do parse_stmt p
     src = filename ask
     l_ctx = dict
     l_ctx key "src" src; l_ctx key "pos" 0; l_ctx key "line" 1; l_ctx key "filename" filename
+    l_ctx key "trace" (p at "trace")
     sub_tokens = lex l_ctx
 
     sub_p = dict
@@ -551,6 +552,10 @@ do parse_stmt p
     sub_p key "in_func" (p at "in_func"); sub_p key "current_func" (p at "current_func")
     sub_p key "constants" (p at "constants")
     sub_p key "pasted_files" p_files
+    sub_p key "trace" (p at "trace")
+    sub_p key "boot_debug" (p at "boot_debug")
+    sub_p key "defines" (p at "defines")
+    sub_p key "once_registry" (p at "once_registry")
     out parse_program sub_p
 
   if k == TOK_FOR
