@@ -20,7 +20,7 @@ Value *val_bit(bool b) {
 
 Value *val_list(void) {
     Value *v = arena_alloc(global_arena, sizeof(Value));
-    v->kind = VAL_LIST; v->item_cap = 8;
+    v->kind = VAL_LIST; v->item_count = 0; v->item_cap = 8;
     v->items = arena_alloc(global_arena, v->item_cap * sizeof(Value*));
     return v;
 }

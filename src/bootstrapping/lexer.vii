@@ -126,6 +126,9 @@ do lex lexer_ctx
   source_len = len src
   filename = lexer_ctx at "filename"
 
+  if trace
+    "DEBUG: source_len = " + tostr source_len
+
   last_heartbeat = -1
   while pos < source_len
     t_count = len tokens

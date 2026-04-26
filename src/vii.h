@@ -210,4 +210,6 @@ void compile_to_bin(Node *prog, const char *out_name, bool keep_c);
 
 void dump_ast_json(Node *n, FILE *f, int indent);
 
+extern int trace;
+
 #endif /* VII_H */

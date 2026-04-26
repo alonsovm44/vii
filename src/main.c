@@ -5,6 +5,9 @@ char **cli_defines = NULL;
 int    cli_define_count = 0;
 static int cli_define_cap = 0;
 
+int trace = 0; // Global definition of trace
+FILE *log_fp = NULL; // Log file for trace output
+
 Arena *global_arena = NULL;
 
 typedef struct InternEntry {
@@ -16,7 +19,7 @@ static InternEntry *intern_table[1024];
 
 char* arena_intern(Arena *a, const char *s) {
     unsigned h = 0;
-    for (const char *p = s; *p; p++) h = h * 31 + (unsigned char)*p;
+    for (int i = 0; s[i]; i++) h = h * 31 + (unsigned char)s[i];
     h %= 1024;
     for (InternEntry *e = intern_table[h]; e; e = e->next) {
         if (strcmp(e->str, s) == 0) return e->str;
@@ -81,7 +84,6 @@ int main(int argc, char **argv) {
     const char *output_name = NULL;
     bool debug_ast = false;
     bool keep_c = false;
-    bool trace = false;
 
     if (argc < 2) goto usage;
 
@@ -99,6 +101,11 @@ int main(int argc, char **argv) {
             else { fprintf(stderr, "Error: -D requires a name\n"); return 1; }
         } else if (strcmp(argv[i], "--trace") == 0) {
             trace = true;
+        } else if (strcmp(argv[i], "--log") == 0) {
+            if (i + 1 < argc) {
+                log_fp = fopen(argv[++i], "w");
+                if (!log_fp) { fprintf(stderr, "Error: cannot open log file %s\n", argv[i]); return 1; }
+            } else { fprintf(stderr, "Error: --log requires a filename\n"); return 1; }
         } else if (argv[i][0] != '-') {
             if (!input_path) input_path = argv[i];
         }
@@ -154,12 +161,12 @@ int main(int argc, char **argv) {
     Lexer lexer = { .src = src, .pos = 0, .filename = input_path, .arena = global_arena };
     if (trace) fprintf(stderr, "[TRACE] Starting lexer...\n");
     lex(&lexer, input_path);
-    if (trace) fprintf(stderr, "[TRACE] Lexed %d tokens\n", lexer.tok_count);
+    if (trace) { fprintf(stderr, "[TRACE] Lexed %d tokens\n", lexer.tok_count); if (log_fp) fprintf(log_fp, "[TRACE] Lexed %d tokens\n", lexer.tok_count); }
 
     Parser parser = { .tokens = lexer.tokens, .pos = 0, .src = src, .filename = input_path, .arena = global_arena };
-    if (trace) fprintf(stderr, "[TRACE] Starting parser...\n");
+    if (trace) { fprintf(stderr, "[TRACE] Starting parser...\n"); if (log_fp) fprintf(log_fp, "[TRACE] Starting parser...\n"); }
     Node *prog = parse_program(&parser);
-    if (trace) fprintf(stderr, "[TRACE] Parsed AST with kind=%d\n", prog->kind);
+    if (trace) { fprintf(stderr, "[TRACE] Parsed AST with kind=%d\n", prog->kind); if (log_fp) fprintf(log_fp, "[TRACE] Parsed AST with kind=%d\n", prog->kind); }
 
     if (debug_ast) {
         FILE *df = fopen("debug_ast.json", "w");
@@ -180,10 +187,11 @@ int main(int argc, char **argv) {
     Table *global = table_new(NULL);
     /* Bind CLI args as 'arg' for bootstrapping compiler compatibility */
     extern Value *cli_args;
+    if (trace) { fprintf(stderr, "[TRACE] cli_args kind=%d (VAL_LIST=%d)\n", cli_args ? cli_args->kind : -1, VAL_LIST); if (log_fp) fprintf(log_fp, "[TRACE] cli_args kind=%d (VAL_LIST=%d)\n", cli_args ? cli_args->kind : -1, VAL_LIST); }
     table_set(global, "arg", cli_args);
-    if (trace) fprintf(stderr, "[TRACE] Starting interpreter...\n");
+    if (trace) { fprintf(stderr, "[TRACE] Starting interpreter...\n"); if (log_fp) fprintf(log_fp, "[TRACE] Starting interpreter...\n"); }
     Value *res = eval(prog, global); // Evaluate the entire program
-    if (trace) fprintf(stderr, "[TRACE] Interpreter returned kind=%d\n", res ? res->kind : -1);
+    if (trace) { fprintf(stderr, "[TRACE] Interpreter returned kind=%d\n", res ? res->kind : -1); if (log_fp) fprintf(log_fp, "[TRACE] Interpreter returned kind=%d\n", res ? res->kind : -1); }
 
     // Check if the last statement in the program was an implicit print.
     // If so, it has already been printed by the ND_PRINT node.
@@ -200,6 +208,7 @@ int main(int argc, char **argv) {
     }
 
     free(src);
+    if (log_fp) fclose(log_fp);
     return 0;
 
 usage:

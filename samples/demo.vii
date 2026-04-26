@@ -10,7 +10,7 @@ else
 x num = 1
 a str = "aa"
 f = ref a
-f = "olé"
+f = "ole"
 f
 
 arg1 = arg at 0

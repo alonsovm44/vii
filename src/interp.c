@@ -2,11 +2,13 @@
 #include <math.h>
 #include <time.h>
 
+extern FILE *log_fp;
+
 /* ──────────────────────── Table ──────────────────────── */
 
 static unsigned hash(const char *s) {
     unsigned h = 0;
-    while (*s) h = h * 31 + (unsigned char)*s++;
+    for (int i = 0; s[i]; i++) h = h * 31 + (unsigned char)s[i];
     return h % TABLE_SIZE;
 }
 
@@ -159,6 +161,8 @@ Value *eval(Node *n, Table *env) {
         }
         case ND_VAR:   {
             Value *v = table_get(env, n->name);
+            extern int trace;
+            if (trace) { fprintf(stderr, "[TRACE] VAR lookup: %s -> kind=%d\n", n->name, v ? v->kind : -1); if (log_fp) fprintf(log_fp, "[TRACE] VAR lookup: %s -> kind=%d\n", n->name, v ? v->kind : -1); }
             if (!v) {
                 Func *fn = func_find(n->name);
                 if (fn) {
@@ -441,34 +445,47 @@ Value *eval(Node *n, Table *env) {
                 Value *v = table_get(list->fields, idx->str);
                 return v ? v : val_none();
             }
+            if (list->kind == VAL_LIST) {
+                int i = (int)idx->num;
+                if (trace) { fprintf(stderr, "[TRACE] ND_AT list: item_count=%d, index=%d\n", list->item_count, i); }
+                if (i < 0) i += list->item_count;
+                if (i < 0 || i >= list->item_count) {
+                    if (trace) { fprintf(stderr, "[TRACE] ND_AT list: index out of bounds, returning none\n"); }
+                    return val_none();
+                }
+                if (trace) { fprintf(stderr, "[TRACE] ND_AT list: returning item[%d] with kind=%d\n", i, list->items[i] ? list->items[i]->kind : -1); }
+                return list->items[i];
+            }
+            /* String indexing: "hello" at 0 -> "h" */
             if (list->kind == VAL_STR) {
                 int i = (int)idx->num;
-                if (i < 0) i += (int)strlen(list->str);
-                if (i < 0 || i >= (int)strlen(list->str)) return val_none();
+                int len = strlen(list->str);
+                if (i < 0) i += len;
+                if (i < 0 || i >= len) return val_none();
                 char buf[2] = { list->str[i], '\0' };
                 return val_str(buf);
             }
-            if (list->kind != VAL_LIST) { fprintf(stderr, "Runtime error: 'at' on non-list\n"); exit(1); }
-            int i = (int)idx->num;
-            if (i < 0) i += list->item_count;
-            if (i < 0 || i >= list->item_count) return val_none();
-            return list->items[i];
+            return val_none();
         }
         case ND_SET: {
-            Value *list = eval(n->left, env);
+            Value *list = val_unwrap(eval(n->left, env));
             if (list->kind != VAL_LIST) { fprintf(stderr, "Runtime error: 'set' on non-list\n"); exit(1); }
             Value *idx  = eval(n->body[0], env);
             Value *val  = eval(n->body[1], env);
             int i = (int)idx->num;
             if (i < 0) i += list->item_count;
+            if (trace) { fprintf(stderr, "[TRACE] ND_SET: list item_count=%d, setting index %d to kind=%d\n", list->item_count, i, val->kind); }
             if (i == list->item_count) {
                 if (list->item_count >= list->item_cap) {
+                    if (trace) { fprintf(stderr, "[TRACE] ND_SET: growing list from %d to %d\n", list->item_cap, list->item_cap * 2); }
                     val_list_grow(list);
                 }
                 list->items[list->item_count++] = val;
+                if (trace) { fprintf(stderr, "[TRACE] ND_SET: appended at %d, new count=%d\n", i, list->item_count); }
             } else {
                 if (i < 0 || i >= list->item_count) { fprintf(stderr, "Runtime error: index %d out of range\n", i); exit(1); }
                 list->items[i] = val;
+                if (trace) { fprintf(stderr, "[TRACE] ND_SET: updated index %d\n", i); }
             }
             return val;
         }
@@ -614,6 +631,121 @@ Value *eval(Node *n, Table *env) {
                 v->kind = VAL_DICT;
                 v->fields = table_new(NULL);
                 return v;
+            }
+            if (strcmp(fname, "len") == 0) {
+                if (n->body_count < 1) runtime_error(n, "len requires an argument");
+                Value *v = val_unwrap(eval(n->body[0], env));
+                if (v->kind == VAL_LIST) return val_num(v->item_count);
+                if (v->kind == VAL_STR) return val_num(strlen(v->str));
+                if (v->kind == VAL_DICT) {
+                    int count = 0;
+                    for (int i = 0; i < TABLE_SIZE; i++) {
+                        for (Entry *e = v->fields->buckets[i]; e; e = e->next) count++;
+                    }
+                    return val_num(count);
+                }
+                return val_num(0);
+            }
+            if (strcmp(fname, "slice") == 0) {
+                if (n->body_count < 3) runtime_error(n, "slice requires string, start, end");
+                Value *v = val_unwrap(eval(n->body[0], env));
+                Value *start = val_unwrap(eval(n->body[1], env));
+                Value *end = val_unwrap(eval(n->body[2], env));
+                if (v->kind != VAL_STR || start->kind != VAL_NUM || end->kind != VAL_NUM) 
+                    return val_str("");
+                int s = (int)start->num;
+                int e = (int)end->num;
+                int len = strlen(v->str);
+                if (s < 0) s = 0;
+                if (e > len) e = len;
+                if (s >= e) return val_str("");
+                char *buf = malloc(e - s + 1);
+                strncpy(buf, v->str + s, e - s);
+                buf[e - s] = '\0';
+                Value *r = val_str(buf);
+                free(buf);
+                return r;
+            }
+            if (strcmp(fname, "str_contains") == 0) {
+                if (n->body_count < 2) runtime_error(n, "str_contains requires haystack, needle");
+                Value *haystack = val_unwrap(eval(n->body[0], env));
+                Value *needle = val_unwrap(eval(n->body[1], env));
+                if (haystack->kind != VAL_STR || needle->kind != VAL_STR) return val_num(0);
+                return val_num(strstr(haystack->str, needle->str) != NULL);
+            }
+            if (strcmp(fname, "str_replace") == 0) {
+                if (n->body_count < 3) runtime_error(n, "str_replace requires string, target, replacement");
+                Value *v = val_unwrap(eval(n->body[0], env));
+                Value *t = val_unwrap(eval(n->body[1], env));
+                Value *r = val_unwrap(eval(n->body[2], env));
+                if (v->kind != VAL_STR || t->kind != VAL_STR || r->kind != VAL_STR) return val_str("");
+                char *result = malloc(strlen(v->str) + 1);
+                result[0] = '\0';
+                char *p = v->str;
+                size_t tl = strlen(t->str);
+                while (*p) {
+                    char *f = strstr(p, t->str);
+                    if (f == p) {
+                        strcat(result, r->str);
+                        p += tl;
+                    } else {
+                        size_t len = strlen(result);
+                        result[len] = *p++;
+                        result[len+1] = '\0';
+                    }
+                }
+                Value *rv = val_str(result);
+                free(result);
+                return rv;
+            }
+            if (strcmp(fname, "read_file") == 0) {
+                if (n->body_count < 1) runtime_error(n, "read_file requires a filename");
+                Value *v = val_unwrap(eval(n->body[0], env));
+                if (v->kind != VAL_STR) return val_str("");
+                FILE *f = fopen(v->str, "r");
+                if (!f) return val_str("");
+                fseek(f, 0, SEEK_END);
+                long sz = ftell(f);
+                rewind(f);
+                char *buf = malloc(sz + 1);
+                fread(buf, 1, sz, f);
+                buf[sz] = '\0';
+                fclose(f);
+                Value *rv = val_str(buf);
+                free(buf);
+                return rv;
+            }
+            if (strcmp(fname, "arena_alloc") == 0) {
+                if (n->body_count < 1) runtime_error(n, "arena_alloc requires a size");
+                Value *size_val = val_unwrap(eval(n->body[0], env));
+                if (size_val->kind != VAL_NUM) runtime_error(n, "arena_alloc requires a numeric size");
+                void *p = arena_alloc(global_arena, (size_t)size_val->num);
+                return val_num((long long)p);
+            }
+            if (strcmp(fname, "keys") == 0) {
+                if (n->body_count < 1) runtime_error(n, "keys requires a dict argument");
+                Value *v = val_unwrap(eval(n->body[0], env));
+                if (v->kind != VAL_DICT) return val_none();
+                // Count keys
+                int count = 0;
+                for (int i = 0; i < TABLE_SIZE; i++) {
+                    for (Entry *e = v->fields->buckets[i]; e; e = e->next) count++;
+                }
+                Value *list = arena_alloc(global_arena, sizeof(Value));
+                list->kind = VAL_LIST;
+                list->item_count = count;
+                if (count > 0) {
+                    list->items = arena_alloc(global_arena, count * sizeof(Value*));
+                    int idx = 0;
+                    for (int i = 0; i < TABLE_SIZE; i++) {
+                        for (Entry *e = v->fields->buckets[i]; e; e = e->next) {
+                            list->items[idx++] = val_str(e->key);
+                        }
+                    }
+                } else {
+                    list->items = NULL;
+                }
+                return list;
             }
             Func *fn = func_find(fname);
             if (!fn) { runtime_error(n, "undefined function '%s'", fname); }
