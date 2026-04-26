@@ -304,6 +304,10 @@ static bool can_use_fast_shape(const char *func_name, const char *var_name, cons
 
 static void emit_c_header(FILE *f) {
     fprintf(f, "#include <stdio.h>\n#include <stdlib.h>\n#include <stdint.h>\n#include <string.h>\n#include <stdbool.h>\n#include <math.h>\n#include <time.h>\n#include <ctype.h>\n\n");
+    /* Primitive type aliases for Vii type system */
+    fprintf(f, "typedef int8_t i8; typedef int16_t i16; typedef int32_t i32; typedef int64_t i64;\n");
+    fprintf(f, "typedef uint8_t u8; typedef uint16_t u16; typedef uint32_t u32; typedef uint64_t u64;\n");
+    fprintf(f, "typedef float f32; typedef double f64;\n\n");
     fprintf(f, "typedef enum { VAL_NUM, VAL_STR, VAL_LIST, VAL_DICT, VAL_FUNC, VAL_BIT, VAL_REF, VAL_BREAK, VAL_SKIP, VAL_OUT, VAL_NONE } ValKind;\n");
     fprintf(f, "struct Table;\nstruct Value;\n");
     fprintf(f, "typedef struct Value* (*IoFunc)(struct Table*, int, struct Value**);\n");
@@ -376,6 +380,7 @@ static void emit_c_header(FILE *f) {
     fprintf(f, "static Value* io_table_new(Table* t, int argc, Value** argv) { Value *v = val_dict(); if(argc > 0) { Value *p = val_unwrap(argv[0]); if(p->kind == VAL_DICT) v->fields->parent = p->fields; } return v; }\n");
 }
 
+static bool is_primitive_type(const char *type_tag);
 static void emit_c_expr(Node *n, FILE *f);
 static void emit_c_stmt(Node *n, int indent, FILE *f);
 
@@ -400,6 +405,7 @@ static void emit_c_expr(Node *n, FILE *f) {
         }
         case ND_VAR:
             if (is_num_type || is_str_type) fprintf(f, "%s", n->name);
+            else if (n->type_tag && is_primitive_type(n->type_tag)) fprintf(f, "%s", n->name);
             else fprintf(f, "runtime_var_get(env, \"%s\")", n->name);
             break;
         case ND_DICT: fprintf(f, "val_dict()"); break;
@@ -571,12 +577,27 @@ static void emit_c_expr(Node *n, FILE *f) {
     }
 }
 
+/* Helper to check if type is a primitive type */
+static bool is_primitive_type(const char *type_tag) {
+    if (!type_tag) return false;
+    return (!strcmp(type_tag, "i8") || !strcmp(type_tag, "i16") || !strcmp(type_tag, "i32") || !strcmp(type_tag, "i64") ||
+            !strcmp(type_tag, "u8") || !strcmp(type_tag, "u16") || !strcmp(type_tag, "u32") || !strcmp(type_tag, "u64") ||
+            !strcmp(type_tag, "f32") || !strcmp(type_tag, "f64"));
+}
+
 static void emit_c_stmt(Node *n, int indent, FILE *f) {
     for (int i = 0; i < indent; i++) fprintf(f, "  ");
     switch (n->kind) {
         case ND_ASSIGN:
-            emit_c_expr(n, f);
-            fprintf(f, ";\n");
+            /* Handle primitive type declarations: x i32 = 5 */
+            if (n->left->kind == ND_VAR && n->left->type_tag && is_primitive_type(n->left->type_tag)) {
+                fprintf(f, "%s %s = ", n->left->type_tag, n->left->name);
+                emit_c_expr(n->right, f);
+                fprintf(f, ";\n");
+            } else {
+                emit_c_expr(n, f);
+                fprintf(f, ";\n");
+            }
             break;
         case ND_BLOCK:
             for (int i = 0; i < n->body_count; i++) emit_c_stmt(n->body[i], 0, f);

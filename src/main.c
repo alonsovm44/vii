@@ -114,7 +114,7 @@ int main(int argc, char **argv) {
     if (!input_path && strcmp(argv[1], "--version") != 0 && strcmp(argv[1], "--help") != 0) goto usage;
 
     if (strcmp(argv[1], "--version") == 0) {
-        printf("vii 1.3.1\n");
+        printf("vii 1.4.0\n");
         return 0;
     }
     if (strcmp(argv[1], "--help") == 0) {

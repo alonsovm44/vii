@@ -86,6 +86,14 @@ static Node *parse_postfix(Parser *p);
 static Node *parse_expr(Parser *p);
 static Node *parse_block(Parser *p, bool is_function);
 
+/* Helper to check if a type tag is a primitive numeric type (i8, i16, i32, i64, u8, u16, u32, u64, f32, f64) */
+static bool is_primitive_numeric_type(const char *type_tag) {
+    if (!type_tag) return false;
+    return (!strcmp(type_tag, "i8") || !strcmp(type_tag, "i16") || !strcmp(type_tag, "i32") || !strcmp(type_tag, "i64") ||
+            !strcmp(type_tag, "u8") || !strcmp(type_tag, "u16") || !strcmp(type_tag, "u32") || !strcmp(type_tag, "u64") ||
+            !strcmp(type_tag, "f32") || !strcmp(type_tag, "f64"));
+}
+
 /* Infers the type of a node at compile-time for validation */
 static const char *infer_node_type(Node *n, Node *fn_ctx) {
     if (!n) return "none";
@@ -360,7 +368,11 @@ static Node *parse_expr(Parser *p) {
     }
 
     /* assignment: var = expr OR var type = expr */
-    bool is_typed = (left->kind == ND_VAR && (peek(p)->kind == TOK_IDENT || peek(p)->kind == TOK_REF || peek(p)->kind == TOK_PTR || peek(p)->kind == TOK_BIT) &&
+    bool is_type_token = (peek(p)->kind == TOK_IDENT || peek(p)->kind == TOK_REF || peek(p)->kind == TOK_PTR || peek(p)->kind == TOK_BIT ||
+                          peek(p)->kind == TOK_I8 || peek(p)->kind == TOK_I16 || peek(p)->kind == TOK_I32 || peek(p)->kind == TOK_I64 ||
+                          peek(p)->kind == TOK_U8 || peek(p)->kind == TOK_U16 || peek(p)->kind == TOK_U32 || peek(p)->kind == TOK_U64 ||
+                          peek(p)->kind == TOK_F32 || peek(p)->kind == TOK_F64);
+    bool is_typed = (left->kind == ND_VAR && is_type_token &&
                     (p->tokens[p->pos+1].kind == TOK_EQ || p->tokens[p->pos+1].kind == TOK_ARROW));
     bool is_normal = (peek(p)->kind == TOK_EQ && (left->kind == ND_VAR || left->kind == ND_AT));
 
@@ -386,7 +398,8 @@ static Node *parse_expr(Parser *p) {
         if (left->type_tag) {
             const char *actual = infer_node_type(assign->right, p->current_func);
             bool compatible = (strcmp(actual, left->type_tag) == 0) || 
-                              (strcmp(left->type_tag, "bit") == 0 && strcmp(actual, "num") == 0);
+                              (strcmp(left->type_tag, "bit") == 0 && strcmp(actual, "num") == 0) ||
+                              (is_primitive_numeric_type(left->type_tag) && strcmp(actual, "num") == 0);
             if (strcmp(actual, "unknown") != 0 && !compatible) {
                 report_error(p->filename, p->src, op->pos, op->line, 
                     "type mismatch in assignment to '%s': expected '%s', found '%s'", 

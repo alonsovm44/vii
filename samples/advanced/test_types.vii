@@ -1,0 +1,32 @@
+#dynamic typing
+# works as of 1.4.0
+x = 5
+y = 4.5
+x + "  <- ran with dynamic typing"
+y + "  <- ran with dynamic typing"
+
+# Soft typing
+x num = 5
+y num = 4.5 
+z str = "hello"
+x + "  <- ran with soft typing"
+y + "  <- ran with soft typing"
+z + "  <- ran with soft typing"
+
+# hard typing keywords
+c i8 = 8
+d i16 = 55
+x i32 = 5
+X i64 = 1024
+y u8 = 255
+z f64 = 3.14159
+a u8 = 100
+b str = "hello there"
+x + "  <- ran with hard typing"
+y + "  <- ran with hard typing"
+z + "  <- ran with hard typing"
+a + "  <- ran with hard typing"
+b + "  <- ran with hard typing"
+c + "  <- ran with hard typing"
+d + "  <- ran with hard typing"
+X + "  <- ran with hard typing"

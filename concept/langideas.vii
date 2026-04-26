@@ -133,3 +133,18 @@ value = matrix at 1 at 2  # 6 (row 1, col 2)
 # something
 
 x # x and y share the same memory address 
+
+# idea 7. Structs -> thing 
+
+thing ball # thing kind 
+  x i32 # traits, in this case position
+  y i32 
+  v f64 
+
+# 9. Kinds
+
+kind roundStuff
+  ball
+  disk
+
+

@@ -1,0 +1,30 @@
+# currently not supported as of 1.4.0
+do i32func->i32 x->i32
+  x+1
+
+i32func 2
+
+
+do i64func->i64 x->i64
+  x+1
+
+i64func 2
+
+
+do i8func->i8 x->i8
+  x+1
+
+i8func 2
+
+
+do i16func->i16 x->i16
+  x+1
+
+i16func 2
+
+
+do u8func->u8 x->u8
+  x+1
+
+u8func 2
+
