@@ -1,8 +1,8 @@
 # Vii 
 
-**A minimalist language that compiles to C.**
+**A minimalist language with gradual typing and stack allocation.**
 
-[![Version](https://img.shields.io/badge/version-1.3.0-blue.svg)](https://github.com/alonsovm44/vii)
+[![Version](https://img.shields.io/badge/version-1.4.0-blue.svg)](https://github.com/alonsovm44/vii)
 [![Language](https://img.shields.io/badge/language-C-orange.svg)](https://en.wikipedia.org/wiki/C_(programming_language))
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Made in Mexico](https://img.shields.io/badge/🇲🇽_Made_in-Mexico-00A859.svg)]()
@@ -24,28 +24,32 @@
 - **C developers** wanting faster iteration
 - **Anyone** who believes code should read like poetry
 
-## The 3 Rules
+## The 4 Rules
 
 | Rule | What It Means | Example |
 |------|---------------|---------|
 | **Minimal Punctuation** | No `{ }`, `[ ]`, `,`, or `:` | `if x > 5` instead of `if (x > 5) {` |
 | **Implicit Output** | Unsaved values print automatically | `"hello world"` prints immediately |
 | **Indentation Only** | Spaces define structure | 2 spaces = new block |
+| **Gradual Typing** | Types when you need them | `x i32 = 5` or just `x = 5` |
 
-## Complete Vocabulary — Only 33 Keywords
+## Complete Vocabulary — 40+ Keywords
 
 You can learn Vii in an afternoon. The entire language fits in your head.
 
 | Category | Keywords | Purpose |
 |----------|----------|---------|
-| **Control Flow** | `if`, `else`, `while`, `break` | Branching and loops |
+| **Control Flow** | `if`, `else`, `while`, `break`, `for`, `in` | Branching and loops |
 | **Functions** | `do`, `->` | Define and return |
-| **Data** | `list`, `dict`, `ref` | Collections and references |
-| **Access** | `at`, `set`, `key` | Get, set, and key operations |
-| **I/O** | `ask`, `put`, `append` | Read, write, append |
+| **Data** | `list`, `dict`, `ref`, `ptr`, `bit` | Collections and references |
+| **Memory** | `stack_alloc` | Stack allocation for fixed arrays |
+| **Types** | `i8`, `i16`, `i32`, `i64`, `u8`, `u16`, `u32`, `u64`, `f32`, `f64` | Primitive numeric types |
+| **Access** | `at`, `set`, `key`, `keys` | Get, set, and key operations |
+| **I/O** | `ask`, `askfile`, `put`, `append` | Read, write, append |
 | **System** | `arg`, `paste`, `time`, `sys`, `env`, `exit` | CLI, modules, time, shell, vars |
-| **Transform** | `len`, `type`, `slice`, `ord`, `chr`, `tonum`, `tostr` | Type conversion |
-| **Logic** | `and`, `or` | Boolean operators |
+| **Transform** | `len`, `type`, `slice`, `ord`, `chr`, `tonum`, `tostr`, `split`, `trim`, `replace` | Type conversion |
+| **Logic** | `and`, `or`, `not` | Boolean operators |
+| **Safety** | `safe` | Safe navigation operator |
 | **Macros** | `IF`, `ELSE`, `WIN`, `UNIX` | Compile-time conditionals |
 | **Math** | `+`, `-`, `*`, `/`, `%`, `=`, `==`, `!=`, `<`, `>`, `Lte`, `Gte` | Operators |
 | **Comments** | `#`, `#{ }#` | Line and block comments |
@@ -65,23 +69,18 @@ make
 
 ### Run a Script
 ```bash
-./vii samples/demo.vii
-./vii samples/fizzbuzz.vii
-./vii samples/guess.vii arg1 arg2
-```
-
-### Compile to Native Binary
-```bash
-./vii samples/fizzbuzz.vii -o fizzbuzz    # Creates ./fizzbuzz
-./fizzbuzz                                  # Runs native code
+./vii samples/simple/demo.vii
+./vii samples/simple/fizzbuzz.vii
+./vii samples/simple/guess.vii arg1 arg2
+./vii samples/advanced/stack_alloc.vii   # Fixed arrays demo
 ```
 
 ### CLI Options
 ```bash
-vii --version           # Show version (1.3.0)
+vii --version           # Show version (1.4.0)
 vii --help              # Show usage and all keywords  
 vii --debug file.vii    # Generate debug_ast.json
-vii -o binary file.vii  # Compile to native executable
+vii file.vii            # Run interpreter (default)
 ```
 
 ## Example: FizzBuzz in Vii
@@ -134,19 +133,51 @@ paste "lib/random.vii" # Random numbers
 
 ## Architecture
 
+Vii 1.4 is now an interpreter with a gradual type system:
+
 ```
 Vii Source (.vii)
        ↓
    Lexer → Tokens
        ↓
-   Parser → AST
+   Parser → AST (with type checking)
        ↓
-   CodeGen → C Code (.c)
-       ↓
-   GCC → Native Binary
+   Interpreter → Execute
 ```
-## Boostrapping
-Progress has been made in writing Vii in Vii (look at bootstrapping sub folder in src/). Contributing would help a lot thanks
+
+### Type System Features
+
+**Primitive Types:** `i8`, `i16`, `i32`, `i64`, `u8`, `u16`, `u32`, `u64`, `f32`, `f64`
+
+**Gradual Typing:**
+```vii
+# Untyped - inferred at runtime
+x = 42
+
+# Explicitly typed
+y i32 = 42
+z f64 = 3.14159
+```
+
+**Stack Allocation for Fixed Arrays:**
+```vii
+# Fixed-size array on stack (bounded)
+buf u8[1024] = stack_alloc    # 1KB buffer
+nums i32[100] = stack_alloc   # 100 integers
+
+# Access with bounds checking
+buf at 0 = 65        # OK
+buf at 1024 = 66     # Runtime error: out of bounds
+```
+
+**Explicit Casting:**
+```vii
+x = 3.14159
+y = x -> i32    # Cast to i32 (value truncated)
+```
+## Bootstrapping
+
+Progress has been made in writing Vii in Vii (look at `src/bootstrapping/` folder). Contributing would help a lot thanks!
 
 ## IDE Support
 
