@@ -629,6 +629,8 @@ static Node *parse_expr(Parser *p) {
             bool compatible = (strcmp(actual, left->type_tag) == 0) || 
                               (strcmp(left->type_tag, "bit") == 0 && strcmp(actual, "num") == 0) ||
                               (is_primitive_numeric_type(left->type_tag) && 
+                               (strcmp(actual, "num") == 0 || is_primitive_numeric_type(actual))) ||
+                              (strcmp(left->type_tag, "num") == 0 && 
                                (strcmp(actual, "num") == 0 || is_primitive_numeric_type(actual)));
             if (strcmp(actual, "unknown") != 0 && !compatible) {
                 report_error(p->filename, p->src, op->pos, op->line, 

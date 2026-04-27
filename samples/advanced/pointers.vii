@@ -1,0 +1,33 @@
+
+x i32 = 10
+
+p ptr i32 =  addr x # p is a pointer to an signed 32 bit integer, basically the same as doing int* p = &x
+x # prints 1 
+p # prints memory address
+
+hexaddress = addr x # this stores the hex value in hexaddress
+
+#this is wrong
+g i16 = 10
+q ptr i32 = addr g # g is i16 and q is a pointer to a i32, that wont work
+
+#NOTE
+# ref = transparent alias (no syntax change)
+b = 123
+a = ref b
+a = 5       # b changes too
+ 
+# addr = explicit pointer (new)
+p ptr i32 =  addr x
+p           # address
+val p    
+
+# dynamic pointer
+q ptr = addr x # dinamically points to the type of x ( but what happens if x is a dict, list or array?)
+p ptr = 10.11 # dynamcally points to f32 (or f64?), it could default to one 
+
+# ptr to boolean
+
+x bit = 1
+p ptr bit = addr x
+val p # prints 1

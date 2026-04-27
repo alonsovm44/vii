@@ -1,0 +1,16 @@
+do say->str msg->str
+  "" put msg 
+
+do foo 
+  x i32 = 10  
+  say ("foo: " + addr(x)->str + "\n") # casting hex value from hex to str using arrow caster
+
+do bar 
+  y i32 = 20 
+  say ("bar: " + tostr(addr(y)) + "\n") # casting hex value from hex to str using tostr
+  foo
+
+do main 
+  z i32 = 30
+  say ("main: " + tostr(addr(z)) + "\n")
+  bar

@@ -5,4 +5,4 @@ i = 0
 while i < 20
   stack at i = i*2
   stack at i
-  i = i + 1
+  i = i + 1 # this returns a runtime error on 24 due to out of bounds access

@@ -53,7 +53,7 @@ do vector_math -> f64
     
     # Simulate vector dot product
     dot_product = 3.14159
-    return dot_product
+    dot_product
 
 math_result = vector_math
 "  Vector result: " + (math_result -> str)
@@ -64,12 +64,12 @@ math_result = vector_math
 # ═══════════════════════════════════════════════════════════════
 do calculate_crc -> u32
     # CRC-32 lookup table (256 entries)
-    crc_table u32[256] = stack_alloc
+  crc_table u32[256] = stack_alloc
     
-    "Pattern 4: CRC lookup table"
-    "  u32[256] lookup table on stack (1KB)"
+  "Pattern 4: CRC lookup table"
+  "  u32[256] lookup table on stack (1KB)"
     
-    return 0xDEADBEEF
+  out 0xDEADBEEF
 
 crc = calculate_crc
 "  CRC: 0x" + (crc -> str)
@@ -85,7 +85,7 @@ do process_audio -> i32
     "Pattern 5: Audio sample buffer"
     "  f32[960] for 10ms stereo audio at 48kHz"
     
-    return 960
+    out 960
 
 sample_count = process_audio
 "  Processed " + (sample_count -> str) + " samples"
