@@ -810,6 +810,21 @@ Value *eval(Node *n, Table *env) {
                 }
                 return list;
             }
+        case ND_TYPE:
+            /* type x - returns type name as string */
+            {
+                Value *val = eval(n->left, env);
+                const char *type_name = val_kind_name(val->kind);
+                return val_str((char*)type_name);
+            }
+        case ND_ADDR:
+            /* addr x - returns memory address of variable as number (placeholder) */
+            {
+                Value *val = eval(n->left, env);
+                /* For now, return a placeholder address based on value pointer */
+                /* In a real implementation, this would return the actual memory address */
+                return val_num((double)(uintptr_t)val);
+            }
         case ND_CAST: {
             /* Cast expression: value -> type */
             Value *val = eval(n->left, env);
