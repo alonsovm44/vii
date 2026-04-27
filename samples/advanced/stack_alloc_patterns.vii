@@ -1,0 +1,233 @@
+# Vii 1.4 - Stack Allocation Patterns for Systems Programming
+# Real-world patterns for buffer management, string handling, and data processing
+
+"=== Stack Allocation Patterns ==="
+""
+
+# ═══════════════════════════════════════════════════════════════
+# Pattern 1: Network Packet Buffer
+# ═══════════════════════════════════════════════════════════════
+do process_packet -> i32
+    # Ethernet MTU is ~1500 bytes, round up to nice power of 2
+    packet u8[1536] = stack_alloc
+    
+    "Pattern 1: Network packet buffer"
+    "  Allocated u8[1536] for MTU-sized packet"
+    
+    # Simulate packet processing
+    packet_size = 1500
+    "  Processing packet of " + (packet_size -> str) + " bytes" # or use tostr packet_size
+    
+    return packet_size
+
+result = process_packet
+"  Returned: " + (result -> str) + " bytes processed"
+""
+
+# ═══════════════════════════════════════════════════════════════
+# Pattern 2: String Builder Buffer
+# ═══════════════════════════════════════════════════════════════
+do build_string -> str
+    # Buffer for building formatted strings
+    buffer u8[256] = stack_alloc
+    
+    "Pattern 2: String builder buffer"
+    "  Using u8[256] for string construction"
+    
+    # In real usage, this would be populated
+    return "formatted output"
+
+output = build_string
+"  Result: '" + output + "'"
+""
+
+# ═══════════════════════════════════════════════════════════════
+# Pattern 3: Floating Point Calculation Buffer
+# ═══════════════════════════════════════════════════════════════
+do vector_math -> f64
+    # 3D vectors: 4 vectors × 3 components
+    vectors f64[12] = stack_alloc
+    
+    "Pattern 3: Vector math buffer"
+    "  Allocated f64[12] for 4 3D vectors"
+    
+    # Simulate vector dot product
+    dot_product = 3.14159
+    return dot_product
+
+math_result = vector_math
+"  Vector result: " + (math_result -> str)
+""
+
+# ═══════════════════════════════════════════════════════════════
+# Pattern 4: Lookup Table on Stack
+# ═══════════════════════════════════════════════════════════════
+do calculate_crc -> u32
+    # CRC-32 lookup table (256 entries)
+    crc_table u32[256] = stack_alloc
+    
+    "Pattern 4: CRC lookup table"
+    "  u32[256] lookup table on stack (1KB)"
+    
+    return 0xDEADBEEF
+
+crc = calculate_crc
+"  CRC: 0x" + (crc -> str)
+""
+
+# ═══════════════════════════════════════════════════════════════
+# Pattern 5: Audio Sample Buffer
+# ═══════════════════════════════════════════════════════════════
+do process_audio -> i32
+    # 48kHz, 10ms buffer = 480 samples × 2 channels × 4 bytes
+    samples f32[960] = stack_alloc
+    
+    "Pattern 5: Audio sample buffer"
+    "  f32[960] for 10ms stereo audio at 48kHz"
+    
+    return 960
+
+sample_count = process_audio
+"  Processed " + (sample_count -> str) + " samples"
+""
+
+# ═══════════════════════════════════════════════════════════════
+# Pattern 6: Temporary Sorting Buffer
+# ═══════════════════════════════════════════════════════════════
+do sort_values -> i32
+    # Merge sort needs auxiliary buffer same size as input
+    data u32[100] = stack_alloc
+    temp u32[100] = stack_alloc
+    
+    "Pattern 6: Sorting with auxiliary buffer"
+    "  data u32[100] + temp u32[100] = 800 bytes"
+    
+    return 100
+
+sorted = sort_values
+"  Sorted " + (sorted -> str) + " elements"
+""
+
+# ═══════════════════════════════════════════════════════════════
+# Pattern 7: Matrix Multiplication Workspace
+# ═══════════════════════════════════════════════════════════════
+do matrix_multiply -> i32
+    # 8×8 matrix multiplication workspace
+    a f64[64] = stack_alloc
+    b f64[64] = stack_alloc
+    result f64[64] = stack_alloc
+    
+    "Pattern 7: Matrix multiplication"
+    "  Three f64[64] arrays = 1.5KB for 8×8 matrices"
+    
+    return 64
+
+matrix_size = matrix_multiply
+"  Computed " + (matrix_size -> str) + " matrix elements"
+""
+
+# ═══════════════════════════════════════════════════════════════
+# Pattern 8: Hash Table Bucket Stack
+# ═══════════════════════════════════════════════════════════════
+do hash_lookup -> str
+    # Small hash table on stack for local caching
+    # 64 buckets, 16 bytes each = 1KB
+    buckets u8[1024] = stack_alloc
+    
+    "Pattern 8: Stack-based hash table"
+    "  u8[1024] as 64 hash buckets"
+    
+    return "cached_value"
+
+cached = hash_lookup
+"  Retrieved: '" + cached + "'"
+""
+
+# ═══════════════════════════════════════════════════════════════
+# Pattern 9: Image Processing Tile
+# ═══════════════════════════════════════════════════════════════
+do process_tile -> i32
+    # 16×16 grayscale tile
+    tile u8[256] = stack_alloc
+    # 16×16 RGB tile (for color)
+    color_tile u8[768] = stack_alloc
+    
+    "Pattern 9: Image processing tiles"
+    "  u8[256] grayscale + u8[768] RGB"
+    
+    return 1024
+
+tile_pixels = process_tile
+"  Processed " + (tile_pixels -> str) + " pixels"
+""
+
+# ═══════════════════════════════════════════════════════════════
+# Pattern 10: Protocol Header Parsing
+# ═══════════════════════════════════════════════════════════════
+do parse_headers -> i32
+    # TCP header: 20-60 bytes
+    tcp_header u8[60] = stack_alloc
+    # IP header: 20-60 bytes
+    ip_header u8[60] = stack_alloc
+    # Ethernet header: 14 bytes, round to 16
+    eth_header u8[16] = stack_alloc
+    
+    "Pattern 10: Protocol header parsing"
+    "  eth_header u8[16] + ip_header u8[60] + tcp_header u8[60]"
+    
+    return 136
+
+header_bytes = parse_headers
+"  Parsed " + (header_bytes -> str) + " header bytes"
+""
+
+# ═══════════════════════════════════════════════════════════════
+# Pattern 11: Recursive Stack Depth (controlled)
+# ═══════════════════════════════════════════════════════════════
+do recursive_process depth -> i32
+    frame u8[64] = stack_alloc
+    
+    if depth > 0
+        next = recursive_process depth - 1
+        return next + 1
+    return 0
+
+"Pattern 11: Recursive processing"
+recursion_count = recursive_process 5
+"  Recursed " + (recursion_count -> str) + " levels, each with u8[64]"
+""
+
+# ═══════════════════════════════════════════════════════════════
+# Pattern 12: Simultaneous Multiple Types
+# ═══════════════════════════════════════════════════════════════
+do multi_type_buffer -> i32
+    # Buffers of different types for a complex calculation
+    flags bit[64] = stack_alloc          # 64 boolean flags
+    indices u16[128] = stack_alloc         # 128 16-bit indices  
+    values f64[64] = stack_alloc           # 64 double-precision values
+    names u8[256] = stack_alloc            # 256 bytes for string storage
+    
+    "Pattern 12: Multi-type buffer setup"
+    "  flags bit[64] + indices u16[128] + values f64[64] + names u8[256]"
+    "  Total: ~1.5KB of mixed-type buffers"
+    
+    return 512
+
+total = multi_type_buffer
+"  Managed " + (total -> str) + " data elements"
+""
+
+"=== All Patterns Complete ==="
+""
+"Key Takeaways:"
+"  1. Stack allocation is fast - just pointer arithmetic"
+"  2. Memory is automatically freed when function returns"
+"  3. No fragmentation, contiguous layout"
+"  4. Great for: buffers, lookup tables, temp calculations"
+"  5. Keep sizes reasonable - stack is typically 1-8MB"
+""
+"Size Guidelines:"
+"  - < 1KB: Always safe for frequent use"
+"  - 1-4KB: Safe for most cases"
+"  - 4-64KB: Use sparingly, watch recursion depth"
+"  - > 64KB: Consider heap allocation instead"

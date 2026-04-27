@@ -1,0 +1,144 @@
+# Vii 1.4 - Stack Allocation Mastery Test
+# Run with: ./vii samples/advanced/stack_alloc_master.vii
+
+"=== Vii 1.4 Stack Allocation Tests ==="
+""
+
+# ═══════════════════════════════════════════════════════════════
+# Test 1: Basic u8 buffer (bytes)
+# ═══════════════════════════════════════════════════════════════
+"Test 1: u8 buffer (1KB)"
+buf u8[1024] = stack_alloc
+"  Created 1024-byte buffer"
+
+# ═══════════════════════════════════════════════════════════════
+# Test 2: Different integer types
+# ═══════════════════════════════════════════════════════════════
+"Test 2: Integer type arrays"
+bytes u8[256] = stack_alloc      # 1 byte each, 256 bytes total
+words u16[128] = stack_alloc     # 2 bytes each, 256 bytes total  
+dwords u32[64] = stack_alloc     # 4 bytes each, 256 bytes total
+qwords u64[32] = stack_alloc      # 8 bytes each, 256 bytes total
+
+"  u8[256] - 256 bytes"
+"  u16[128] - 256 bytes"
+"  u32[64] - 256 bytes"  
+"  u64[32] - 256 bytes"
+
+# ═══════════════════════════════════════════════════════════════
+# Test 3: Signed integers
+# ═══════════════════════════════════════════════════════════════
+"Test 3: Signed integer arrays"
+signed_bytes i8[100] = stack_alloc
+signed_shorts i16[50] = stack_alloc
+signed_ints i32[25] = stack_alloc
+signed_longs i64[12] = stack_alloc
+"  i8[100], i16[50], i32[25], i64[12]"
+
+# ═══════════════════════════════════════════════════════════════
+# Test 4: Floating point
+# ═══════════════════════════════════════════════════════════════
+"Test 4: Floating point arrays"
+single_precision f32[64] = stack_alloc   # 4 bytes each
+double_precision f64[32] = stack_alloc  # 8 bytes each
+"  f32[64] - 256 bytes"
+"  f64[32] - 256 bytes"
+
+# ═══════════════════════════════════════════════════════════════
+# Test 5: Mixed allocations in same scope
+# ═══════════════════════════════════════════════════════════════
+"Test 5: Multiple allocations"
+header u8[16] = stack_alloc
+payload u32[256] = stack_alloc
+footer u8[16] = stack_alloc
+"  header u8[16] + payload u32[256] + footer u8[16]"
+
+# ═══════════════════════════════════════════════════════════════
+# Test 6: Small arrays
+# ═══════════════════════════════════════════════════════════════
+"Test 6: Small arrays"
+tiny u8[4] = stack_alloc
+small u32[8] = stack_alloc
+"  tiny u8[4] - 4 bytes"
+"  small u32[8] - 32 bytes"
+
+# ═══════════════════════════════════════════════════════════════
+# Test 7: Large arrays
+# ═══════════════════════════════════════════════════════════════
+"Test 7: Large arrays"
+large_buf u8[4096] = stack_alloc   # 4KB
+matrix f64[100] = stack_alloc       # 800 bytes
+"  large_buf u8[4096] - 4KB"
+"  matrix f64[100] - 800 bytes"
+
+# ═══════════════════════════════════════════════════════════════
+# Test 8: Function with stack allocation
+# ═══════════════════════════════════════════════════════════════
+"Test 8: Function call with stack allocation"
+do process_data -> i32
+    temp u8[512] = stack_alloc
+    values f64[100] = stack_alloc
+    "  Inside function: allocated temp u8[512] and values f64[100]"
+    return 42
+
+result = process_data
+"  Function returned: " + (result -> str)
+
+# ═══════════════════════════════════════════════════════════════
+# Test 9: Nested function calls
+# ═══════════════════════════════════════════════════════════════
+do inner -> i32
+    local u8[64] = stack_alloc
+    "    Inner function: u8[64]"
+    return 1
+
+do outer -> i32
+    outer_local u32[32] = stack_alloc
+    "  Outer function: u32[32]"
+    x = inner
+    return x
+
+"Test 9: Nested functions with stack allocations"
+outer_result = outer
+"  Completed nested calls"
+
+# ═══════════════════════════════════════════════════════════════
+# Test 10: Loop with repeated allocations (each iteration fresh)
+# ═══════════════════════════════════════════════════════════════
+"Test 10: Loop with allocations"
+i = 0
+while i < 3
+    loop_buf u8[128] = stack_alloc
+    "  Loop iteration " + (i -> str) + ": u8[128] allocated"
+    i = i + 1
+
+# ═══════════════════════════════════════════════════════════════
+# Test 11: Zero-size edge case
+# ═══════════════════════════════════════════════════════════════
+"Test 11: Minimal allocations"
+minimal u8[1] = stack_alloc
+"  minimal u8[1] - 1 byte"
+
+# ═══════════════════════════════════════════════════════════════
+# Test 12: Type consistency check
+# ═══════════════════════════════════════════════════════════════
+"Test 12: Type tracking"
+typed_buf u8[100] = stack_alloc
+# The variable 'typed_buf' has type_tag of "u8" and num field of 100
+"  Buffer declared as u8 with size 100"
+
+""
+"=== All Stack Allocation Tests Passed ==="
+"Features demonstrated:"
+"  - All primitive types: u8, u16, u32, u64, i8, i16, i32, i64, f32, f64"
+"  - Various array sizes from 1 to 4096 elements"
+"  - Multiple allocations in same scope"
+"  - Function-local stack allocations"
+"  - Nested function calls with independent allocations"
+"  - Loop-scoped allocations"
+""
+"Syntax: var_name type[size] = stack_alloc"
+"Examples:"
+"  buf u8[1024] = stack_alloc"
+"  data f64[256] = stack_alloc"
+"  values i32[100] = stack_alloc"

@@ -2,9 +2,9 @@
 
 # Cast numeric types
 x = 100
-y = x -> u32
-"Cast 100 -> u32: " + (y -> str)
-
+y = x -> f32
+"type: " type y
+"Cast 100 -> f32: " + (tostr y)
 # Cast to string
 number = 42
 str_num = number -> str # it is basicaally an alternative to: tostr
@@ -13,11 +13,12 @@ str_num = number -> str # it is basicaally an alternative to: tostr
 # Cast string to number
 pi_str = "3.14159"
 pi_num = pi_str -> num
-"Cast '3.14159' -> num: " + (pi_num -> str)
+"Cast '3.14159' -> num: " + (tostr pi_num)
+"Type: " type pi_num
 
 # Cast float to integer (conceptually)
 f = 3.9
 i = f -> i32
-"Cast 3.9 -> i32: " + (i -> str)
+"Cast 3.9 -> i32: " + (tostr i)
 
 "Casting works!"

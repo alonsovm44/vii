@@ -1,0 +1,189 @@
+# Vii 1.4 - List vs Stack_Alloc: When to Use Each
+# Comparing Vii's two array approaches
+
+"=== List vs Stack_Alloc Comparison ==="
+""
+
+"FEATURE COMPARISON:"
+""
+"param               | list              | stack_alloc"
+"---------------------+-------------------+-------------------"
+"Syntax              | name = list       | name type[N] = stack_alloc"
+"Memory Location     | Heap (via arena)  | Stack (alloca/VLA)"
+"Size                | Dynamic growth    | Fixed at declaration"
+"Bounds Checking     | Runtime           | Compile-time (future)"
+"Performance         | Good              | Excellent (no overhead)"
+"Lifetime            | Until scope ends  | Until function returns"
+"Interop             | Needs boxing      | Raw pointer ready"
+"Use Case            | General purpose   | Performance-critical"
+""
+
+# ═══════════════════════════════════════════════════════════════
+# DEMO 1: Dynamic vs Fixed
+# ═══════════════════════════════════════════════════════════════
+"Demo 1: Dynamic growth vs fixed size"
+""
+
+# List - can grow as needed
+dynamic_items = list
+# Add items dynamically
+dynamic_items at 0 = "first"
+dynamic_items at 1 = "second"  
+dynamic_items at 2 = "third"
+"List: Started empty, grew to " + (len dynamic_items) + " items"
+
+# Stack alloc - fixed size, no growth
+fixed_buffer u8[64] = stack_alloc
+"Stack: Fixed u8[64], cannot grow"
+""
+
+# ═══════════════════════════════════════════════════════════════
+# DEMO 2: Performance characteristics
+# ═══════════════════════════════════════════════════════════════
+"Demo 2: When stack_alloc shines"
+""
+
+do process_with_list->i32
+    # List approach - good for returning data
+    result = list
+    # ... process and populate list
+    len result
+
+do process_with_stack->i32
+    # Stack approach - fast temporary buffer
+    temp u8[1024] = stack_alloc
+    # ... process using temp buffer
+    out 1024
+
+list_way = process_with_list
+stack_way = process_with_stack
+
+"List function: returns data (can grow, heap allocated)"
+"Stack function: " + (stack_way -> str) + " bytes processed (fast, no allocation)"
+""
+
+# ═══════════════════════════════════════════════════════════════
+# DEMO 3: Type safety
+# ═══════════════════════════════════════════════════════════════
+"Demo 3: Type specificity"
+""
+
+# List stores any Value type
+mixed = list
+mixed at 0 = 42          # number
+mixed at 1 = "hello"   # string
+"List: Can store mixed types (numbers, strings, etc.)"
+
+# Stack alloc is strongly typed
+integers i32[100] = stack_alloc
+# Can only store i32 values
+"Stack: Type-safe - i32[100] only holds 32-bit integers"
+
+# ═══════════════════════════════════════════════════════════════
+# DEMO 4: Memory usage patterns
+# ═══════════════════════════════════════════════════════════════
+"Demo 4: Real-world scenarios"
+""
+
+# Scenario A: Reading a file of unknown size
+"Scenario A: Read file (unknown size)"
+"  → Use list (grows as file grows)"
+file_data = list
+# file_data = read_file "data.txt"
+"  List grows to fit file contents"
+
+
+# Scenario B: Processing fixed-size records
+"Scenario B: Parse 64-byte records"
+"  → Use stack_alloc (fixed size, fast)"
+do parse_record data -> str
+    # Fixed-size buffer for record parsing
+    record u8[64] = stack_alloc
+    # Copy and process
+    out "processed"
+
+r = parse_record "dummy"
+"  Each call uses 64 bytes on stack, auto-cleanup"
+""
+
+# Scenario C: Temporary calculations
+"Scenario C: Matrix computation"
+"  → Use stack_alloc for temp workspace"
+do matrix_op -> f64
+    # Temporary matrices on stack
+    temp_a f64[16] = stack_alloc
+    temp_b f64[16] = stack_alloc
+    # Compute and return scalar result
+    out 3.14159
+
+scalar_result = matrix_op
+"  2× temporary f64[16] arrays, result: " + (scalar_result -> str)
+
+# Scenario D: C interop
+"Scenario D: Call C library function"
+"  → Use stack_alloc (raw pointer)"
+do call_c_function -> i32
+    # C function expects void* buffer
+    c_buffer u8[512] = stack_alloc
+    # Pass &c_buffer[0] to C function
+    "  Passing stack buffer directly to C function"
+    out 0
+
+status = call_c_function
+"  C call status: " + (status -> str)
+""
+
+# ═══════════════════════════════════════════════════════════════
+# DEMO 5: Recursion safety
+# ═══════════════════════════════════════════════════════════════
+"Demo 5: Recursion considerations"
+
+
+# Safe recursion with small stack allocation
+do safe_recursive n->i32
+    tiny_frame u8[64] = stack_alloc
+    if n > 0
+        out n - 1
+    n
+
+"Safe: u8[64] x recursion depth uses limited stack"
+safe_recursive 100
+"  Recursed 100 levels x 64 bytes = ~6.4KB"
+""
+
+# ═══════════════════════════════════════════════════════════════
+# CHOICE GUIDE
+# ═══════════════════════════════════════════════════════════════
+"CHOICE GUIDE:"
+""
+"Use 'list' when:"
+"  ✓ Size is unknown or variable"
+"  ✓ You need to return/grow the collection"
+"  ✓ Storing mixed types"
+"  ✓ General-purpose scripting"
+"  ✓ Data lives beyond current function"
+""
+"Use 'stack_alloc' when:"
+"  ✓ Size is known at compile time"
+"  ✓ Maximum performance needed"
+"  ✓ Temporary workspace (calculations, buffers)"
+"  ✓ Calling C functions (raw pointer)"
+"  ✓ Type safety is important"
+"  ✓ Predictable memory layout needed"
+""
+"Examples:"
+"  list:  user_data list = list  # Growing user database"
+"  list:  lines list = list      # Reading text file"
+"  list:  results list = list    # Query results"
+""
+"  stack: buf u8[1024] = stack_alloc      # Network buffer"
+"  stack: temp f64[64] = stack_alloc      # Calculation temp"
+"  stack: table u32[256] = stack_alloc    # Lookup table"
+""
+
+"=== End Comparison ==="
+
+#{
+In essence
+this is the tutorial
+}#

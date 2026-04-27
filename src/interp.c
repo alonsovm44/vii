@@ -198,14 +198,24 @@ Value *eval(Node *n, Table *env) {
                 if (list->kind != VAL_LIST) { fprintf(stderr, "Runtime error: 'at' on non-list\n"); exit(1); }
                 int i = (int)idx->num;
                 if (i < 0) i += list->item_count;
-                if (i == list->item_count) {
-                    if (list->item_count >= list->item_cap) {
-                        val_list_grow(list);
+                /* For fixed arrays, enforce bounds strictly (no appending) */
+                if (list->fixed_cap > 0) {
+                    if (i < 0 || i >= list->item_count) {
+                        fprintf(stderr, "Runtime error: index %d out of bounds for fixed array of size %d\n", i, list->item_count);
+                        exit(1);
                     }
-                    list->items[list->item_count++] = val;
-                } else {
-                    if (i < 0 || i >= list->item_count) { fprintf(stderr, "Runtime error: index %d out of range\n", i); exit(1); }
                     list->items[i] = val;
+                } else {
+                    /* Dynamic list: allow appending */
+                    if (i == list->item_count) {
+                        if (list->item_count >= list->item_cap) {
+                            val_list_grow(list);
+                        }
+                        list->items[list->item_count++] = val;
+                    } else {
+                        if (i < 0 || i >= list->item_count) { fprintf(stderr, "Runtime error: index %d out of range\n", i); exit(1); }
+                        list->items[i] = val;
+                    }
                 }
             }
             return val;
@@ -467,14 +477,24 @@ Value *eval(Node *n, Table *env) {
             Value *val  = eval(n->body[1], env);
             int i = (int)idx->num;
             if (i < 0) i += list->item_count;
-            if (i == list->item_count) {
-                if (list->item_count >= list->item_cap) {
-                    val_list_grow(list);
+            /* For fixed arrays, enforce bounds strictly (no appending) */
+            if (list->fixed_cap > 0) {
+                if (i < 0 || i >= list->item_count) {
+                    fprintf(stderr, "Runtime error: index %d out of bounds for fixed array of size %d\n", i, list->item_count);
+                    exit(1);
                 }
-                list->items[list->item_count++] = val;
-            } else {
-                if (i < 0 || i >= list->item_count) { fprintf(stderr, "Runtime error: index %d out of range\n", i); exit(1); }
                 list->items[i] = val;
+            } else {
+                /* Dynamic list: allow appending */
+                if (i == list->item_count) {
+                    if (list->item_count >= list->item_cap) {
+                        val_list_grow(list);
+                    }
+                    list->items[list->item_count++] = val;
+                } else {
+                    if (i < 0 || i >= list->item_count) { fprintf(stderr, "Runtime error: index %d out of range\n", i); exit(1); }
+                    list->items[i] = val;
+                }
             }
             return val;
         }
@@ -774,6 +794,22 @@ Value *eval(Node *n, Table *env) {
         }
         case ND_BLOCK:
             return eval_block(n, env);
+        case ND_STACK_ALLOC:
+            /* Stack allocation - create a fixed-size list for bounds checking */
+            {
+                Value *list = val_list();
+                int size = (int)n->num;
+                list->fixed_cap = size;  /* Mark as fixed array */
+                if (size > 0) {
+                    /* Pre-allocate to fixed size */
+                    for (int i = 0; i < size; i++) {
+                        if (i >= list->item_cap) val_list_grow(list);
+                        list->items[i] = val_none();
+                    }
+                    list->item_count = size;
+                }
+                return list;
+            }
         case ND_CAST: {
             /* Cast expression: value -> type */
             Value *val = eval(n->left, env);

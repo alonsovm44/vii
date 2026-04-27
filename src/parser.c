@@ -204,6 +204,10 @@ static const char *infer_node_type(Node *n, Node *fn_ctx) {
             /* Cast expression returns the target type */
             if (n->type_tag) return n->type_tag;
             return "unknown";
+        case ND_STACK_ALLOC:
+            /* Stack allocation returns the element type */
+            if (n->type_tag) return n->type_tag;
+            return "array";
         case ND_CALL: return "unknown"; /* Function return types are resolved at runtime or in a later pass */
         default: break;
     }
@@ -556,39 +560,76 @@ static Node *parse_expr(Parser *p) {
         left = bin;
     }
 
-    /* assignment: var = expr OR var type = expr */
+    /* assignment: var = expr OR var type = expr OR var type[N] = stack_alloc */
     bool is_type_token = (peek(p)->kind == TOK_IDENT || peek(p)->kind == TOK_REF || peek(p)->kind == TOK_PTR || peek(p)->kind == TOK_BIT ||
                           peek(p)->kind == TOK_I8 || peek(p)->kind == TOK_I16 || peek(p)->kind == TOK_I32 || peek(p)->kind == TOK_I64 ||
                           peek(p)->kind == TOK_U8 || peek(p)->kind == TOK_U16 || peek(p)->kind == TOK_U32 || peek(p)->kind == TOK_U64 ||
                           peek(p)->kind == TOK_F32 || peek(p)->kind == TOK_F64);
+    /* Check for fixed array syntax: type [ size ] */
+    bool is_fixed_array = (left->kind == ND_VAR && is_type_token &&
+                           p->tokens[p->pos+1].kind == TOK_LBRACKET);
     bool is_typed = (left->kind == ND_VAR && is_type_token &&
                     (p->tokens[p->pos+1].kind == TOK_EQ || p->tokens[p->pos+1].kind == TOK_ARROW));
     bool is_normal = (peek(p)->kind == TOK_EQ && (left->kind == ND_VAR || left->kind == ND_AT));
 
-    if (is_typed || is_normal) {
+    if (is_fixed_array || is_typed || is_normal) {
         Node *assign = nd_new(ND_ASSIGN);
         assign->left = left;
         Token *op = peek(p);
 
-        if (is_typed) {
+        if (is_fixed_array) {
+            /* Fixed array: var type[N] = stack_alloc */
+            if (left->kind == ND_VAR && is_all_caps(left->name))
+                track_constant(p, left->name, op->pos, op->line);
+            /* Parse type */
+            left->type_tag = arena_intern(p->arena, advance(p)->text);
+            /* Parse [N] */
+            advance(p); /* consume [ */
+            if (peek(p)->kind != TOK_NUM) {
+                report_error(p->filename, p->src, peek(p)->pos, peek(p)->line, 
+                    "expected array size number after '['");
+            }
+            left->num = advance(p)->num; /* store array size in num field */
+            if (peek(p)->kind != TOK_RBRACKET) {
+                report_error(p->filename, p->src, peek(p)->pos, peek(p)->line, 
+                    "expected ']' after array size");
+            }
+            advance(p); /* consume ] */
+            /* Expect = */
+            if (peek(p)->kind != TOK_EQ) {
+                report_error(p->filename, p->src, peek(p)->pos, peek(p)->line, 
+                    "expected '=' after fixed array type declaration");
+            }
+            advance(p); /* consume = */
+            /* Expect stack_alloc */
+            if (peek(p)->kind != TOK_STACK_ALLOC) {
+                report_error(p->filename, p->src, peek(p)->pos, peek(p)->line, 
+                    "expected 'stack_alloc' for fixed array allocation");
+            }
+            advance(p); /* consume stack_alloc */
+            assign->right = nd_new(ND_STACK_ALLOC);
+            assign->right->type_tag = left->type_tag; /* inherit element type */
+            assign->right->num = left->num; /* store array size */
+        } else if (is_typed) {
             if (left->kind == ND_VAR && is_all_caps(left->name))
                 track_constant(p, left->name, op->pos, op->line);
             left->type_tag = arena_intern(p->arena, advance(p)->text);
             advance(p);
+            assign->right = parse_expr(p);
         } else {
             if (left->kind == ND_VAR && is_all_caps(left->name))
                 track_constant(p, left->name, op->pos, op->line);
             advance(p);
+            assign->right = parse_expr(p);
         }
-
-        assign->right = parse_expr(p);
 
         /* Implementation of Assignment Type Checking */
         if (left->type_tag) {
             const char *actual = infer_node_type(assign->right, p->current_func);
             bool compatible = (strcmp(actual, left->type_tag) == 0) || 
                               (strcmp(left->type_tag, "bit") == 0 && strcmp(actual, "num") == 0) ||
-                              (is_primitive_numeric_type(left->type_tag) && strcmp(actual, "num") == 0);
+                              (is_primitive_numeric_type(left->type_tag) && 
+                               (strcmp(actual, "num") == 0 || is_primitive_numeric_type(actual)));
             if (strcmp(actual, "unknown") != 0 && !compatible) {
                 report_error(p->filename, p->src, op->pos, op->line, 
                     "type mismatch in assignment to '%s': expected '%s', found '%s'", 

@@ -1,0 +1,8 @@
+
+stack i32[12] = stack_alloc # fixed array of 12 signed 32 bits integers
+
+i = 0
+while i < 20
+  stack at i = i*2
+  stack at i
+  i = i + 1

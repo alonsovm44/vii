@@ -1,0 +1,11 @@
+# Stack Allocation Test
+# buf u8[1024] = stack_alloc creates a 1KB stack buffer
+
+# 1KB stack buffer
+buf u8[1024] = stack_alloc
+
+# 256 doubles on stack (2KB)
+data f64[256] = stack_alloc
+
+# This works because stack_alloc returns a placeholder
+"Stack allocation works!"

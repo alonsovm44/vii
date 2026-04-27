@@ -55,6 +55,7 @@ typedef struct Value {
     struct Value *target; /* for VAL_REF */
     int    item_count;
     int    item_cap;
+    int    fixed_cap;     /* for fixed arrays: max size, 0 for dynamic lists */
     struct Table *fields;
     struct Value *inner; /* for VAL_OUT */
 } Value;
@@ -95,8 +96,8 @@ typedef enum {
     TOK_SYS, TOK_ENV, TOK_EXIT, TOK_REF, TOK_PTR, TOK_BIT, TOK_SPLIT, TOK_TRIM, TOK_REPLACE, TOK_SAFE,
     TOK_FOR, TOK_IN, TOK_EQ, TOK_EQEQ, TOK_PLUS, TOK_MINUS, TOK_STAR, TOK_SLASH, TOK_PCT, TOK_ARROW,
     TOK_LT, TOK_GT, TOK_LTE, TOK_GTE, TOK_NE, TOK_AND, TOK_OR, 
-    TOK_LPAREN, TOK_RPAREN, TOK_SEMICOLON,
-    TOK_NEWLINE, TOK_INDENT, TOK_DEDENT, TOK_EOF, TOK_OUT, TOK_NOT, TOK_SKIP, TOK_SHEBANG,
+    TOK_LPAREN, TOK_RPAREN, TOK_LBRACKET, TOK_RBRACKET, TOK_SEMICOLON,
+    TOK_NEWLINE, TOK_INDENT, TOK_DEDENT, TOK_EOF, TOK_OUT, TOK_NOT, TOK_SKIP, TOK_SHEBANG, TOK_STACK_ALLOC,
     /* Type system keywords */
     TOK_I8, TOK_I16, TOK_I32, TOK_I64,
     TOK_U8, TOK_U16, TOK_U32, TOK_U64,
@@ -139,7 +140,8 @@ typedef enum {
     ND_SYS, ND_ENV, ND_EXIT, ND_REF, ND_OUT, ND_NOT,
     ND_CALL, ND_BLOCK,
     ND_PRINT,
-    ND_CAST
+    ND_CAST,
+    ND_STACK_ALLOC
 } NdKind;
 
 typedef struct Node {
