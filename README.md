@@ -10,19 +10,19 @@
 
 ## What Makes Vii Unique?
 
-**Vii** (pronounced like *vee*) is a programming language born in Mexico that proves you don't need complex syntax to build powerful systems. It's designed for humans first, eliminating the punctuation soup that makes traditional languages intimidating.
+**Vii** (pronounced like *vee* or *vee two*) is an in-development lightweight scripting language with low level capabilities. Whether you are new into coding or a seasoned dev, vii works for any public.
 
 ### 🌟 Core Philosophy
 
-1. **Zero Punctuation Fatigue**: No braces, brackets, semicolons, or commas. Python asks "why not?" — Vii asks **"why?"**
-2. **Implicit Everything**: Values print automatically. Functions return the last expression. Code flows like thoughts.
+1. **No Punctuation Fatigue**: No braces, brackets, semicolons, or commas. Python asks "why not?" — Vii asks **"why?"**
+2. **Implicitness**: Values print automatically. Functions return the last expression. Code flows like thoughts.
 
-### 🎯 Perfect For
+### Good For
 
 - **DevOps** replacing messy bash scripts
 - **Beginners** learning their first language
 - **C developers** wanting faster iteration
-- **Anyone** who believes code should read like poetry
+- **Anyone** who wants the UX of a compiled language but the ease of a scripting one.
 
 ## The 4 Rules
 
