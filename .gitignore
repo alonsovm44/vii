@@ -1,2 +1,3 @@
 *.exe
 *.o
+.gendox/gendox_config.json

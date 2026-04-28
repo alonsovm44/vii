@@ -196,7 +196,7 @@ Progress has been made in writing Vii in Vii (look at `src/bootstrapping/` folde
 ---
 
 <p align="center">
-  Made with 💚 in Mexico 🇲🇽<br>
+  Made with 💚 in 🇲🇽<br>
   <a href="https://github.com/alonsovm44/vii">GitHub</a> •
   <a href="https://github.com/alonsovm44/vii-lang-extension">VS Code Extension</a> •
   <a href="LICENSE">MIT License</a>

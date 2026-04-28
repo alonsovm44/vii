@@ -1,0 +1,9 @@
+Track:
+    # Example: *.cpp
+
+Ignore:
+    # Example: secret.cpp
+
+Style:
+    # Example: no emojis
+    # Example: be concise
