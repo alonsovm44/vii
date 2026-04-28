@@ -1,0 +1,21 @@
+{
+    "name": "Vii Development Container",
+    "build": {
+        "dockerfile": "Dockerfile",
+        "context": "."
+    },
+    "customizations": {
+        "vscode": {
+            "settings": {
+                "terminal.integrated.shell.linux": "/bin/bash"
+            },
+            "extensions": [
+                "ms-vscode.cpptools",
+                "ms-vscode.cpptools-extension-pack",
+                "eamodio.gitlens"
+            ]
+        }
+    },
+    "remoteUser": "vscode",
+    "postCreateCommand": "make"
+}

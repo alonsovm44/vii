@@ -175,6 +175,7 @@ int main(int argc, char **argv) {
     const char *input_path = NULL;
     const char *bundle_name = NULL;
     bool debug_ast = false;
+    bool check_only = false;
 
     if (argc < 2) goto usage;
 
@@ -195,6 +196,8 @@ int main(int argc, char **argv) {
         } else if (strcmp(argv[i], "--bundle") == 0) {
             if (i + 1 < argc) bundle_name = argv[++i];
             else { fprintf(stderr, "Error: --bundle requires a filename\n"); return 1; }
+        } else if (strcmp(argv[i], "--check") == 0) {
+            check_only = true;
         } else if (argv[i][0] != '-') {
             if (!input_path) input_path = argv[i];
         }
@@ -211,10 +214,12 @@ int main(int argc, char **argv) {
         printf("Usage: vii <file.vii> [args...]\n");
         printf("       vii --version\n");
         printf("       vii --help\n");
+        printf("       vii --check <file.vii>\n");
         printf("       vii --debug <file.vii>\n");
         printf("       vii <file.vii> --bundle <output.exe>\n\n");
         printf("Options:\n");
         printf("  --bundle <out> Bundle script + interpreter into standalone binary\n");
+        printf("  --check        Check for syntax errors without executing\n");
         printf("  -D <name>      Define compile-time flag for IF macros\n\n");
         
         return 0;
@@ -314,6 +319,7 @@ int main(int argc, char **argv) {
     cli_args = val_list();
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "--debug") == 0) continue;
+        if (strcmp(argv[i], "--check") == 0) continue;
         if (strcmp(argv[i], "--bundle") == 0) { i++; continue; }
         if (strcmp(argv[i], "-D") == 0 || strcmp(argv[i], "--define") == 0) { i++; continue; }
         if (strcmp(argv[i], "--trace") == 0) continue;
@@ -344,6 +350,13 @@ int main(int argc, char **argv) {
             fclose(df);
             printf("AST dumped to debug_ast.json\n");
         }
+    }
+
+    if (check_only) {
+        printf("Syntax OK\n");
+        free(src);
+        if (log_fp) fclose(log_fp);
+        return 0;
     }
 
     /* Interpret the program */
@@ -377,5 +390,6 @@ int main(int argc, char **argv) {
 usage:
     fprintf(stderr, "Usage: vii <file.vii> [args...]\n");
     fprintf(stderr, "       vii <file.vii> --bundle <output.exe>\n");
+    fprintf(stderr, "       vii --check <file.vii>\n");
     return 1;
 }
