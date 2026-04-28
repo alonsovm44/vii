@@ -12,7 +12,7 @@
 
 **Vii** is an in-development lightweight low level scripting language. Whether you are new into coding or a seasoned dev, vii works for any public.
 
-### 🌟 Core Philosophy
+### Core Philosophy
 
 1. **No Punctuation Fatigue**: No braces, brackets, semicolons, or commas. Python asks "why not?" — Vii asks **"why?"**
 2. **Implicitness**: Values print automatically. Functions return the last expression. Code flows like thoughts.
@@ -54,7 +54,7 @@ You can learn Vii in an afternoon. The entire language fits in your head.
 | **Math** | `+`, `-`, `*`, `/`, `%`, `=`, `==`, `!=`, `<`, `>`, `Lte`, `Gte` | Operators |
 | **Comments** | `#`, `#{ }#` | Line and block comments |
 
-> 💡 **Convention**: `UPPERCASE` = immutable constants/macros, `lowercase` = variables/functions
+> **Convention**: `UPPERCASE` = immutable constants/macros, `lowercase` = variables/functions
 
 ## Quick Start
 
@@ -75,11 +75,17 @@ make
 ./vii samples/advanced/stack_alloc.vii   # Fixed arrays demo
 ```
 
+### Bundle programs in standalone executables
+Not heavy, not manual. 
+```bash
+./vii myscript.vii --bundle app
+```
+
 ### CLI Options
 ```bash
 vii --version           # Show version (1.4.0)
 vii --help              # Show usage and all keywords  
-vii --debug file.vii    # Generate debug_ast.json
+vii --debug file.vii    # Dumps the ast into a json file
 vii file.vii            # Run interpreter (default)
 ```
 
@@ -106,6 +112,7 @@ fizzbuzz 1
 Notice: **No braces. No semicolons. No commas.** Just logic.
 
 ## Standard Library
+> Note: Contributions to the stdlib of vii is welcomed. 
 
 Include modules with `paste`:
 

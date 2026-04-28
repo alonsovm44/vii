@@ -35,5 +35,7 @@ I left studying pointers and heap allocation to better understand what i am doin
 I also studied the output for stack_alloc. 
 Tomorrow i'll spend all day in the uni's library studying pointers, since i have no classes tomorrow
 
+Note: I ditched the transpiler and bootstrapping for now. Vii now bundles by default
+
 27 April 2026 10:32 pm
 I left implementing a lot of things today of which i am too lazy and tired to document 
