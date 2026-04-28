@@ -11,7 +11,7 @@ do calculate_circle_area->f32 (radius f32) scale num
 
 # 3. Pointer Operations and Hard/Soft Type Compatibility
 do increment_value (p ptr i32)
-    p = (valof p) + 1
+    valof p = (valof p) + 1
 
 "--- Vii " + VERSION + " Features ---"
 

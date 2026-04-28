@@ -3,7 +3,7 @@
 /* Circular paste detection */
 #define MAX_PASTE_DEPTH 32
 static const char *paste_stack[MAX_PASTE_DEPTH];
-static int paste_depth = 0;
+static int paste_depth = 0; 
 
 /* Read file contents */
 static char* read_file_contents(const char *filename) {

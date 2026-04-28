@@ -451,7 +451,7 @@ static Node *parse_primary(Parser *p) {
                 (next->kind >= TOK_I8 && next->kind <= TOK_F64)) {
                 n->type_tag = parse_type_tag(p);
             } else {
-                n->left = parse_primary(p);
+                n->left = parse_postfix(p);
             }
             return n;
         }
@@ -491,8 +491,12 @@ static Node *parse_primary(Parser *p) {
                     if (peek(p)->kind != TOK_IDENT) report_error(p->filename, p->src, peek(p)->pos, peek(p)->line, "expected parameter name");
                     param->name = arena_intern(p->arena, advance(p)->text);
                     Token *next = peek(p);
-                    if (next->kind == TOK_IDENT || next->kind == TOK_REF || next->kind == TOK_PTR || next->kind == TOK_BIT || (next->kind >= TOK_I8 && next->kind <= TOK_F64))
+                    if (next->kind == TOK_ARROW) {
+                        advance(p);
                         param->type_tag = parse_type_tag(p);
+                    } else if (next->kind == TOK_IDENT || next->kind == TOK_REF || next->kind == TOK_PTR || next->kind == TOK_BIT || (next->kind >= TOK_I8 && next->kind <= TOK_F64)) {
+                        param->type_tag = parse_type_tag(p);
+                    }
                     expect(p, TOK_RPAREN);
                 } else {
                     param->name = arena_intern(p->arena, advance(p)->text);

@@ -1,0 +1,10 @@
+
+
+do func (x->ptr i32)
+    valof x # should print the value pointed to by x 
+
+e = 10
+p ptr i32 = addr e
+func p # should print 10
+
+# WORKS

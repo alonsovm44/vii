@@ -270,9 +270,22 @@ Value *eval(Node *n, Table *env) {
                 /* If it's a generic Vii type, return the size of a boxed Value */
                 return val_num(sizeof(Value));
             }
-            /* sizeof expression: returns the size of the boxed Value struct */
-            eval(n->left, env);
-            return val_num(sizeof(Value));
+            /* sizeof expression: returns the total memory footprint of the value */
+            Value *v = val_unwrap(eval(n->left, env));
+            size_t size = sizeof(Value);
+            if (v->kind == VAL_STR && v->str) {
+                size += strlen(v->str) + 1;
+            } else if (v->kind == VAL_LIST && v->items) {
+                size += v->item_cap * sizeof(Value*);
+            } else if (v->kind == VAL_DICT && v->fields) {
+                size += sizeof(Table);
+                for (int i = 0; i < TABLE_SIZE; i++) {
+                    for (Entry *e = v->fields->buckets[i]; e; e = e->next) {
+                        size += sizeof(Entry);
+                    }
+                }
+            }
+            return val_num((double)size);
         }
 
         case ND_FOR: {

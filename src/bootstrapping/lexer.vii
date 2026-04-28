@@ -1,13 +1,18 @@
 #! ONCE
+
+
+MAX_PASTE_DEPTH = 32
+paste_stack i32[MAX_PASTE_DEPTH] = 0
+paste_depth i32 = 0
+
 # keyword list
 
 # Note: paste tracking moved to lexer_ctx to avoid global constant issues
 
-do read_file src filename
-  # Use ask operator to read file
-  src filename ask
+do read_file_contents->(str) FILE_NAME->str  
+  f = FILE_NAME ask 
 
-do has_shebang_once src
+do has_shebang_once src->ptr
   if (slice src 0 7) == "#! ONCE"
     1
   else
