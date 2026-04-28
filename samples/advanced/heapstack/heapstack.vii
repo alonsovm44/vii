@@ -1,15 +1,11 @@
 do say msg->str
   "" put msg
 
-do allocates->ptr i32
+do allocates->ptr i32 
   p ptr i32 = heap_alloc (sizeof i32)  
   val p = 32
-  p
-
-  # v1.4 features needed here
-  # multiple type return: allocates->ptr i32 
-  # heap_alloc
-
+  p # last one, return p 
+  
 do main 
   stack_var i32 = 10
   heap_var ptr i32 = allocates()
@@ -19,6 +15,9 @@ do main
   say "stack variable value: " + stack_var->str + "\n"
   say "heap variable value: " + val (heap_var)->str + "\n"
 
-  heap_free heap_var
+heap_free heap_var
 
-  exit 0
+exit 0
+# v1.4 features needed here
+# multiple type return: allocates->ptr i32 
+# heap_alloc

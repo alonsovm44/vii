@@ -193,6 +193,8 @@ static const char *infer_node_type(Node *n, Node *fn_ctx) {
         case ND_BLOCK:
             if (n->body_count > 0) return infer_node_type(n->body[n->body_count - 1], fn_ctx);
             break;
+        case ND_HEAP_ALLOC: return "ptr";
+        case ND_HEAP_FREE:  return "none";
         case ND_LEN: case ND_ORD: case ND_TONUM: case ND_SYS: case ND_TIME: return "num";
         case ND_CHR: case ND_TOSTR: case ND_ASKFILE: case ND_ENV: return "str";
         case ND_LIST: return "list";
@@ -355,6 +357,8 @@ static Node *parse_primary(Parser *p) {
         case TOK_TIME:  advance(p); return nd_new(ND_TIME);
         case TOK_SYS:   advance(p); { Node *n = nd_new(ND_SYS);   n->left = parse_postfix(p); return n; }
         case TOK_REF:   advance(p); { Node *n = nd_new(ND_REF);   n->left = parse_primary(p); return n; }
+        case TOK_HEAP_ALLOC: advance(p); { Node *n = nd_new(ND_HEAP_ALLOC); n->left = parse_primary(p); return n; }
+        case TOK_HEAP_FREE:  advance(p); { Node *n = nd_new(ND_HEAP_FREE);  n->left = parse_primary(p); return n; }
         case TOK_ENV:   advance(p); { Node *n = nd_new(ND_ENV);   n->left = parse_postfix(p); return n; }
         case TOK_EXIT:  advance(p); { Node *n = nd_new(ND_EXIT);  n->left = parse_postfix(p); return n; }
         case TOK_LIST:  advance(p); return nd_new(ND_LIST);
@@ -508,7 +512,8 @@ static Node *parse_postfix(Parser *p) {
                    peek(p)->kind == TOK_SAFE || peek(p)->kind == TOK_REF ||
                    peek(p)->kind == TOK_TYPE || peek(p)->kind == TOK_TIME ||
                    peek(p)->kind == TOK_DICT || peek(p)->kind == TOK_SYS ||
-                   peek(p)->kind == TOK_ENV || peek(p)->kind == TOK_EXIT)) {
+                   peek(p)->kind == TOK_ENV || peek(p)->kind == TOK_EXIT ||
+                   peek(p)->kind == TOK_HEAP_ALLOC || peek(p)->kind == TOK_HEAP_FREE)) {
             if (expr->kind != ND_VAR) break;
 
             if (peek(p)->kind == TOK_IDENT && (p->tokens[p->pos+1].kind == TOK_EQ || p->tokens[p->pos+1].kind == TOK_ARROW)) {
@@ -850,7 +855,7 @@ static Node *parse_stmt(Parser *p) {
         expr->kind != ND_SET && expr->kind != ND_KEY && expr->kind != ND_PUT && 
         expr->kind != ND_EXIT && expr->kind != ND_BLOCK && expr->kind != ND_BREAK &&
         expr->kind != ND_OUT && expr->kind != ND_SKIP && expr->kind != ND_IF &&
-        expr->kind != ND_WHILE && expr->kind != ND_FOR) {
+        expr->kind != ND_WHILE && expr->kind != ND_FOR && expr->kind != ND_HEAP_FREE) {
         Node *print = nd_new(ND_PRINT);
         print->left = expr;
         return print;

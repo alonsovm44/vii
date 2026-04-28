@@ -25,6 +25,12 @@ Value *val_list(void) {
     return v;
 }
 
+Value *val_ptr(Value *target) {
+    Value *v = arena_alloc(global_arena, sizeof(Value));
+    v->kind = VAL_PTR; v->target = target;
+    return v;
+}
+
 Value *val_ref(Value *target) {
     Value *v = arena_alloc(global_arena, sizeof(Value));
     v->kind = VAL_REF; v->target = target;
@@ -51,6 +57,7 @@ bool val_truthy(Value *v) {
         case VAL_STR:  return v->str[0] != '\0';
         case VAL_LIST: return v->item_count > 0;
         case VAL_BIT:  return v->num != 0;
+        case VAL_PTR:  return v->target != NULL;
         case VAL_REF:  return val_truthy(v->target);
         case VAL_OUT:  return val_truthy(v->inner);
         default:       return false;
@@ -78,6 +85,10 @@ Value* val_print_to(Value *v, FILE *f) {
             fputc(']', f);
             break;
         case VAL_BIT:  fprintf(f, v->num ? "1" : "0"); break;
+        case VAL_PTR:
+            /* Print pointer address for debugging/introspection */
+            fprintf(f, "<ptr:%p>", (void*)v->target);
+            break;
         case VAL_NONE: break;
     }
     return v;
@@ -97,6 +108,7 @@ const char* val_kind_name(int kind) {
         case VAL_BIT:  return "bit";
         case VAL_REF:  return "ref";
         case VAL_OUT:  return "out";
+        case VAL_PTR:  return "ptr";
         case VAL_NONE: return "none";
         default:       return "unknown";
     }
