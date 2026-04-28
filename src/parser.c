@@ -170,6 +170,57 @@ static bool is_pointer_type(const char *type_tag) {
     return !strcmp(type_tag, "ptr") || !strncmp(type_tag, "ptr ", 4);
 }
 
+static bool are_types_compatible(const char *expected, const char *actual) {
+    if (!expected || !actual || strcmp(actual, "unknown") == 0) return true;
+    if (strcmp(expected, actual) == 0) return true;
+    
+    /* bit/num compatibility */
+    if (strcmp(expected, "bit") == 0 && strcmp(actual, "num") == 0) return true;
+    
+    /* primitive numeric compatibility */
+    if (is_primitive_numeric_type(expected) && (strcmp(actual, "num") == 0 || is_primitive_numeric_type(actual))) return true;
+    if (strcmp(expected, "num") == 0 && (strcmp(actual, "num") == 0 || is_primitive_numeric_type(actual))) return true;
+
+    /* Pointer compatibility */
+    if (is_pointer_type(expected) && is_pointer_type(actual)) {
+        /* Generic ptr matches any specific pointer, and vice versa */
+        if (strcmp(expected, "ptr") == 0 || strcmp(actual, "ptr") == 0) return true;
+
+        /* Recursively check inner types to allow soft/hard numeric pointer compatibility */
+        if (strncmp(expected, "ptr ", 4) == 0 && strncmp(actual, "ptr ", 4) == 0) {
+            return are_types_compatible(expected + 4, actual + 4);
+        }
+
+        /* Specific pointers like "ptr i32" and "ptr f32" must match exactly (handled by strcmp at top) */
+        return false;
+    }
+    
+    return false;
+}
+
+/* ──────────────────────── Function Registry ──────────────────────── */
+
+/* Simple function signature tracking for argument type checking */
+typedef struct {
+    char *name;
+    char *return_type;
+    int param_count;
+    char **param_types;  /* NULL for untyped */
+} FuncSig;
+
+static FuncSig *func_registry = NULL;
+static int func_count = 0;
+static int func_cap = 0;
+
+static FuncSig* find_func_sig(const char *name) {
+    for (int i = 0; i < func_count; i++) {
+        if (strcmp(func_registry[i].name, name) == 0) {
+            return &func_registry[i];
+        }
+    }
+    return NULL;
+}
+
 /* Infers the type of a node at compile-time for validation */
 static const char *infer_node_type(Node *n, Node *fn_ctx) {
     if (!n) return "none";
@@ -216,7 +267,6 @@ static const char *infer_node_type(Node *n, Node *fn_ctx) {
         case ND_BLOCK:
             if (n->body_count > 0) return infer_node_type(n->body[n->body_count - 1], fn_ctx);
             break;
-        case ND_HEAP_ALLOC: return "ptr";
         case ND_HEAP_FREE:  return "none";
         case ND_LEN: case ND_ORD: case ND_TONUM: case ND_SYS: case ND_TIME: case ND_SIZEOF: return "num";
         case ND_CHR: case ND_TOSTR: case ND_ASKFILE: case ND_ENV: return "str";
@@ -256,33 +306,15 @@ static const char *infer_node_type(Node *n, Node *fn_ctx) {
                 if (strncmp(t, "ptr ", 4) == 0) return t + 4;
                 return "unknown";
             }
-        case ND_CALL: return "unknown"; /* Function return types are resolved at runtime or in a later pass */
+        case ND_CALL:
+            if (n->left && n->left->kind == ND_VAR) {
+                FuncSig *sig = find_func_sig(n->left->name);
+                if (sig && sig->return_type) return sig->return_type;
+            }
+            return "unknown";
         default: break;
     }
     return "unknown";
-}
-
-/* ──────────────────────── Function Registry ──────────────────────── */
-
-/* Simple function signature tracking for argument type checking */
-typedef struct {
-    char *name;
-    char *return_type;
-    int param_count;
-    char **param_types;  /* NULL for untyped */
-} FuncSig;
-
-static FuncSig *func_registry = NULL;
-static int func_count = 0;
-static int func_cap = 0;
-
-static FuncSig* find_func_sig(const char *name) {
-    for (int i = 0; i < func_count; i++) {
-        if (strcmp(func_registry[i].name, name) == 0) {
-            return &func_registry[i];
-        }
-    }
-    return NULL;
 }
 
 static void register_func_sig(Node *fn) {
@@ -299,7 +331,20 @@ static void register_func_sig(Node *fn) {
     
     FuncSig *sig = &func_registry[func_count++];
     sig->name = fn->name;
-    sig->return_type = fn->type_tag;
+    
+    /* Explicit return type from signature */
+    if (fn->type_tag) {
+        sig->return_type = fn->type_tag;
+    } else {
+        /* Infer return type from the last expression of the function body */
+        const char *inferred = infer_node_type(fn->left, fn);
+        if (strcmp(inferred, "unknown") != 0) {
+            sig->return_type = (char*)inferred;
+        } else {
+            sig->return_type = NULL;
+        }
+    }
+
     sig->param_count = fn->body_count;
     sig->param_types = arena_alloc(global_arena, fn->body_count * sizeof(char*));
     for (int i = 0; i < fn->body_count; i++) {
@@ -331,12 +376,7 @@ static void check_call_args(Parser *p, Node *call) {
         if (!expected) continue; /* Untyped parameter */
         
         const char *actual = infer_node_type(call->body[i], p->current_func);
-        bool compatible = (strcmp(actual, expected) == 0) ||
-                          (strcmp(expected, "bit") == 0 && strcmp(actual, "num") == 0) ||
-                          (is_primitive_numeric_type(expected) && strcmp(actual, "num") == 0) ||
-                          (is_pointer_type(expected) && is_pointer_type(actual));
-        
-        if (strcmp(actual, "unknown") != 0 && !compatible) {
+        if (!are_types_compatible(expected, actual)) {
             report_error(p->filename, p->src, call->line, call->line,
                 "argument %d to '%s' type mismatch: expected '%s', found '%s'",
                 i + 1, func_name, expected, actual);
@@ -399,7 +439,7 @@ static Node *parse_primary(Parser *p) {
         case TOK_TYPE:  advance(p); { Node *n = nd_new(ND_TYPE);  n->left = parse_primary(p); return n; }
         case TOK_TIME:  advance(p); return nd_new(ND_TIME);
         case TOK_SYS:   advance(p); { Node *n = nd_new(ND_SYS);   n->left = parse_postfix(p); return n; }
-        case TOK_REF:   advance(p); { Node *n = nd_new(ND_REF);   n->left = parse_primary(p); return n; }
+        case TOK_REF:   advance(p); { Node *n = nd_new(ND_REF);   n->left = parse_postfix(p); return n; }
         case TOK_HEAP_ALLOC: advance(p); { Node *n = nd_new(ND_HEAP_ALLOC); n->left = parse_primary(p); return n; }
         case TOK_HEAP_FREE:  advance(p); { Node *n = nd_new(ND_HEAP_FREE);  n->left = parse_primary(p); return n; }
         case TOK_SIZEOF: {
@@ -415,8 +455,8 @@ static Node *parse_primary(Parser *p) {
             }
             return n;
         }
-        case TOK_ADDR: advance(p); { Node *n = nd_new(ND_ADDR); n->left = parse_primary(p); return n; }
-        case TOK_VALOF: advance(p); { Node *n = nd_new(ND_DEREF); n->left = parse_primary(p); return n; }
+        case TOK_ADDR: advance(p); { Node *n = nd_new(ND_ADDR); n->left = parse_postfix(p); return n; }
+        case TOK_VALOF: advance(p); { Node *n = nd_new(ND_DEREF); n->left = parse_postfix(p); return n; }
         case TOK_ENV:   advance(p); { Node *n = nd_new(ND_ENV);   n->left = parse_postfix(p); return n; }
         case TOK_EXIT:  advance(p); { Node *n = nd_new(ND_EXIT);  n->left = parse_postfix(p); return n; }
         case TOK_LIST:  advance(p); return nd_new(ND_LIST);
@@ -444,18 +484,38 @@ static Node *parse_primary(Parser *p) {
 
             fn->body_cap = 8;
             fn->body = arena_alloc(p->arena, fn->body_cap * sizeof(Node*));
-            while (peek(p)->kind == TOK_IDENT) {
+            while (peek(p)->kind == TOK_IDENT || peek(p)->kind == TOK_LPAREN) {
                 Node *param = nd_new(ND_VAR);
-                param->name = arena_intern(p->arena, advance(p)->text);
-                if (is_all_caps(param->name)) {
-                    /* Parameters in ALL_CAPS are immutable within the function scope */
-                    track_constant(p, param->name, p->tokens[p->pos-1].pos, p->tokens[p->pos-1].line);
-                }
-                if (peek(p)->kind == TOK_ARROW) {
+                if (peek(p)->kind == TOK_LPAREN) {
                     advance(p);
+                    if (peek(p)->kind != TOK_IDENT) report_error(p->filename, p->src, peek(p)->pos, peek(p)->line, "expected parameter name");
+                    param->name = arena_intern(p->arena, advance(p)->text);
                     Token *next = peek(p);
                     if (next->kind == TOK_IDENT || next->kind == TOK_REF || next->kind == TOK_PTR || next->kind == TOK_BIT || (next->kind >= TOK_I8 && next->kind <= TOK_F64))
                         param->type_tag = parse_type_tag(p);
+                    expect(p, TOK_RPAREN);
+                } else {
+                    param->name = arena_intern(p->arena, advance(p)->text);
+                    Token *next = peek(p);
+                    if (next->kind == TOK_ARROW) {
+                        advance(p);
+                        param->type_tag = parse_type_tag(p);
+                    } else if (next->kind == TOK_REF || next->kind == TOK_PTR || next->kind == TOK_BIT || (next->kind >= TOK_I8 && next->kind <= TOK_F64)) {
+                        param->type_tag = parse_type_tag(p);
+                    } else if (next->kind == TOK_IDENT) {
+                        /* Lookahead: if an IDENT is followed by another parameter start, INDENT, or newline, it's likely a type name */
+                        Token *after = &p->tokens[p->pos + 1];
+                        if (after->kind == TOK_IDENT || after->kind == TOK_LPAREN || after->kind == TOK_PTR || 
+                            after->kind == TOK_REF || after->kind == TOK_BIT || (after->kind >= TOK_I8 && after->kind <= TOK_F64) ||
+                            after->kind == TOK_INDENT || after->kind == TOK_NEWLINE || after->kind == TOK_SEMICOLON) {
+                            param->type_tag = parse_type_tag(p);
+                        }
+                    }
+                }
+
+                if (is_all_caps(param->name)) {
+                    /* Parameters in ALL_CAPS are immutable within the function scope */
+                    track_constant(p, param->name, p->tokens[p->pos-1].pos, p->tokens[p->pos-1].line);
                 }
                 nd_push(fn, param);
             }
@@ -474,11 +534,7 @@ static Node *parse_primary(Parser *p) {
                 if (block->body_count > 0) {
                     Node *last = block->body[block->body_count - 1];
                     const char *actual = infer_node_type(last, fn);
-                    bool compatible = (strcmp(actual, fn->type_tag) == 0) || 
-                                      (strcmp(fn->type_tag, "bit") == 0 && strcmp(actual, "num") == 0) ||
-                                      (is_primitive_numeric_type(fn->type_tag) && strcmp(actual, "num") == 0) ||
-                                      (is_pointer_type(fn->type_tag) && is_pointer_type(actual));
-                    if (strcmp(actual, "unknown") != 0 && !compatible) {
+                    if (!are_types_compatible(fn->type_tag, actual)) {
                         report_error(p->filename, p->src, do_tok->pos, do_tok->line, 
                             "return type mismatch in function '%s': expected '%s', found '%s'", 
                             fn->name, fn->type_tag, actual);
@@ -651,6 +707,11 @@ static Node *parse_expr(Parser *p) {
                 track_constant(p, left->name, op->pos, op->line);
             /* Parse type */
             left->type_tag = parse_type_tag(p);
+            if (left->kind == ND_VAR) {
+                char buf[256];
+                snprintf(buf, sizeof(buf), "ptr %s", left->type_tag);
+                set_inferred_type(p->arena, left->name, buf);
+            }
             /* Parse [N] */
             advance(p); /* consume [ */
             if (peek(p)->kind != TOK_NUM) {
@@ -682,6 +743,8 @@ static Node *parse_expr(Parser *p) {
             if (left->kind == ND_VAR && is_all_caps(left->name))
                 track_constant(p, left->name, op->pos, op->line);
             left->type_tag = parse_type_tag(p);
+            if (left->kind == ND_VAR)
+                set_inferred_type(p->arena, left->name, left->type_tag);
             advance(p);
             assign->right = parse_expr(p);
         } else {
@@ -694,14 +757,7 @@ static Node *parse_expr(Parser *p) {
         /* Implementation of Assignment Type Checking */
         if (left->type_tag) {
             const char *actual = infer_node_type(assign->right, p->current_func);
-            bool compatible = (strcmp(actual, left->type_tag) == 0) || 
-                              (strcmp(left->type_tag, "bit") == 0 && strcmp(actual, "num") == 0) ||
-                              (is_primitive_numeric_type(left->type_tag) && 
-                               (strcmp(actual, "num") == 0 || is_primitive_numeric_type(actual))) ||
-                              (strcmp(left->type_tag, "num") == 0 && 
-                               (strcmp(actual, "num") == 0 || is_primitive_numeric_type(actual))) ||
-                              (is_pointer_type(left->type_tag) && is_pointer_type(actual));
-            if (strcmp(actual, "unknown") != 0 && !compatible) {
+            if (!are_types_compatible(left->type_tag, actual)) {
                 report_error(p->filename, p->src, op->pos, op->line, 
                     "type mismatch in assignment to '%s': expected '%s', found '%s'", 
                     left->name, left->type_tag, actual);

@@ -1,0 +1,8 @@
+
+
+do func->ptr i32
+  x ptr i32 = heap_alloc(32) 
+  x
+
+func 
+heap_free func

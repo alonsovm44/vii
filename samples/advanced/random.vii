@@ -1,0 +1,11 @@
+
+do random (seed ptr i32)
+    # this should generate a random number between 0 and 1 using the seed provided
+  out valof seed
+
+x i32 = 1.23
+seed ptr num = addr x
+seed # should print the hex adress
+valof seed # should print 1.23
+
+random seed # should deref the pointer

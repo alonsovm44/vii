@@ -1,0 +1,42 @@
+#! ONCE
+
+# 1. Constants and Explicit Hard Types
+VERSION str = "1.4.0"
+PI f64 = 3.14159
+
+# 2. Flexible Parameter Syntax and Return Type Annotations
+# This uses a mix of parenthesized and naked parameters
+do calculate_circle_area->f32 (radius f32) scale num 
+    radius * radius * (PI -> f32) * (scale -> f32)
+
+# 3. Pointer Operations and Hard/Soft Type Compatibility
+do increment_value (p ptr i32)
+    p = (valof p) + 1
+
+"--- Vii " + VERSION + " Features ---"
+
+# 4. Heap Allocation and Hexadecimal Pointer Formatting
+h_ptr ptr i32 = heap_alloc sizeof i32
+valof h_ptr = 100
+
+"Heap Address (Standard Hex):"
+h_ptr
+
+"Heap Value:"
+valof h_ptr
+
+# 5. Recursive Type Compatibility
+# Passing a hard pointer (ptr i32) where a soft pointer (ptr num) is used
+counter i32 = 41
+ptr_to_i32 ptr i32 = addr counter
+ptr_to_num ptr num = ptr_to_i32  # ptr i32 is compatible with ptr num
+
+increment_value ptr_to_i32
+"Counter after increment:"
+counter
+
+"Area Calculation (r=5.0, s=2):"
+calculate_circle_area 5.0 2
+
+heap_free h_ptr
+"Test Complete."

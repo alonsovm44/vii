@@ -1,0 +1,8 @@
+
+do func->num (x i32) (y ptr i32) z->num
+  k = x + (valof y) + z
+
+w i32 = 10
+p ptr num = addr w
+func 4 p 3.14 # should compute 4 + 10 + 3.14 and return 17.14
+# WORKS

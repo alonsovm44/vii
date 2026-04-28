@@ -833,30 +833,9 @@ Value *eval(Node *n, Table *env) {
             Func *fn = func_find(fname);
             if (!fn) { runtime_error(n, "undefined function '%s'", fname); }
             int argc = n->body_count;
-            /* Use malloc for transient argument arrays */
             Value **argv = malloc(argc * sizeof(Value*));
             for (int i = 0; i < argc; i++) {
-                if (i < fn->def->body_count && fn->def->body[i]->type_tag && !strcmp(fn->def->body[i]->type_tag, "ptr")) {
-                    if (n->body[i]->kind == ND_VAR) {
-                        argv[i] = val_ref(table_get(env, n->body[i]->name));
-                    } else {
-                        // If the parameter is a pointer type, and the argument is not a variable,
-                        // we need to decide how to handle it. For now, disallow literals for ptr.
-                        if (i < fn->def->body_count && fn->def->body[i]->type_tag && strstr(fn->def->body[i]->type_tag, "ptr") == fn->def->body[i]->type_tag) {
-                            runtime_error(n, "cannot pass literal as pointer argument to '%s'", fname);
-                        }
-                        argv[i] = eval(n->body[i], env);
-                    }
-                } else if (i < fn->def->body_count && fn->def->body[i]->type_tag && strstr(fn->def->body[i]->type_tag, "ptr") == fn->def->body[i]->type_tag) {
-                    // If parameter expects a pointer, and argument is a variable, pass its address as VAL_PTR
-                    if (n->body[i]->kind == ND_VAR) {
-                        argv[i] = val_ptr(table_get(env, n->body[i]->name));
-                    } else {
-                        fprintf(stderr, "Runtime error: cannot pass literal as ptr to %s\n", fname); exit(1);
-                    }
-                } else {
-                    argv[i] = eval(n->body[i], env);
-                }
+                argv[i] = eval(n->body[i], env);
             }
             Table *scope = table_new(env);
             for (int i = 0; i < fn->def->body_count && i < argc; i++) {

@@ -87,7 +87,7 @@ Value* val_print_to(Value *v, FILE *f) {
         case VAL_BIT:  fprintf(f, v->num ? "1" : "0"); break;
         case VAL_PTR:
             /* Print pointer address for debugging/introspection */
-            fprintf(f, "<ptr:%p>", (void*)v->target);
+            fprintf(f, "0x%p", (void*)v->target);
             break;
         case VAL_NONE: break;
     }
