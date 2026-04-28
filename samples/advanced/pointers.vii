@@ -14,20 +14,28 @@ q ptr i32 = addr g # g is i16 and q is a pointer to a i32, that wont work
 #NOTE
 # ref = transparent alias (no syntax change)
 b = 123
-a = ref b
+a = ref b #a is an alias of b
 a = 5       # b changes too
  
 # addr = explicit pointer (new)
-p ptr i32 =  addr x
+p ptr i32 =  addr x # same as int* p = &x 
 p           # address
 val p    
-
-# dynamic pointer
-q ptr = addr x # dinamically points to the type of x ( but what happens if x is a dict, list or array?)
-p ptr = 10.11 # dynamcally points to f32 (or f64?), it could default to one 
 
 # ptr to boolean
 
 x bit = 1
 p ptr bit = addr x
 val p # prints 1
+
+# let me state it again
+
+# ref - transparent, no syntax change
+b = 123
+a = ref b
+a = 5    # b becomes 5 (no deref needed)
+
+# addr - explicit, requires val
+x i32 = 10
+p ptr i32 = addr x
+val p = 99   # x becomes 99

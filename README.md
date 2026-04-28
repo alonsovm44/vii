@@ -10,7 +10,7 @@
 
 ## What Makes Vii Unique?
 
-**Vii** (pronounced like *vee* or *vee two*) is an in-development lightweight scripting language with low level capabilities. Whether you are new into coding or a seasoned dev, vii works for any public.
+**Vii** is an in-development lightweight low level scripting language. Whether you are new into coding or a seasoned dev, vii works for any public.
 
 ### 🌟 Core Philosophy
 

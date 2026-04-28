@@ -1,0 +1,14 @@
+# C like strings
+
+string ptr str = heap_alloc(6) # allocate 6 bytes for the string "Hello" and a null terminator
+
+string at 0 = 'H'
+string at 1 = 'e'
+string at 2 = 'l'
+string at 3 = 'l'
+string at 4 = 'o'
+string at 5 = 0
+
+# although you could just use 
+
+string str = "hello" # this will create a string literal 

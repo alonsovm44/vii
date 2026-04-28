@@ -220,6 +220,26 @@ Value *eval(Node *n, Table *env) {
             }
             return val;
         }
+        case ND_HEAP_ALLOC: {
+            Value *size_val = val_unwrap(eval(n->left, env));
+            if (size_val->kind != VAL_NUM) runtime_error(n, "heap_alloc requires a numeric size");
+            // Allocate a Value struct on the heap and initialize it to VAL_NONE
+            Value *new_val = (Value*)malloc(sizeof(Value));
+            if (!new_val) runtime_error(n, "heap_alloc: out of memory");
+            memset(new_val, 0, sizeof(Value));
+            new_val->kind = VAL_NONE;
+            return val_ptr(new_val);
+        }
+        case ND_HEAP_FREE: {
+            Value *p_val = val_unwrap(eval(n->left, env));
+            if (p_val->kind != VAL_PTR) runtime_error(n, "heap_free requires a pointer");
+            if (p_val->target) {
+                free(p_val->target);
+                p_val->target = NULL; // Prevent double free
+            }
+            return val_none();
+        }
+
         case ND_FOR: {
             Value *list = val_unwrap(eval(n->left, env));
             if (list->kind != VAL_LIST) { fprintf(stderr, "Runtime error: for requires a list\n"); exit(1); }
@@ -390,6 +410,18 @@ Value *eval(Node *n, Table *env) {
             if (!v) { fprintf(stderr, "Runtime error: undefined variable '%s'\n", n->left->name); exit(1); }
             return val_ref(v);
         }
+        case ND_ADDR: { // Address-of operator
+            if (n->left->kind != ND_VAR) { runtime_error(n, "addr requires a variable"); }
+            Value *v = table_get(env, n->left->name);
+            if (!v) { runtime_error(n, "undefined variable '%s'", n->left->name); }
+            return val_ptr(v);
+        }
+        case ND_DEREF: { // Dereference operator
+            Value *p_val = val_unwrap(eval(n->left, env));
+            if (p_val->kind != VAL_PTR) { runtime_error(n, "val requires a pointer"); }
+            if (!p_val->target) { runtime_error(n, "attempt to dereference null pointer"); }
+            return p_val->target;
+        }
         case ND_ASK: {
             char buf[1024];
             if (!fgets(buf, sizeof(buf), stdin)) return val_str("");
@@ -497,6 +529,26 @@ Value *eval(Node *n, Table *env) {
                 }
             }
             return val;
+        } else if (n->left->kind == ND_DEREF) { // Assignment to a dereferenced pointer
+            Value *p_val = val_unwrap(eval(n->left->left, env)); // Get the pointer value
+            if (p_val->kind != VAL_PTR) { runtime_error(n, "assignment to non-pointer dereference"); }
+            if (!p_val->target) { runtime_error(n, "attempt to assign to null pointer dereference"); }
+
+            Value *target_val = p_val->target; // The Value struct being pointed to
+            Value *new_val = eval(n->right, env); // The new value to assign
+
+            // Copy the contents of new_val to target_val
+            target_val->kind = new_val->kind;
+            target_val->num = new_val->num;
+            target_val->str = new_val->str;
+            target_val->items = new_val->items;
+            target_val->item_count = new_val->item_count;
+            target_val->item_cap = new_val->item_cap;
+            target_val->fixed_cap = new_val->fixed_cap;
+            target_val->fields = new_val->fields;
+            target_val->target = new_val->target;
+            target_val->inner = new_val->inner;
+            return new_val;
         }
         case ND_PUT: {
             Value *path = eval(n->left, env);
@@ -767,6 +819,18 @@ Value *eval(Node *n, Table *env) {
                     if (n->body[i]->kind == ND_VAR) {
                         argv[i] = val_ref(table_get(env, n->body[i]->name));
                     } else {
+                        // If the parameter is a pointer type, and the argument is not a variable,
+                        // we need to decide how to handle it. For now, disallow literals for ptr.
+                        if (i < fn->def->body_count && fn->def->body[i]->type_tag && strstr(fn->def->body[i]->type_tag, "ptr") == fn->def->body[i]->type_tag) {
+                            runtime_error(n, "cannot pass literal as pointer argument to '%s'", fname);
+                        }
+                        argv[i] = eval(n->body[i], env);
+                    }
+                } else if (i < fn->def->body_count && fn->def->body[i]->type_tag && strstr(fn->def->body[i]->type_tag, "ptr") == fn->def->body[i]->type_tag) {
+                    // If parameter expects a pointer, and argument is a variable, pass its address as VAL_PTR
+                    if (n->body[i]->kind == ND_VAR) {
+                        argv[i] = val_ptr(table_get(env, n->body[i]->name));
+                    } else {
                         fprintf(stderr, "Runtime error: cannot pass literal as ptr to %s\n", fname); exit(1);
                     }
                 } else {
@@ -835,6 +899,10 @@ Value *eval(Node *n, Table *env) {
             }
             
             /* For now, numeric casts just preserve the value but validate the type */
+            // Handle pointer casts
+            if (strstr(target_type, "ptr") == target_type) {
+                return val; // For now, pointer casts just preserve the pointer value
+            }
             /* Future: implement actual bit-level conversions */
             if (strcmp(target_type, "i8") == 0 || strcmp(target_type, "i16") == 0 ||
                 strcmp(target_type, "i32") == 0 || strcmp(target_type, "i64") == 0 ||

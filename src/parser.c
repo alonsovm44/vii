@@ -208,6 +208,10 @@ static const char *infer_node_type(Node *n, Node *fn_ctx) {
             /* Stack allocation returns the element type */
             if (n->type_tag) return n->type_tag;
             return "array";
+        case ND_ADDR:
+            return "ptr"; // Address-of always returns a pointer
+        case ND_DEREF:
+            return infer_node_type(n->left, fn_ctx); // Dereferencing a pointer gives
         case ND_CALL: return "unknown"; /* Function return types are resolved at runtime or in a later pass */
         default: break;
     }
