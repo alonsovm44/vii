@@ -1,0 +1,5 @@
+
+x = 10
+pt ptr i32 = addr x
+valof pt # prints 10 should
+pt # should print the memory address of x

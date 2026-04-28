@@ -120,7 +120,7 @@ vector set 0 1
 vector set 1 2
 vector set 2 3
 
-val = vector at 3 # 3
+value = vector at 3 # 3
 
 matrix = list
 matrix set 0 (1 2 3)
@@ -136,10 +136,16 @@ x # x and y share the same memory address
 
 # idea 7. Structs -> thing 
 
-thing ball # thing kind 
+thing Ball # thing kind 
   x i32 # traits, in this case position
   y i32 
   v f64 
+
+
+ball Ball 
+ball x = 10
+ball y = 19
+ 
 
 # 9. Kinds
 
@@ -149,9 +155,5 @@ kind roundStuff # kind name
 
 #inheritance
 
-thing ball -> roundStuff
-  
 
-# pointers
 
-x -> 12 

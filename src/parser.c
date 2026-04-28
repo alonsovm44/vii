@@ -130,6 +130,24 @@ static void expect(Parser *p, TokKind k) {
     advance(p);
 }
 
+static char *parse_type_tag(Parser *p) {
+    Token *t = peek(p);
+    if (t->kind == TOK_LPAREN) {
+        advance(p);
+        char *inner = parse_type_tag(p);
+        expect(p, TOK_RPAREN);
+        return inner;
+    }
+    if (t->kind == TOK_PTR) {
+        advance(p);
+        const char *inner = parse_type_tag(p);
+        char buf[256];
+        snprintf(buf, sizeof(buf), "ptr %s", inner);
+        return arena_intern(p->arena, buf);
+    }
+    return arena_intern(p->arena, advance(p)->text);
+}
+
 static void skip_newlines(Parser *p) {
     while (peek(p)->kind == TOK_NEWLINE || peek(p)->kind == TOK_SEMICOLON) advance(p);
 }
@@ -145,6 +163,11 @@ static bool is_primitive_numeric_type(const char *type_tag) {
     return (!strcmp(type_tag, "i8") || !strcmp(type_tag, "i16") || !strcmp(type_tag, "i32") || !strcmp(type_tag, "i64") ||
             !strcmp(type_tag, "u8") || !strcmp(type_tag, "u16") || !strcmp(type_tag, "u32") || !strcmp(type_tag, "u64") ||
             !strcmp(type_tag, "f32") || !strcmp(type_tag, "f64"));
+}
+
+static bool is_pointer_type(const char *type_tag) {
+    if (!type_tag) return false;
+    return !strcmp(type_tag, "ptr") || !strncmp(type_tag, "ptr ", 4);
 }
 
 /* Infers the type of a node at compile-time for validation */
@@ -195,7 +218,7 @@ static const char *infer_node_type(Node *n, Node *fn_ctx) {
             break;
         case ND_HEAP_ALLOC: return "ptr";
         case ND_HEAP_FREE:  return "none";
-        case ND_LEN: case ND_ORD: case ND_TONUM: case ND_SYS: case ND_TIME: return "num";
+        case ND_LEN: case ND_ORD: case ND_TONUM: case ND_SYS: case ND_TIME: case ND_SIZEOF: return "num";
         case ND_CHR: case ND_TOSTR: case ND_ASKFILE: case ND_ENV: return "str";
         case ND_LIST: return "list";
         case ND_DICT: return "dict";
@@ -209,11 +232,30 @@ static const char *infer_node_type(Node *n, Node *fn_ctx) {
         case ND_STACK_ALLOC:
             /* Stack allocation returns the element type */
             if (n->type_tag) return n->type_tag;
-            return "array";
+            return "unknown";
         case ND_ADDR:
-            return "ptr"; // Address-of always returns a pointer
+            {
+                const char *inner_type = infer_node_type(n->left, fn_ctx);
+                char buf[256];
+                snprintf(buf, sizeof(buf), "ptr %s", inner_type);
+                return arena_intern(global_arena, buf);
+            }
+        case ND_HEAP_ALLOC:
+            // If heap_alloc is used with sizeof a specific type, infer that pointer type.
+            if (n->left && n->left->kind == ND_SIZEOF && n->left->type_tag) {
+                const char *sized_type = n->left->type_tag;
+                char buf[256];
+                snprintf(buf, sizeof(buf), "ptr %s", sized_type);
+                return arena_intern(global_arena, buf);
+            }
+            // Otherwise, it's a generic heap allocation, return generic ptr.
+            return "ptr";
         case ND_DEREF:
-            return infer_node_type(n->left, fn_ctx); // Dereferencing a pointer gives
+            {
+                const char *t = infer_node_type(n->left, fn_ctx);
+                if (strncmp(t, "ptr ", 4) == 0) return t + 4;
+                return "unknown";
+            }
         case ND_CALL: return "unknown"; /* Function return types are resolved at runtime or in a later pass */
         default: break;
     }
@@ -291,7 +333,8 @@ static void check_call_args(Parser *p, Node *call) {
         const char *actual = infer_node_type(call->body[i], p->current_func);
         bool compatible = (strcmp(actual, expected) == 0) ||
                           (strcmp(expected, "bit") == 0 && strcmp(actual, "num") == 0) ||
-                          (is_primitive_numeric_type(expected) && strcmp(actual, "num") == 0);
+                          (is_primitive_numeric_type(expected) && strcmp(actual, "num") == 0) ||
+                          (is_pointer_type(expected) && is_pointer_type(actual));
         
         if (strcmp(actual, "unknown") != 0 && !compatible) {
             report_error(p->filename, p->src, call->line, call->line,
@@ -359,6 +402,21 @@ static Node *parse_primary(Parser *p) {
         case TOK_REF:   advance(p); { Node *n = nd_new(ND_REF);   n->left = parse_primary(p); return n; }
         case TOK_HEAP_ALLOC: advance(p); { Node *n = nd_new(ND_HEAP_ALLOC); n->left = parse_primary(p); return n; }
         case TOK_HEAP_FREE:  advance(p); { Node *n = nd_new(ND_HEAP_FREE);  n->left = parse_primary(p); return n; }
+        case TOK_SIZEOF: {
+            advance(p);
+            Node *n = nd_new(ND_SIZEOF);
+            Token *next = peek(p);
+            /* sizeof can take a type name or an expression */
+            if (next->kind == TOK_IDENT || next->kind == TOK_PTR || next->kind == TOK_BIT || next->kind == TOK_LPAREN ||
+                (next->kind >= TOK_I8 && next->kind <= TOK_F64)) {
+                n->type_tag = parse_type_tag(p);
+            } else {
+                n->left = parse_primary(p);
+            }
+            return n;
+        }
+        case TOK_ADDR: advance(p); { Node *n = nd_new(ND_ADDR); n->left = parse_primary(p); return n; }
+        case TOK_VALOF: advance(p); { Node *n = nd_new(ND_DEREF); n->left = parse_primary(p); return n; }
         case TOK_ENV:   advance(p); { Node *n = nd_new(ND_ENV);   n->left = parse_postfix(p); return n; }
         case TOK_EXIT:  advance(p); { Node *n = nd_new(ND_EXIT);  n->left = parse_postfix(p); return n; }
         case TOK_LIST:  advance(p); return nd_new(ND_LIST);
@@ -379,11 +437,9 @@ static Node *parse_primary(Parser *p) {
             /* check for return type: do func->type */
             if (peek(p)->kind == TOK_ARROW) {
                 advance(p);
-                if (peek(p)->kind == TOK_IDENT || peek(p)->kind == TOK_REF || peek(p)->kind == TOK_PTR || peek(p)->kind == TOK_BIT ||
-                    peek(p)->kind == TOK_I8 || peek(p)->kind == TOK_I16 || peek(p)->kind == TOK_I32 || peek(p)->kind == TOK_I64 ||
-                    peek(p)->kind == TOK_U8 || peek(p)->kind == TOK_U16 || peek(p)->kind == TOK_U32 || peek(p)->kind == TOK_U64 ||
-                    peek(p)->kind == TOK_F32 || peek(p)->kind == TOK_F64)
-                    fn->type_tag = arena_intern(p->arena, advance(p)->text);
+                Token *next = peek(p);
+                if (next->kind == TOK_IDENT || next->kind == TOK_REF || next->kind == TOK_PTR || next->kind == TOK_BIT || (next->kind >= TOK_I8 && next->kind <= TOK_F64))
+                    fn->type_tag = parse_type_tag(p);
             }
 
             fn->body_cap = 8;
@@ -397,11 +453,9 @@ static Node *parse_primary(Parser *p) {
                 }
                 if (peek(p)->kind == TOK_ARROW) {
                     advance(p);
-                    if (peek(p)->kind == TOK_IDENT || peek(p)->kind == TOK_REF || peek(p)->kind == TOK_PTR || peek(p)->kind == TOK_BIT ||
-                        peek(p)->kind == TOK_I8 || peek(p)->kind == TOK_I16 || peek(p)->kind == TOK_I32 || peek(p)->kind == TOK_I64 ||
-                        peek(p)->kind == TOK_U8 || peek(p)->kind == TOK_U16 || peek(p)->kind == TOK_U32 || peek(p)->kind == TOK_U64 ||
-                        peek(p)->kind == TOK_F32 || peek(p)->kind == TOK_F64)
-                        param->type_tag = arena_intern(p->arena, advance(p)->text);
+                    Token *next = peek(p);
+                    if (next->kind == TOK_IDENT || next->kind == TOK_REF || next->kind == TOK_PTR || next->kind == TOK_BIT || (next->kind >= TOK_I8 && next->kind <= TOK_F64))
+                        param->type_tag = parse_type_tag(p);
                 }
                 nd_push(fn, param);
             }
@@ -422,7 +476,8 @@ static Node *parse_primary(Parser *p) {
                     const char *actual = infer_node_type(last, fn);
                     bool compatible = (strcmp(actual, fn->type_tag) == 0) || 
                                       (strcmp(fn->type_tag, "bit") == 0 && strcmp(actual, "num") == 0) ||
-                                      (is_primitive_numeric_type(fn->type_tag) && strcmp(actual, "num") == 0);
+                                      (is_primitive_numeric_type(fn->type_tag) && strcmp(actual, "num") == 0) ||
+                                      (is_pointer_type(fn->type_tag) && is_pointer_type(actual));
                     if (strcmp(actual, "unknown") != 0 && !compatible) {
                         report_error(p->filename, p->src, do_tok->pos, do_tok->line, 
                             "return type mismatch in function '%s': expected '%s', found '%s'", 
@@ -512,7 +567,8 @@ static Node *parse_postfix(Parser *p) {
                    peek(p)->kind == TOK_SAFE || peek(p)->kind == TOK_REF ||
                    peek(p)->kind == TOK_TYPE || peek(p)->kind == TOK_TIME ||
                    peek(p)->kind == TOK_DICT || peek(p)->kind == TOK_SYS ||
-                   peek(p)->kind == TOK_ENV || peek(p)->kind == TOK_EXIT ||
+                   peek(p)->kind == TOK_ENV || peek(p)->kind == TOK_EXIT || 
+                   peek(p)->kind == TOK_ADDR || peek(p)->kind == TOK_VALOF || peek(p)->kind == TOK_SIZEOF ||
                    peek(p)->kind == TOK_HEAP_ALLOC || peek(p)->kind == TOK_HEAP_FREE)) {
             if (expr->kind != ND_VAR) break;
 
@@ -532,7 +588,7 @@ static Node *parse_postfix(Parser *p) {
                    peek(p)->kind == TOK_CHR || peek(p)->kind == TOK_TONUM ||
                    peek(p)->kind == TOK_TOSTR || peek(p)->kind == TOK_SLICE ||
                    peek(p)->kind == TOK_SPLIT || peek(p)->kind == TOK_TRIM || peek(p)->kind == TOK_REPLACE ||
-                   peek(p)->kind == TOK_SAFE || peek(p)->kind == TOK_REF ||
+                   peek(p)->kind == TOK_SAFE || peek(p)->kind == TOK_REF || peek(p)->kind == TOK_ADDR || peek(p)->kind == TOK_VALOF || peek(p)->kind == TOK_SIZEOF ||
                    peek(p)->kind == TOK_TYPE || peek(p)->kind == TOK_TIME ||
                    peek(p)->kind == TOK_DICT || peek(p)->kind == TOK_SYS ||
                    peek(p)->kind == TOK_ENV || peek(p)->kind == TOK_EXIT)) {
@@ -578,7 +634,10 @@ static Node *parse_expr(Parser *p) {
     bool is_fixed_array = (left->kind == ND_VAR && is_type_token &&
                            p->tokens[p->pos+1].kind == TOK_LBRACKET);
     bool is_typed = (left->kind == ND_VAR && is_type_token &&
-                    (p->tokens[p->pos+1].kind == TOK_EQ || p->tokens[p->pos+1].kind == TOK_ARROW));
+                    (p->tokens[p->pos+1].kind == TOK_EQ || p->tokens[p->pos+1].kind == TOK_ARROW ||
+                     (p->tokens[p->pos].kind == TOK_PTR && 
+                      (p->tokens[p->pos+1].kind == TOK_IDENT || (p->tokens[p->pos+1].kind >= TOK_I8 && p->tokens[p->pos+1].kind <= TOK_F64)) &&
+                      (p->tokens[p->pos+2].kind == TOK_EQ || p->tokens[p->pos+2].kind == TOK_ARROW))));
     bool is_normal = (peek(p)->kind == TOK_EQ && (left->kind == ND_VAR || left->kind == ND_AT));
 
     if (is_fixed_array || is_typed || is_normal) {
@@ -591,7 +650,7 @@ static Node *parse_expr(Parser *p) {
             if (left->kind == ND_VAR && is_all_caps(left->name))
                 track_constant(p, left->name, op->pos, op->line);
             /* Parse type */
-            left->type_tag = arena_intern(p->arena, advance(p)->text);
+            left->type_tag = parse_type_tag(p);
             /* Parse [N] */
             advance(p); /* consume [ */
             if (peek(p)->kind != TOK_NUM) {
@@ -622,7 +681,7 @@ static Node *parse_expr(Parser *p) {
         } else if (is_typed) {
             if (left->kind == ND_VAR && is_all_caps(left->name))
                 track_constant(p, left->name, op->pos, op->line);
-            left->type_tag = arena_intern(p->arena, advance(p)->text);
+            left->type_tag = parse_type_tag(p);
             advance(p);
             assign->right = parse_expr(p);
         } else {
@@ -640,7 +699,8 @@ static Node *parse_expr(Parser *p) {
                               (is_primitive_numeric_type(left->type_tag) && 
                                (strcmp(actual, "num") == 0 || is_primitive_numeric_type(actual))) ||
                               (strcmp(left->type_tag, "num") == 0 && 
-                               (strcmp(actual, "num") == 0 || is_primitive_numeric_type(actual)));
+                               (strcmp(actual, "num") == 0 || is_primitive_numeric_type(actual))) ||
+                              (is_pointer_type(left->type_tag) && is_pointer_type(actual));
             if (strcmp(actual, "unknown") != 0 && !compatible) {
                 report_error(p->filename, p->src, op->pos, op->line, 
                     "type mismatch in assignment to '%s': expected '%s', found '%s'", 

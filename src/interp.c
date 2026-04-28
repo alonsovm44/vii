@@ -192,6 +192,25 @@ Value *eval(Node *n, Table *env) {
                     return target;
                 }
                 table_set(env, n->left->name, val);
+            } else if (n->left->kind == ND_DEREF) { // Assignment to a dereferenced pointer: valof x = ...
+                Value *p_val = val_unwrap(eval(n->left->left, env)); // Get the pointer value
+                if (p_val->kind != VAL_PTR) { runtime_error(n, "assignment to non-pointer dereference"); }
+                if (!p_val->target) { runtime_error(n, "attempt to assign to null pointer dereference"); }
+
+                Value *target_val = p_val->target; // The Value struct being pointed to
+
+                // Copy the contents of val to target_val
+                target_val->kind = val->kind;
+                target_val->num = val->num;
+                target_val->str = val->str;
+                target_val->items = val->items;
+                target_val->item_count = val->item_count;
+                target_val->item_cap = val->item_cap;
+                target_val->fixed_cap = val->fixed_cap;
+                target_val->fields = val->fields;
+                target_val->target = val->target;
+                target_val->inner = val->inner;
+                return val;
             } else if (n->left->kind == ND_AT) {
                 Value *list = val_unwrap(eval(n->left->left, env));
                 Value *idx  = val_unwrap(eval(n->left->right, env));
@@ -240,9 +259,29 @@ Value *eval(Node *n, Table *env) {
             return val_none();
         }
 
+        case ND_SIZEOF: {
+            if (n->type_tag) {
+                const char *t = n->type_tag;
+                if (!strcmp(t, "i8") || !strcmp(t, "u8")) return val_num(1);
+                if (!strcmp(t, "i16") || !strcmp(t, "u16")) return val_num(2);
+                if (!strcmp(t, "i32") || !strcmp(t, "u32") || !strcmp(t, "f32")) return val_num(4);
+                if (!strcmp(t, "i64") || !strcmp(t, "u64") || !strcmp(t, "f64")) return val_num(8);
+                if (strstr(t, "ptr") == t || !strcmp(t, "ref")) return val_num(8);
+                /* If it's a generic Vii type, return the size of a boxed Value */
+                return val_num(sizeof(Value));
+            }
+            /* sizeof expression: returns the size of the boxed Value struct */
+            eval(n->left, env);
+            return val_num(sizeof(Value));
+        }
+
         case ND_FOR: {
             Value *list = val_unwrap(eval(n->left, env));
-            if (list->kind != VAL_LIST) { fprintf(stderr, "Runtime error: for requires a list\n"); exit(1); }
+            if (list->kind != VAL_LIST) { 
+                fprintf(stderr, "Runtime error: for requires a list\n");
+                fprintf(stderr, "This error occurs when you try to iterate over a non-list value. In Vii for loops are reserved to lists for simplicity.");
+                 exit(1); 
+                }
             for (int i = 0; i < list->item_count; i++) {
                 table_set(env, n->name, list->items[i]);
                 Value *res = eval_block(n->body[0], env);
@@ -405,7 +444,9 @@ Value *eval(Node *n, Table *env) {
             return val_none();
         }
         case ND_REF: {
-            if (n->left->kind != ND_VAR) { fprintf(stderr, "Runtime error: ref requires a variable\n"); exit(1); }
+            if (n->left->kind != ND_VAR) { fprintf(stderr, "Runtime error: ref requires a variable\n");
+                fprintf(stderr, "The 'ref' operator can only be applied to variables. If you want to take the address of a more complex expression, consider using 'addr' instead.\n");                
+                exit(1); }
             Value *v = table_get(env, n->left->name);
             if (!v) { fprintf(stderr, "Runtime error: undefined variable '%s'\n", n->left->name); exit(1); }
             return val_ref(v);
@@ -418,7 +459,7 @@ Value *eval(Node *n, Table *env) {
         }
         case ND_DEREF: { // Dereference operator
             Value *p_val = val_unwrap(eval(n->left, env));
-            if (p_val->kind != VAL_PTR) { runtime_error(n, "val requires a pointer"); }
+            if (p_val->kind != VAL_PTR) { runtime_error(n, "valof requires a pointer"); }
             if (!p_val->target) { runtime_error(n, "attempt to dereference null pointer"); }
             return p_val->target;
         }
@@ -529,26 +570,6 @@ Value *eval(Node *n, Table *env) {
                 }
             }
             return val;
-        } else if (n->left->kind == ND_DEREF) { // Assignment to a dereferenced pointer
-            Value *p_val = val_unwrap(eval(n->left->left, env)); // Get the pointer value
-            if (p_val->kind != VAL_PTR) { runtime_error(n, "assignment to non-pointer dereference"); }
-            if (!p_val->target) { runtime_error(n, "attempt to assign to null pointer dereference"); }
-
-            Value *target_val = p_val->target; // The Value struct being pointed to
-            Value *new_val = eval(n->right, env); // The new value to assign
-
-            // Copy the contents of new_val to target_val
-            target_val->kind = new_val->kind;
-            target_val->num = new_val->num;
-            target_val->str = new_val->str;
-            target_val->items = new_val->items;
-            target_val->item_count = new_val->item_count;
-            target_val->item_cap = new_val->item_cap;
-            target_val->fixed_cap = new_val->fixed_cap;
-            target_val->fields = new_val->fields;
-            target_val->target = new_val->target;
-            target_val->inner = new_val->inner;
-            return new_val;
         }
         case ND_PUT: {
             Value *path = eval(n->left, env);
@@ -873,21 +894,6 @@ Value *eval(Node *n, Table *env) {
                     list->item_count = size;
                 }
                 return list;
-            }
-        case ND_TYPE:
-            /* type x - returns type name as string */
-            {
-                Value *val = eval(n->left, env);
-                const char *type_name = val_kind_name(val->kind);
-                return val_str((char*)type_name);
-            }
-        case ND_ADDR:
-            /* addr x - returns memory address of variable as number (placeholder) */
-            {
-                Value *val = eval(n->left, env);
-                /* For now, return a placeholder address based on value pointer */
-                /* In a real implementation, this would return the actual memory address */
-                return val_num((double)(uintptr_t)val);
             }
         case ND_CAST: {
             /* Cast expression: value -> type */

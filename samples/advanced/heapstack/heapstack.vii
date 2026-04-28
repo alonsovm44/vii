@@ -1,21 +1,37 @@
-do say msg->str
-  "" put msg
+do say msg
+  "" put msg 
 
 do allocates->ptr i32 
   p ptr i32 = heap_alloc (sizeof i32)  
-  val p = 32
+  valof p 
   p # last one, return p 
   
 do main 
   stack_var i32 = 10
-  heap_var ptr i32 = allocates()
-  say "stack variable adress: " + addr (stack_var)->str + "\n"
-  say "heap variable adress: " + addr (heap_var)->str + "\n"
+  heap_var ptr i32 = allocates
+  say "stack variable adress: "
+  say addr stack_var # prints the address of stack_var
   say "\n"
-  say "stack variable value: " + stack_var->str + "\n"
-  say "heap variable value: " + val (heap_var)->str + "\n"
+  say "heap variable adress: " 
+  say addr heap_var
+  say "\n"
 
-heap_free heap_var
+  say "\n"
+  say "stack variable value: " 
+  say tostr stack_var  
+  say "\n"
+  say "heap variable value: " 
+  say (valof heap_var) 
+  say"\n\n"
+
+  heap_free heap_var
+  say "memory freed\n"
+
+main
+
+hv ptr i32 = heap_alloc(1024)
+valof hv # should be 0 since heap_alloc zeroes the memory
+heap_free hv
 
 exit 0
 # v1.4 features needed here
