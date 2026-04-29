@@ -45,7 +45,7 @@ extern Arena *global_arena;
 
 /* ──────────────────────── Value ──────────────────────── */
 
-typedef enum { VAL_NUM, VAL_STR, VAL_LIST, VAL_DICT, VAL_BIT, VAL_REF, VAL_BREAK, VAL_OUT, VAL_SKIP, VAL_NONE, VAL_PTR } ValKind;
+typedef enum { VAL_NUM, VAL_STR, VAL_LIST, VAL_DICT, VAL_BIT, VAL_REF, VAL_BREAK, VAL_OUT, VAL_SKIP, VAL_NONE, VAL_PTR, VAL_ENT } ValKind;
 
 typedef struct Value {
     ValKind kind;
@@ -58,6 +58,7 @@ typedef struct Value {
     int    fixed_cap;     /* for fixed arrays: max size, 0 for dynamic lists */
     struct Table *fields;
     struct Value *inner; /* for VAL_OUT */
+    char  *type_name;    /* for VAL_ENT */
 } Value;
 
 Value *val_num(double n);
@@ -102,7 +103,8 @@ typedef enum {
     /* Type system keywords */
     TOK_I8, TOK_I16, TOK_I32, TOK_I64,
     TOK_U8, TOK_U16, TOK_U32, TOK_U64,
-    TOK_F32, TOK_F64
+    TOK_F32, TOK_F64,
+    TOK_ENT, TOK_DOTDOT
 } TokKind;
 
 typedef struct Token {
@@ -143,7 +145,9 @@ typedef enum {
     ND_PRINT,
     ND_CAST,
     ND_STACK_ALLOC,
-    ND_ADDR
+    ND_ADDR,
+    ND_ENT_DEF,
+    ND_MEMBER
 } NdKind;
 
 typedef struct Node {

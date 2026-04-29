@@ -56,6 +56,28 @@ void table_free(Table *t) {
 
 static Func *funcs = NULL;
 
+typedef struct EntDef {
+    char *name;
+    Node *def;
+    struct EntDef *next;
+} EntDef;
+
+static EntDef *ents = NULL;
+
+static void ent_register(const char *name, Node *def) {
+    EntDef *e = arena_alloc(global_arena, sizeof(EntDef));
+    e->name = arena_intern(global_arena, name);
+    e->def = def;
+    e->next = ents;
+    ents = e;
+}
+
+static EntDef *ent_find(const char *name) {
+    for (EntDef *e = ents; e; e = e->next)
+        if (strcmp(e->name, name) == 0) return e;
+    return NULL;
+}
+
 static void func_register(const char *name, Node *def) {
     Func *f = arena_alloc(global_arena, sizeof(Func));
     f->name = arena_intern(global_arena, name);
@@ -86,6 +108,14 @@ Value *val_break(void) {
 Value *val_skip(void) {
     Value *v = arena_alloc(global_arena, sizeof(Value));
     v->kind = VAL_SKIP;
+    return v;
+}
+
+Value *val_ent(const char *type_name) {
+    Value *v = arena_alloc(global_arena, sizeof(Value));
+    v->kind = VAL_ENT;
+    v->type_name = (char*)type_name;
+    v->fields = table_new(NULL);
     return v;
 }
 
@@ -178,18 +208,23 @@ Value *eval(Node *n, Table *env) {
             return val_skip();
         }
         case ND_ASSIGN: {
-            Value *val = eval(n->right, env);
+            Value *val;
+            if (n->right->kind == ND_VAR && ent_find(n->right->name)) {
+                EntDef *ed = ent_find(n->right->name);
+                val = val_ent(ed->name);
+                for (int i = 0; i < ed->def->body_count; i++) 
+                    table_set(val->fields, ed->def->body[i]->name, val_none());
+            } else {
+                val = eval(n->right, env);
+            }
+
             if (n->left->kind == ND_VAR) {
                 Value *existing = table_get(env, n->left->name);
                 if (existing && existing->kind == VAL_REF) {
                     /* Mutate the target of the reference in-place (Aliasing) */
                     Value *target = existing->target;
-                    target->kind = val->kind;
-                    target->num = val->num;
-                    target->str = val->str;
-                    target->items = val->items;
-                    target->item_count = val->item_count;
-                    return target;
+                    *target = *val;
+                    return val;
                 }
                 table_set(env, n->left->name, val);
             } else if (n->left->kind == ND_DEREF) { // Assignment to a dereferenced pointer: valof x = ...
@@ -198,18 +233,7 @@ Value *eval(Node *n, Table *env) {
                 if (!p_val->target) { runtime_error(n, "attempt to assign to null pointer dereference"); }
 
                 Value *target_val = p_val->target; // The Value struct being pointed to
-
-                // Copy the contents of val to target_val
-                target_val->kind = val->kind;
-                target_val->num = val->num;
-                target_val->str = val->str;
-                target_val->items = val->items;
-                target_val->item_count = val->item_count;
-                target_val->item_cap = val->item_cap;
-                target_val->fixed_cap = val->fixed_cap;
-                target_val->fields = val->fields;
-                target_val->target = val->target;
-                target_val->inner = val->inner;
+                *target_val = *val;
                 return val;
             } else if (n->left->kind == ND_AT) {
                 Value *list = val_unwrap(eval(n->left->left, env));
@@ -236,6 +260,15 @@ Value *eval(Node *n, Table *env) {
                         list->items[i] = val;
                     }
                 }
+            } else if (n->left->kind == ND_MEMBER) {
+                Value *obj = val_unwrap(eval(n->left->left, env));
+                if (obj->kind != VAL_ENT) runtime_error(n, "'..' on non-entity");
+                EntDef *ed = ent_find(obj->type_name);
+                bool found = false;
+                for(int i=0; i < ed->def->body_count; i++) if(!strcmp(ed->def->body[i]->name, n->left->name)) found = true;
+                if (!found) runtime_error(n, "entity '%s' has no field '%s'", obj->type_name, n->left->name);
+                table_set(obj->fields, n->left->name, val);
+                return val;
             }
             return val;
         }
@@ -364,6 +397,17 @@ Value *eval(Node *n, Table *env) {
             /* Placeholder for v1.3 error recovery. 
                Currently just evaluates the branch. */
             return eval(n->left, env);
+        }
+        case ND_ENT_DEF: {
+            ent_register(n->name, n);
+            return val_none();
+        }
+        case ND_MEMBER: {
+            Value *obj = val_unwrap(eval(n->left, env));
+            if (obj->kind != VAL_ENT) runtime_error(n, "'..' on non-entity");
+            Value *v = table_get(obj->fields, n->name);
+            if (!v) runtime_error(n, "entity '%s' has no field '%s'", obj->type_name, n->name);
+            return v;
         }
         case ND_BINOP: {
             /* short-circuit for and/or */
@@ -687,13 +731,15 @@ Value *eval(Node *n, Table *env) {
             return val_none();
         }
         case ND_TYPE: {
-            Value *v = eval(n->left, env);
+            Value *v = val_unwrap(eval(n->left, env));
             switch (v->kind) {
                 case VAL_NUM:  return val_str("num");
                 case VAL_STR:  return val_str("str");
                 case VAL_LIST: return val_str("list");
                 case VAL_DICT: return val_str("dict");
                 case VAL_BIT:  return val_str("bit");
+                case VAL_PTR:  return val_str("ptr");
+                case VAL_ENT:  return val_str(v->type_name);
                 default:       return val_str("none");
             }
         }

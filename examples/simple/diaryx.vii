@@ -18,4 +18,4 @@ do main cmd->str
   else if cmd == "log"
     log
 
-main cmd
+main cmd # run main with the command line argument as the command

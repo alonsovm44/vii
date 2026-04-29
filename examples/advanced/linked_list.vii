@@ -1,0 +1,27 @@
+
+# Linked list in a scripting language with no malloc. This is SO illegal vibes.
+
+
+ent Node
+  value num
+  next ptr Node
+
+n1 = Node
+n1..value = 10.5
+
+n2 = Node
+n2..value = 20.0
+n1..next = addr n2
+
+n3 = Node
+n3..value = 35.7
+n2..next = addr n3
+
+"Linked List Traversal:"
+it = addr n1
+while it
+  node = valof it
+  node..value
+  it = node..next
+
+

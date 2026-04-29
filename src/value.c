@@ -60,6 +60,7 @@ bool val_truthy(Value *v) {
         case VAL_PTR:  return v->target != NULL;
         case VAL_REF:  return val_truthy(v->target);
         case VAL_OUT:  return val_truthy(v->inner);
+        case VAL_ENT:  return true;
         default:       return false;
     }
 }
@@ -89,6 +90,19 @@ Value* val_print_to(Value *v, FILE *f) {
             /* Print pointer address for debugging/introspection */
             fprintf(f, "0x%p", (void*)v->target);
             break;
+        case VAL_ENT:
+            fprintf(f, "%s {", v->type_name);
+            bool first = true;
+            for (int i = 0; i < TABLE_SIZE; i++) {
+                for (Entry *e = v->fields->buckets[i]; e; e = e->next) {
+                    if (!first) fprintf(f, ", ");
+                    fprintf(f, "%s: ", e->key);
+                    val_print_to(e->val, f);
+                    first = false;
+                }
+            }
+            fprintf(f, "}");
+            break;
         case VAL_NONE: break;
     }
     return v;
@@ -110,6 +124,7 @@ const char* val_kind_name(int kind) {
         case VAL_OUT:  return "out";
         case VAL_PTR:  return "ptr";
         case VAL_NONE: return "none";
+        case VAL_ENT:  return "ent";
         default:       return "unknown";
     }
 }

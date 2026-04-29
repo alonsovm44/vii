@@ -111,6 +111,38 @@ static void set_inferred_type(Arena *arena, const char *name, const char *type) 
     inferred_var_count++;
 }
 
+/* ──────────────────────── Entity Tracking ──────────────────────── */
+
+typedef struct {
+    char *name;
+    Node *def;
+} ParsedEnt;
+
+static ParsedEnt *parsed_ents = NULL;
+static int parsed_ent_count = 0;
+static int parsed_ent_cap = 0;
+
+static void track_entity(const char *name, Node *def) {
+    if (parsed_ent_count >= parsed_ent_cap) {
+        int old_cap = parsed_ent_cap;
+        parsed_ent_cap = parsed_ent_cap ? parsed_ent_cap * 2 : 8;
+        ParsedEnt *new_ents = arena_alloc(global_arena, parsed_ent_cap * sizeof(ParsedEnt));
+        if (parsed_ents) memcpy(new_ents, parsed_ents, old_cap * sizeof(ParsedEnt));
+        parsed_ents = new_ents;
+    }
+    parsed_ents[parsed_ent_count].name = (char*)name;
+    parsed_ents[parsed_ent_count].def = def;
+    parsed_ent_count++;
+}
+
+static Node* find_entity_def(const char *name) {
+    if (!name) return NULL;
+    for (int i = 0; i < parsed_ent_count; i++) {
+        if (strcmp(parsed_ents[i].name, name) == 0) return parsed_ents[i].def;
+    }
+    return NULL;
+}
+
 /* ──────────────────────── Parser helpers ──────────────────────── */
 
 static Token *peek(Parser *p) { 
@@ -171,7 +203,7 @@ static bool is_pointer_type(const char *type_tag) {
 }
 
 static bool are_types_compatible(const char *expected, const char *actual) {
-    if (!expected || !actual || strcmp(actual, "unknown") == 0) return true;
+    if (!expected || !actual || strcmp(actual, "unknown") == 0 || strcmp(expected, "unknown") == 0) return true;
     if (strcmp(expected, actual) == 0) return true;
     
     /* bit/num compatibility */
@@ -180,6 +212,10 @@ static bool are_types_compatible(const char *expected, const char *actual) {
     /* primitive numeric compatibility */
     if (is_primitive_numeric_type(expected) && (strcmp(actual, "num") == 0 || is_primitive_numeric_type(actual))) return true;
     if (strcmp(expected, "num") == 0 && (strcmp(actual, "num") == 0 || is_primitive_numeric_type(actual))) return true;
+
+    /* Pointer/Reference compatibility: variables inferred as pointers (like references) 
+       act as aliases and can accept assignments of any value type. */
+    if (is_pointer_type(expected)) return true;
 
     /* Pointer compatibility */
     if (is_pointer_type(expected) && is_pointer_type(actual)) {
@@ -240,6 +276,9 @@ static const char *infer_node_type(Node *n, Node *fn_ctx) {
                     }
                 }
             }
+            /* Check if name is a known Entity type */
+            if (find_entity_def(n->name)) return n->name;
+
             /* Check for inferred type from previous assignment */
             {
                 const char *inferred = get_inferred_type(n->name);
@@ -304,6 +343,21 @@ static const char *infer_node_type(Node *n, Node *fn_ctx) {
             {
                 const char *t = infer_node_type(n->left, fn_ctx);
                 if (strncmp(t, "ptr ", 4) == 0) return t + 4;
+                return "unknown";
+            }
+        case ND_MEMBER:
+            {
+                const char *obj_type = infer_node_type(n->left, fn_ctx);
+                /* Handle both direct and pointer access (Vii uses .. for both) */
+                if (is_pointer_type(obj_type) && strlen(obj_type) > 4) obj_type += 4;
+                Node *def = find_entity_def(obj_type);
+                if (def) {
+                    for (int i = 0; i < def->body_count; i++) {
+                        if (strcmp(def->body[i]->name, n->name) == 0) {
+                            return def->body[i]->type_tag ? def->body[i]->type_tag : "unknown";
+                        }
+                    }
+                }
                 return "unknown";
             }
         case ND_CALL:
@@ -460,6 +514,25 @@ static Node *parse_primary(Parser *p) {
         case TOK_ENV:   advance(p); { Node *n = nd_new(ND_ENV);   n->left = parse_postfix(p); return n; }
         case TOK_EXIT:  advance(p); { Node *n = nd_new(ND_EXIT);  n->left = parse_postfix(p); return n; }
         case TOK_LIST:  advance(p); return nd_new(ND_LIST);
+        case TOK_ENT: {
+            advance(p);
+            Node *n = nd_new(ND_ENT_DEF);
+            n->name = arena_intern(p->arena, advance(p)->text);
+            skip_newlines(p);
+            expect(p, TOK_INDENT);
+            while (peek(p)->kind != TOK_DEDENT && peek(p)->kind != TOK_EOF) {
+                if (peek(p)->kind == TOK_NEWLINE || peek(p)->kind == TOK_SEMICOLON) { advance(p); continue; }
+                Node *field = nd_new(ND_VAR);
+                field->name = arena_intern(p->arena, advance(p)->text);
+                if (peek(p)->kind == TOK_IDENT || (peek(p)->kind >= TOK_I8 && peek(p)->kind <= TOK_F64))
+                    field->type_tag = parse_type_tag(p);
+                nd_push(n, field);
+                skip_newlines(p);
+            }
+            track_entity(n->name, n);
+            expect(p, TOK_DEDENT);
+            return n;
+        }
         case TOK_DO: {
             Token *do_tok = t;
             advance(p);
@@ -616,6 +689,12 @@ static Node *parse_postfix(Parser *p) {
                     "expected type name after '->' in cast expression");
             }
             expr = cast;
+        } else if (peek(p)->kind == TOK_DOTDOT) {
+            advance(p);
+            Node *mem = nd_new(ND_MEMBER);
+            mem->left = expr;
+            mem->name = arena_intern(p->arena, advance(p)->text);
+            expr = mem;
         } else if (peek(p)->kind != TOK_NEWLINE && peek(p)->kind != TOK_SEMICOLON && peek(p)->kind != TOK_DEDENT && peek(p)->kind != TOK_EOF &&
                    (peek(p)->kind == TOK_IDENT || peek(p)->kind == TOK_NUM || peek(p)->kind == TOK_LPAREN ||
                    peek(p)->kind == TOK_STR || peek(p)->kind == TOK_ASK ||
@@ -666,6 +745,15 @@ static Node *parse_postfix(Parser *p) {
     return expr;
 }
 
+static bool is_potential_type_token(Parser *p) {
+    TokKind k = peek(p)->kind;
+    if (k == TOK_IDENT) {
+        TokKind next = p->tokens[p->pos + 1].kind;
+        return next == TOK_EQ || next == TOK_ARROW || next == TOK_NEWLINE || next == TOK_SEMICOLON || next == TOK_DEDENT || next == TOK_EOF || next == TOK_LBRACKET;
+    }
+    return (k >= TOK_I8 && k <= TOK_F64) || k == TOK_PTR || k == TOK_BIT || k == TOK_REF;
+}
+
 static Node *parse_expr(Parser *p) {
     Node *left = parse_postfix(p);
 
@@ -686,21 +774,20 @@ static Node *parse_expr(Parser *p) {
     }
 
     /* assignment: var = expr OR var type = expr OR var type[N] = stack_alloc */
-    bool is_type_token = (peek(p)->kind == TOK_IDENT || peek(p)->kind == TOK_REF || peek(p)->kind == TOK_PTR || peek(p)->kind == TOK_BIT ||
-                          peek(p)->kind == TOK_I8 || peek(p)->kind == TOK_I16 || peek(p)->kind == TOK_I32 || peek(p)->kind == TOK_I64 ||
-                          peek(p)->kind == TOK_U8 || peek(p)->kind == TOK_U16 || peek(p)->kind == TOK_U32 || peek(p)->kind == TOK_U64 ||
-                          peek(p)->kind == TOK_F32 || peek(p)->kind == TOK_F64);
     /* Check for fixed array syntax: type [ size ] */
-    bool is_fixed_array = (left->kind == ND_VAR && is_type_token &&
+    bool is_fixed_array = (left->kind == ND_VAR && is_potential_type_token(p) &&
                            p->tokens[p->pos+1].kind == TOK_LBRACKET);
-    bool is_typed = (left->kind == ND_VAR && is_type_token &&
+    bool is_typed = (left->kind == ND_VAR && is_potential_type_token(p) &&
                     (p->tokens[p->pos+1].kind == TOK_EQ || p->tokens[p->pos+1].kind == TOK_ARROW ||
                      (p->tokens[p->pos].kind == TOK_PTR && 
                       (p->tokens[p->pos+1].kind == TOK_IDENT || (p->tokens[p->pos+1].kind >= TOK_I8 && p->tokens[p->pos+1].kind <= TOK_F64)) &&
                       (p->tokens[p->pos+2].kind == TOK_EQ || p->tokens[p->pos+2].kind == TOK_ARROW))));
-    bool is_normal = (peek(p)->kind == TOK_EQ && (left->kind == ND_VAR || left->kind == ND_AT));
+    bool is_normal = (peek(p)->kind == TOK_EQ && (left->kind == ND_VAR || left->kind == ND_AT || left->kind == ND_MEMBER || left->kind == ND_DEREF));
+    bool is_decl_only = (left->kind == ND_VAR && peek(p)->kind == TOK_IDENT && 
+                        (p->tokens[p->pos+1].kind == TOK_NEWLINE || p->tokens[p->pos+1].kind == TOK_SEMICOLON || 
+                         p->tokens[p->pos+1].kind == TOK_DEDENT || p->tokens[p->pos+1].kind == TOK_EOF));
 
-    if (is_fixed_array || is_typed || is_normal) {
+    if (is_fixed_array || is_typed || is_normal || is_decl_only) {
         Node *assign = nd_new(ND_ASSIGN);
         assign->left = left;
         Token *op = peek(p);
@@ -751,6 +838,10 @@ static Node *parse_expr(Parser *p) {
                 set_inferred_type(p->arena, left->name, left->type_tag);
             advance(p);
             assign->right = parse_expr(p);
+        } else if (is_decl_only) {
+            left->type_tag = parse_type_tag(p);
+            assign->right = nd_new(ND_VAR);
+            assign->right->name = left->type_tag;
         } else {
             if (left->kind == ND_VAR && is_all_caps(left->name))
                 track_constant(p, left->name, op->pos, op->line);
@@ -772,13 +863,10 @@ static Node *parse_expr(Parser *p) {
                 const char *prev_inferred = get_inferred_type(left->name);
                 const char *actual = infer_node_type(assign->right, p->current_func);
                 
-                if (prev_inferred) {
-                    /* Variable already has inferred type - check for conflict */
-                    if (strcmp(actual, prev_inferred) != 0 &&
-                        !(is_primitive_numeric_type(prev_inferred) && is_primitive_numeric_type(actual))) {
-                        report_error(p->filename, p->src, op->pos, op->line,
-                            "type conflict for '%s': previously inferred '%s', found '%s'",
-                            left->name, prev_inferred, actual);
+                if (prev_inferred && strcmp(actual, "unknown") != 0) {
+                    /* Variable already has inferred type - update it to allow for type mutability */
+                    if (!are_types_compatible(prev_inferred, actual)) {
+                        set_inferred_type(p->arena, left->name, actual);
                     }
                 } else if (strcmp(actual, "unknown") != 0) {
                     /* First assignment - infer type */

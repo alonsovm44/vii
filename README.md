@@ -73,10 +73,10 @@ make
 
 ### Run a Script
 ```bash
-./vii samples/simple/demo.vii
-./vii samples/simple/fizzbuzz.vii
-./vii samples/simple/guess.vii arg1 arg2
-./vii samples/advanced/stack_alloc.vii   # Fixed arrays demo
+./vii examples/simple/demo.vii
+./vii examples/simple/fizzbuzz.vii
+./vii examples/simple/guess.vii arg1 arg2
+./vii examples/advanced/stack_alloc.vii   # Fixed arrays demo
 ```
 
 ### Bundle programs in standalone executables

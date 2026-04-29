@@ -1,0 +1,30 @@
+
+ent Vector 
+  i f32
+  j f32
+  
+v1 = Vector
+
+v1..i = 1.0
+v1..j = 3.0 
+
+v1..i # should print 1.0
+v1..j # should print 3.0
+
+x i32 = 10
+if type x == "num"
+  "x is an integer"
+else
+  "x is not an integer"
+
+if type v1 == "Vector"
+  "v1 is a Vector"
+else
+  "v1 is not a Vector"
+
+"---"
+type x
+"\n\n"
+type v1
+
+
