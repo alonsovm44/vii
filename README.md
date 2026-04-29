@@ -58,6 +58,10 @@ You can learn Vii in an afternoon. The entire language fits in your head.
 
 ## Quick Start
 
+### Docker support 
+1. Clone the repo
+2. 
+
 ### Build from Source
 ```bash
 # Single command
