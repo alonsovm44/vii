@@ -307,8 +307,16 @@ static void lex_token(Lexer *l) {
         lex_push(l, (Token){TOK_LTE, arena_strdup(l->arena, "<="), 0, l->line, l->pos});
         l->pos += 2; return;
     }
+    if (c == '<' && l->src[l->pos+1] == '<') {
+        lex_push(l, (Token){TOK_LSHIFT, arena_strdup(l->arena, "<<"), 0, l->line, l->pos});
+        l->pos += 2; return;
+    }
     if (c == '>' && l->src[l->pos+1] == '=') {
         lex_push(l, (Token){TOK_GTE, arena_strdup(l->arena, ">="), 0, l->line, l->pos});
+        l->pos += 2; return;
+    }
+    if (c == '>' && l->src[l->pos+1] == '>') {
+        lex_push(l, (Token){TOK_RSHIFT, arena_strdup(l->arena, ">>"), 0, l->line, l->pos});
         l->pos += 2; return;
     }
     if (c == '!' && l->src[l->pos+1] == '=') {
@@ -325,6 +333,10 @@ static void lex_token(Lexer *l) {
     if (c == '*') { lex_push(l, (Token){TOK_STAR, arena_strdup(l->arena, "*"), 0, l->line, l->pos}); l->pos++; return; }
     if (c == '/') { lex_push(l, (Token){TOK_SLASH, arena_strdup(l->arena, "/"), 0, l->line, l->pos}); l->pos++; return; }
     if (c == '%') { lex_push(l, (Token){TOK_PCT, arena_strdup(l->arena, "%"), 0, l->line, l->pos}); l->pos++; return; }
+    if (c == '&') { lex_push(l, (Token){TOK_BITAND, arena_strdup(l->arena, "&"), 0, l->line, l->pos}); l->pos++; return; }
+    if (c == '|') { lex_push(l, (Token){TOK_BITOR, arena_strdup(l->arena, "|"), 0, l->line, l->pos}); l->pos++; return; }
+    if (c == '^') { lex_push(l, (Token){TOK_BITXOR, arena_strdup(l->arena, "^"), 0, l->line, l->pos}); l->pos++; return; }
+    if (c == '~') { lex_push(l, (Token){TOK_BITNOT, arena_strdup(l->arena, "~"), 0, l->line, l->pos}); l->pos++; return; }
     if (c == '<') { lex_push(l, (Token){TOK_LT, arena_strdup(l->arena, "<"), 0, l->line, l->pos}); l->pos++; return; }
     if (c == '>') { lex_push(l, (Token){TOK_GT, arena_strdup(l->arena, ">"), 0, l->line, l->pos}); l->pos++; return; }
 

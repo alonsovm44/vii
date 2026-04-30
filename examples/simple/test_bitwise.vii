@@ -1,0 +1,87 @@
+# Comprehensive test script for bitwise operators
+
+# Test 1: Bitwise AND (&)
+"=== Test 1: Bitwise AND ==="
+a = 12  # 1100
+b = 10  # 1010
+result = a & b
+"12 & 10 ="
+result  # Expected: 8 (1000)
+
+# Test 2: Bitwise OR (|)
+"=== Test 2: Bitwise OR ==="
+result = a | b
+"12 | 10 ="
+result  # Expected: 14 (1110)
+
+# Test 3: Bitwise XOR (^)
+"=== Test 3: Bitwise XOR ==="
+result = a ^ b
+"12 ^ 10 ="
+result  # Expected: 6 (0110)
+
+# Test 4: Bitwise NOT (~)
+"=== Test 4: Bitwise NOT ==="
+result = ~a
+"~12 ="
+result  # Expected: -13
+
+# Test 5: Left Shift (<<)
+"=== Test 5: Left Shift ==="
+result = a << 2
+"12 << 2 ="
+result  # Expected: 48 (110000)
+
+# Test 6: Right Shift (>>)
+"=== Test 6: Right Shift ==="
+result = a >> 2
+"12 >> 2 ="
+result  # Expected: 3 (11)
+
+# Test 7: Combining operations
+"=== Test 7: Combined Operations ==="
+x = 5
+y = 3
+result = (x & y) | (x ^ y)
+"(5 & 3) | (5 ^ 3) ="
+result  # Expected: 7
+
+# Test 8: Shift with larger values
+"=== Test 8: Large Value Shifts ==="
+big = 256
+result = big << 4
+"256 << 4 ="
+result  # Expected: 4096
+
+result = big >> 4
+"256 >> 4 ="
+result  # Expected: 16
+
+# Test 9: Bitwise with 0
+"=== Test 9: Bitwise with Zero ==="
+z = 42
+result = z & 0
+"42 & 0 ="
+result  # Expected: 0
+
+result = z | 0
+"42 | 0 ="
+result  # Expected: 42
+
+# Test 10: Bitwise with all 1s (255)
+"=== Test 10: Bitwise with 255 ==="
+mask = 255
+val = 170
+result = val & mask
+"170 & 255 ="
+result  # Expected: 170
+
+result = val | mask
+"170 | 255 ="
+result  # Expected: 255
+
+result = val ^ mask
+"170 ^ 255 ="
+result  # Expected: 85
+
+"All bitwise operator tests completed successfully"

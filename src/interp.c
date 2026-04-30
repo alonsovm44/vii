@@ -195,6 +195,13 @@ Value *eval(Node *n, Table *env) {
             }
             return val_num(0 - v->num);
         }
+        case ND_BITNOT: {
+            Value *v = val_unwrap(eval(n->left, env));
+            if (v->kind != VAL_NUM) {
+                runtime_error(n, "bitwise NOT requires a number");
+            }
+            return val_num(~(long long)v->num);
+        }
         case ND_VAR:   {
             Value *v = table_get(env, n->name);
             extern int trace;
@@ -511,6 +518,11 @@ Value *eval(Node *n, Table *env) {
                         return val_bit(strcmp(l->str, r->str) == 0);
                     return val_bit(a == b);
                 }
+                case TOK_BITAND: return val_num((long long)a & (long long)b);
+                case TOK_BITOR:  return val_num((long long)a | (long long)b);
+                case TOK_BITXOR: return val_num((long long)a ^ (long long)b);
+                case TOK_LSHIFT: return val_num((long long)a << (long long)b);
+                case TOK_RSHIFT: return val_num((long long)a >> (long long)b);
                 default: return val_num(0);
             }
         }

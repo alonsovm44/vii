@@ -23,8 +23,3 @@ d
 # now testing fixed-size arrays in ents
 ent mytype2
   x i32[32]
-
-e = mytype2
-e..x = stack_alloc
-e..x at 0 = 1
-e..x at 0

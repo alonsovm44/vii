@@ -312,7 +312,7 @@ static const char *infer_node_type(Node *n, Node *fn_ctx) {
             if (n->op == TOK_EQEQ || n->op == TOK_NE || n->op == TOK_LT || n->op == TOK_GT ||
                 n->op == TOK_LTE || n->op == TOK_GTE || n->op == TOK_AND || n->op == TOK_OR)
                 return "bit";
-            /* For arithmetic, infer based on operands if possible */
+            /* For arithmetic and bitwise operators, infer based on operands if possible */
             {
                 const char *left_type = infer_node_type(n->left, fn_ctx);
                 const char *right_type = infer_node_type(n->right, fn_ctx);
@@ -326,6 +326,11 @@ static const char *infer_node_type(Node *n, Node *fn_ctx) {
                 return "num";
             }
         case ND_NOT: return "bit";
+        case ND_BITNOT: {
+            const char *inner_type = infer_node_type(n->left, fn_ctx);
+            if (is_primitive_numeric_type(inner_type)) return inner_type;
+            return "num";
+        }
         case ND_BLOCK:
             if (n->body_count > 0) return infer_node_type(n->body[n->body_count - 1], fn_ctx);
             break;
@@ -473,6 +478,12 @@ static Node *parse_primary(Parser *p) {
         case TOK_MINUS: {
             advance(p);
             Node *n = nd_new(ND_UMINUS);
+            n->left = parse_primary(p);
+            return n;
+        }
+        case TOK_BITNOT: {
+            advance(p);
+            Node *n = nd_new(ND_BITNOT);
             n->left = parse_primary(p);
             return n;
         }
@@ -873,7 +884,9 @@ static Node *parse_expr(Parser *p) {
            peek(p)->kind == TOK_GT    || peek(p)->kind == TOK_EQEQ  ||
            peek(p)->kind == TOK_LTE   || peek(p)->kind == TOK_GTE   ||
            peek(p)->kind == TOK_NE    || peek(p)->kind == TOK_AND   ||
-           peek(p)->kind == TOK_OR) {
+           peek(p)->kind == TOK_OR    || peek(p)->kind == TOK_BITAND ||
+           peek(p)->kind == TOK_BITOR || peek(p)->kind == TOK_BITXOR ||
+           peek(p)->kind == TOK_LSHIFT || peek(p)->kind == TOK_RSHIFT) {
         TokKind op = advance(p)->kind;
         Node *right = parse_postfix(p);
         Node *bin = nd_new(ND_BINOP);

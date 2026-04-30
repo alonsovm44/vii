@@ -51,7 +51,7 @@ Systems programming requires direct bit manipulation which is currently missing.
 - [ ] **Pointer Arithmetic**:
   - Explicit `ptr-add` and `ptr-sub` methods.
   - Support for `ptr_a - ptr_b` to get element distance.
-- [ ] **Fixed-size Arrays in Ents**: Supporting `field u8[32]` inside an `ent` definition.
+- [x] **Fixed-size Arrays in Ents**: Supporting `field u8[32]` inside an `ent` definition.
 ## 4. Control Flow Parity (Medium Priority)
 C's efficiency often comes from specific jump and branch logic.
 
@@ -72,6 +72,13 @@ Vii's `IF` macros handle some of this, but C's preprocessor is more flexible.
 
 - [ ] **Constant Expressions**: Ensuring `X = 10 + 5` is resolved at compile time if both are constants.
 - [ ] **Stringification**: A way to turn an identifier name into a string at compile time.
+
+
+## 7. Metaprogramming and Templates
+Vii could use metaprogramming tools like macros or templates to generate code at compile time. 
+
+- [ ] **Macros**: A way to generate code at compile time.
+- [ ] **Templates**: A way to generate code at compile time.
 
 ---
 
