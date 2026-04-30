@@ -656,6 +656,12 @@ static Node *parse_primary(Parser *p) {
         }
 
         case TOK_NADA:  advance(p); return nd_new(ND_NADA);
+        case TOK_DEFER: {
+            advance(p);
+            Node *n = nd_new(ND_DEFER);
+            n->left = parse_expr(p);
+            return n;
+        }
         case TOK_DO: {
             Token *do_tok = t;
             advance(p);

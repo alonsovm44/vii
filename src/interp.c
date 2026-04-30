@@ -27,6 +27,28 @@ Value *table_get(Table *t, const char *key) {
     return NULL;
 }
 
+/* Updates an existing variable in the scope chain if found. Handles VAL_REF aliasing. */
+static bool table_update(Table *t, const char *key, Value *val) {
+    for (Table *cur = t; cur; cur = cur->parent) {
+        unsigned h = hash(key);
+        for (Entry *e = cur->buckets[h]; e; e = e->next) {
+            if (strcmp(e->key, key) == 0) {
+                if (e->is_constant) {
+                    fprintf(stderr, COL_RED "Runtime error:" COL_RST " cannot reassign constant '%s'\n", key);
+                    exit(1);
+                }
+                if (e->val && e->val->kind == VAL_REF) {
+                    *(e->val->target) = *val;
+                } else {
+                    e->val = val;
+                }
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
 void table_set(Table *t, const char *key, Value *val) {
     unsigned h = hash(key);
     for (Entry *e = t->buckets[h]; e; e = e->next) {
@@ -163,12 +185,37 @@ static Value *val_unwrap(Value *v) {
     return v;
 }
 
+/* Defer stack for cleanup operations */
+#define MAX_DEFER_DEPTH 64
+static Node *defer_stack[MAX_DEFER_DEPTH];
+static int defer_stack_depth = 0;
+
+static void defer_push(Node *n) {
+    if (defer_stack_depth >= MAX_DEFER_DEPTH) {
+        fprintf(stderr, "Runtime error: defer stack overflow\n");
+        exit(1);
+    }
+    defer_stack[defer_stack_depth++] = n;
+}
+
+static void defer_execute_to_depth(Table *env, int target_depth) {
+    while (defer_stack_depth > target_depth) {
+        Node *deferred = defer_stack[--defer_stack_depth];
+        eval(deferred, env);
+    }
+}
+
 Value *eval_block(Node *block, Table *env) {
     Value *last = val_none();
+    int defer_start = defer_stack_depth;
     for (int i = 0; i < block->body_count; i++) {
         last = eval(block->body[i], env); // Evaluate each statement
-        if (last->kind == VAL_BREAK || last->kind == VAL_OUT || last->kind == VAL_SKIP) break; // Stop on control flow signals
+        if (last->kind == VAL_BREAK || last->kind == VAL_OUT || last->kind == VAL_SKIP) {
+            defer_execute_to_depth(env, defer_start);
+            break; // Stop on control flow signals
+        }
     }
+    defer_execute_to_depth(env, defer_start);
     return last;
 }
 
@@ -222,6 +269,10 @@ Value *eval(Node *n, Table *env) {
         case ND_SKIP: {
             return val_skip();
         }
+        case ND_DEFER: {
+            defer_push(n->left);
+            return val_none();
+        }
         case ND_ASSIGN: {
             Value *val;
             if (n->right->kind == ND_VAR && ent_find(n->right->name)) {
@@ -239,14 +290,9 @@ Value *eval(Node *n, Table *env) {
             }
 
             if (n->left->kind == ND_VAR) {
-                Value *existing = table_get(env, n->left->name);
-                if (existing && existing->kind == VAL_REF) {
-                    /* Mutate the target of the reference in-place (Aliasing) */
-                    Value *target = existing->target;
-                    *target = *val;
-                    return val;
+                if (!table_update(env, n->left->name, val)) {
+                    table_set(env, n->left->name, val);
                 }
-                table_set(env, n->left->name, val);
             } else if (n->left->kind == ND_DEREF) { // Assignment to a dereferenced pointer: valof x = ...
                 Value *p_val = val_unwrap(eval(n->left->left, env)); // Get the pointer value
                 if (p_val->kind != VAL_PTR) { runtime_error(n, "assignment to non-pointer dereference"); }

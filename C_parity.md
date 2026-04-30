@@ -45,7 +45,7 @@ Currently, `ent` fields are stored in a `Table`. For C parity, they must support
 ## 3. Bitwise & Low-Level Operations (Medium Priority)
 Systems programming requires direct bit manipulation which is currently missing.
 
-- [ ] **Bitwise Operators**: 
+- [x] **Bitwise Operators**: 
   - `&` (AND), `|` (OR), `^` (XOR), `~` (NOT).
   - `<<` (Left Shift), `>>` (Right Shift).
 - [ ] **Pointer Arithmetic**:
@@ -55,8 +55,8 @@ Systems programming requires direct bit manipulation which is currently missing.
 ## 4. Control Flow Parity (Medium Priority)
 C's efficiency often comes from specific jump and branch logic.
 
-- [ ] **`switch` / `match`**: A more efficient alternative to `if/else` chains for integer/enum branching.
-- [ ] **`defer`**: Vii's version of C cleanup patterns (or `finally`). Essential for manual memory safety.
+- [ ] **`match`**: A more efficient alternative to `if/else` chains for integer/enum branching.
+- [x] **`defer`**: Vii's version of C cleanup patterns (or `finally`). Essential for manual memory safety.
   - Example: `p = heap_alloc 10; defer heap_free p`.
 
 ## 5. FFI & Interoperability (High Priority)
