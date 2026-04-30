@@ -206,6 +206,12 @@ static bool are_types_compatible(const char *expected, const char *actual) {
     if (!expected || !actual || strcmp(actual, "unknown") == 0 || strcmp(expected, "unknown") == 0) return true;
     if (strcmp(expected, actual) == 0) return true;
     
+    /* Index/Enum compatibility: index types are compatible with numbers */
+    if (is_primitive_numeric_type(actual) || !strcmp(actual, "num")) {
+        Node *def = find_entity_def(expected);
+        if (def && def->kind == ND_INDEX_DEF) return true;
+    }
+
     /* bit/num compatibility */
     if (strcmp(expected, "bit") == 0 && strcmp(actual, "num") == 0) return true;
     
@@ -549,6 +555,33 @@ static Node *parse_primary(Parser *p) {
                 skip_newlines(p);
             }
             track_entity(n->name, n);
+            expect(p, TOK_DEDENT);
+            return n;
+        }
+        case TOK_INDEX:
+        case TOK_INDEXES: {
+            advance(p);
+            Node *n = nd_new(ND_INDEX_DEF);
+            if (peek(p)->kind == TOK_IDENT) {
+                n->name = arena_intern(p->arena, advance(p)->text);
+                track_entity(n->name, n);
+            }
+            skip_newlines(p);
+            expect(p, TOK_INDENT);
+            while (peek(p)->kind != TOK_DEDENT && peek(p)->kind != TOK_EOF) {
+                if (peek(p)->kind == TOK_NEWLINE || peek(p)->kind == TOK_SEMICOLON) { advance(p); continue; }
+                Token *name_tok = advance(p);
+                char *const_name = arena_intern(p->arena, name_tok->text);
+                Node *item = nd_new(ND_VAR);
+                item->name = const_name;
+                if (peek(p)->kind == TOK_EQ) {
+                    advance(p);
+                    item->left = parse_expr(p);
+                }
+                if (is_all_caps(const_name)) track_constant(p, const_name, name_tok->pos, name_tok->line);
+                nd_push(n, item);
+                skip_newlines(p);
+            }
             expect(p, TOK_DEDENT);
             return n;
         }
@@ -1084,7 +1117,8 @@ static Node *parse_stmt(Parser *p) {
         expr->kind != ND_EXIT && expr->kind != ND_BLOCK && expr->kind != ND_BREAK &&
         expr->kind != ND_OUT && expr->kind != ND_SKIP && expr->kind != ND_IF &&
         expr->kind != ND_WHILE && expr->kind != ND_FOR && expr->kind != ND_HEAP_FREE &&
-        expr->kind != ND_ENT_DEF && expr->kind != ND_UNI_DEF && expr->kind != ND_NADA) {
+        expr->kind != ND_ENT_DEF && expr->kind != ND_UNI_DEF && expr->kind != ND_INDEX_DEF && 
+        expr->kind != ND_NADA) {
         Node *print = nd_new(ND_PRINT);
         print->left = expr;
         return print;

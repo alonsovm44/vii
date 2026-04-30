@@ -14,3 +14,5 @@ do main
   z i32 = 30
   say ("main: " + tostr(addr(z)) + "\n")
   bar
+
+main

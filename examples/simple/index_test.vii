@@ -1,0 +1,39 @@
+# Vii Index and Indexes Test
+# Indexes is an alias to index, but it allows for explicit value assignment and mid-stream auto-incrementing. This test covers both.
+# 1. Test basic 'index' with auto-incrementing values (starts at 0)
+index Days
+  SUN
+  MON
+  TUE
+  WED
+  THU
+  FRI
+  SAT
+
+"Sunday is: " + tostr SUN # Expected: 0
+"Monday is: " + tostr MON # Expected: 1
+"Friday is: " + tostr FRI # Expected: 5
+
+# 2. Test 'indexes' with explicit values and mid-stream auto-increment
+indexes HTTP
+  OK = 200
+  CREATED    # Should be 201
+  ACCEPTED   # Should be 202
+  NO_CONTENT = 204
+  BAD_REQUEST = 400
+  NOT_FOUND  # Should be 401
+
+"HTTP OK: "        + tostr OK          # 200
+"HTTP CREATED: "   + tostr CREATED     # 201
+"HTTP NOT_FOUND: " + tostr NOT_FOUND   # 401
+
+# 3. Test Type Compatibility
+# index types are compatible with numbers in the type system
+status HTTP = OK
+if status == 200
+  "Status is OK"
+
+# 4. Test Constant Protection
+# Because they are ALL_CAPS, they are tracked as constants
+# The following line would trigger a parser error if uncommented:
+# OK = 500

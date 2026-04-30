@@ -1,0 +1,16 @@
+
+index Colors
+  RED = 0
+  GREEN = 1
+  BLUE = 2
+  WHITE = 3
+
+color = Colors
+
+"Colors"
+i=0
+while i < 4
+  i
+  i = i + 1
+  if i == 4
+    color..RED

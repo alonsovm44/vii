@@ -421,6 +421,23 @@ Value *eval(Node *n, Table *env) {
             ent_register(n->name, n);
             return val_none();
         }
+        case ND_INDEX_DEF: {
+            if (n->name) ent_register(n->name, n);
+            double current_val = 0;
+            for (int i = 0; i < n->body_count; i++) {
+                Node *item = n->body[i];
+                Value *v;
+                if (item->left) {
+                    v = eval(item->left, env);
+                    if (v->kind == VAL_NUM) current_val = v->num;
+                } else {
+                    v = val_num(current_val);
+                }
+                table_set(env, item->name, v);
+                current_val += 1.0;
+            }
+            return val_none();
+        }
         case ND_MEMBER: {
             Value *obj = val_unwrap(eval(n->left, env));
             if (obj->kind != VAL_ENT && obj->kind != VAL_UNI) runtime_error(n, "'..' on non-entity/union");

@@ -41,3 +41,4 @@ calculate_circle_area 5.0 2
 
 heap_free h_ptr
 "Test Complete."
+

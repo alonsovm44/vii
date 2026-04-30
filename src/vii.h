@@ -105,7 +105,7 @@ typedef enum {
     TOK_I8, TOK_I16, TOK_I32, TOK_I64,
     TOK_U8, TOK_U16, TOK_U32, TOK_U64,
     TOK_F32, TOK_F64,
-    TOK_ENT, TOK_UNI, TOK_NADA, TOK_DOTDOT
+    TOK_ENT, TOK_UNI, TOK_INDEX, TOK_INDEXES, TOK_NADA, TOK_DOTDOT
 } TokKind;
 
 typedef struct Token {
@@ -149,6 +149,7 @@ typedef enum {
     ND_ADDR,
     ND_ENT_DEF,
     ND_UNI_DEF,
+    ND_INDEX_DEF,
     ND_NADA,
     ND_MEMBER
 } NdKind;
