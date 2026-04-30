@@ -549,6 +549,21 @@ static Node *parse_primary(Parser *p) {
                 field->name = arena_intern(p->arena, advance(p)->text);
                 if (peek(p)->kind == TOK_IDENT || (peek(p)->kind >= TOK_I8 && peek(p)->kind <= TOK_F64))
                     field->type_tag = parse_type_tag(p);
+                /* Check for fixed-size array syntax: type[N] */
+                if (peek(p)->kind == TOK_LBRACKET) {
+                    advance(p);
+                    if (peek(p)->kind == TOK_NUM) {
+                        field->num = advance(p)->num;
+                        expect(p, TOK_RBRACKET);
+                        /* Append array size to type tag for code generation */
+                        char buf[256];
+                        snprintf(buf, sizeof(buf), "%s[%g]", field->type_tag, field->num);
+                        field->type_tag = arena_intern(p->arena, buf);
+                    } else {
+                        report_error(p->filename, p->src, peek(p)->pos, peek(p)->line,
+                            "fixed-size array requires numeric size in ent field '%s'", field->name);
+                    }
+                }
                 nd_push(n, field);
                 skip_newlines(p);
             }
@@ -568,6 +583,21 @@ static Node *parse_primary(Parser *p) {
                 field->name = arena_intern(p->arena, advance(p)->text);
                 if (peek(p)->kind == TOK_IDENT || (peek(p)->kind >= TOK_I8 && peek(p)->kind <= TOK_F64))
                     field->type_tag = parse_type_tag(p);
+                /* Check for fixed-size array syntax: type[N] */
+                if (peek(p)->kind == TOK_LBRACKET) {
+                    advance(p);
+                    if (peek(p)->kind == TOK_NUM) {
+                        field->num = advance(p)->num;
+                        expect(p, TOK_RBRACKET);
+                        /* Append array size to type tag for code generation */
+                        char buf[256];
+                        snprintf(buf, sizeof(buf), "%s[%g]", field->type_tag, field->num);
+                        field->type_tag = arena_intern(p->arena, buf);
+                    } else {
+                        report_error(p->filename, p->src, peek(p)->pos, peek(p)->line,
+                            "fixed-size array requires numeric size in uni field '%s'", field->name);
+                    }
+                }
                 nd_push(n, field);
                 skip_newlines(p);
             }

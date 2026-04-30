@@ -1,0 +1,29 @@
+
+ent mytype
+  x i32 
+  y i32 
+
+do func x mytype # testing custom types in function parameters
+  x..x = 10
+  x..y = 20
+  x..y + x..x
+
+a = mytype   
+func a
+
+# now testing custom type pointers
+b = mytype
+b..x = 30
+b..y = 40 
+
+c ptr mytype = addr b 
+d = valof c
+d
+
+# now testing fixed-size arrays in ents
+ent mytype2
+  x i32[32]
+
+e = mytype2
+e..x
+ 
