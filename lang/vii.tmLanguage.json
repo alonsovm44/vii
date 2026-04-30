@@ -63,7 +63,7 @@
                 "name": "keyword.operator.logical.vii"
                 },
                 {
-                    "match": "\\b(num|str|ref|ptr|bit|i8|i16|i32|i64|u8|u16|u32|u64|f32|f64|nada)\\b",
+                    "match": "\\b(num|str|ref|ptr|bit|i8|i16|i32|i64|u8|u16|u32|u64|f32|f64|nada|void)\\b",
                     "name": "storage.type.vii"
                 }
             ]

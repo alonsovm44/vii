@@ -1,0 +1,8 @@
+
+do func->void x->num
+  "" put "This function returns nothing, so it has type void.\n"
+
+func 23
+
+typeset ptr void = vptr 
+

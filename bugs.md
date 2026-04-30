@@ -63,25 +63,14 @@ The Fix: You need to either:
 
 Write a simple 50-line Mark-and-Sweep Garbage Collector for the transpiled C.
 Or, transpile an Arena allocator into the generated C code, just like you did for the interpreter.
-4. The val_none() Singleton Trap
+4. [FIXED] The val_none() Singleton Trap
 File: value.h
 
 c
 
-Value *val_none(void) {
-    static Value v_none = { .kind = VAL_NONE };
-    return &v_none;
-}
-The Bug: Because you return the exact same memory pointer every time, if a user tries to mutate it (which they shouldn't, but bugs happen), it breaks the universe. More importantly, look at your ND_ASSIGN logic in interp.c:
+The Bug: Returning a static pointer caused corruption when mutating values through pointers (e.g., if a pointer targeting 'nada' was used for assignment). 
 
-c
-
-case ND_ASSIGN: {
-    Value *val = eval(n->right, env);
-    // ...
-    table_set(env, n->left->name, val);
-If the right side evaluates to val_none(), the variable now points to the global singleton. This actually works fine right now, but if you ever try to add reference counting or a garbage collector to the interpreter, this singleton will cause massive headaches because you can't free it.
-The Fix: It's fine to leave as-is for now, but just know this is a landmine for future GC implementation.
+The Fix: Updated val_none() in value.c to use arena_alloc, ensuring every 'nada' has a distinct address.
 
 5. String Concatenation Buffer Overflow
 File: codegen.c -> Transpiled runtime_binop

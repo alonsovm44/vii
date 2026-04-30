@@ -26,12 +26,12 @@ To map C exactly, Vii needs to handle types that don't fit into the "everything 
      BLUE = 2
    ```
 
-- [``vii
+- ```vii
   typeset MyInt = i32
   typeset PtrToFloat = ptr f32
   ```
 
-- [ ] **Void Type**: Support for `void` and generic pointers `ptr void` for raw memory handling.
+- [x] **Void Type**: Support for `void` and generic pointers `ptr void` for raw memory handling.
 - [x] **Null type**: Nada = Null
 ## 2. Memory Layout & `ent` Evolution (High Priority)
 Currently, `ent` fields are stored in a `Table`. For C parity, they must support contiguous binary layouts.

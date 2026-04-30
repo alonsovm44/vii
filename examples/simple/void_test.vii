@@ -1,0 +1,58 @@
+# Vii Void and Generic Pointer Test Script
+
+# 1. Function returning void
+# This explicitly declares that the function returns no value.
+do log_info->void message->str
+  "" put ("[INFO] " + message + "\n")
+
+"Testing void return function:"
+res = log_info "System starting..."
+"Value returned from void function: " + type res # Expected: nada
+
+# 2. Expression casting to void
+# Casting any value to void effectively discards it, returning nada.
+discarded = 100 -> void
+"Casting 100 to void results in type: " + type discarded # Expected: nada
+
+# 3. ptr void (Generic Pointers)
+# ptr void is compatible with any other pointer type in the type system.
+secret_code i32 = 777
+p_void ptr void = addr secret_code
+
+"Address of secret_code stored in ptr void: " + tostr p_void
+
+# 4. Pointer Compatibility
+# Define a function that accepts a generic pointer
+do inspect_memory (p ptr void)
+  "Inspecting generic pointer at: " + tostr p
+
+p_int ptr i32 = addr secret_code
+"Passing ptr i32 to function expecting ptr void:"
+inspect_memory p_int # This works because ptr void is a universal pointer
+
+# 5. Typeset with ptr void
+# This creates a C-style handle alias.
+typeset Handle = ptr void
+
+do process_handle h Handle
+  "Processing handle at " + tostr h
+
+h Handle = addr secret_code
+process_handle h
+
+# 6. Round-trip casting
+# Cast from specific to generic and back.
+p_gen ptr void = addr secret_code
+
+# To dereference, we cast back to a typed pointer
+p_typed = p_gen -> (ptr i32)
+
+"Value recovered via round-trip cast: " + tostr (valof p_typed)
+
+# 7. Sizeof checks
+# sizeof ptr void should be the same as any other pointer (8 bytes on 64-bit)
+"Size of ptr void: " + tostr (sizeof ptr void)
+# sizeof void returns the size of a boxed Value struct in the current implementation
+"Size of void: " + tostr (sizeof void)
+
+"Void and ptr void tests complete."

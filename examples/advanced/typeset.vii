@@ -1,1 +1,5 @@
 
+typeset i32 = int
+
+x int = 42
+type x

@@ -242,7 +242,8 @@ static bool are_types_compatible(const char *expected, const char *actual) {
     /* Pointer compatibility */
     if (is_pointer_type(expected) && is_pointer_type(actual)) {
         /* Generic ptr matches any specific pointer, and vice versa */
-        if (strcmp(expected, "ptr") == 0 || strcmp(actual, "ptr") == 0) return true;
+        if (strcmp(expected, "ptr") == 0 || strcmp(actual, "ptr") == 0 ||
+            strcmp(expected, "ptr void") == 0 || strcmp(actual, "ptr void") == 0) return true;
 
         /* Recursively check inner types to allow soft/hard numeric pointer compatibility */
         if (strncmp(expected, "ptr ", 4) == 0 && strncmp(actual, "ptr ", 4) == 0) {
@@ -523,7 +524,7 @@ static Node *parse_primary(Parser *p) {
             Node *n = nd_new(ND_SIZEOF);
             Token *next = peek(p);
             /* sizeof can take a type name or an expression */
-            if (next->kind == TOK_IDENT || next->kind == TOK_PTR || next->kind == TOK_BIT || next->kind == TOK_LPAREN ||
+            if (next->kind == TOK_IDENT || next->kind == TOK_PTR || next->kind == TOK_BIT || next->kind == TOK_LPAREN || next->kind == TOK_VOID ||
                 (next->kind >= TOK_I8 && next->kind <= TOK_F64)) {
                 n->type_tag = parse_type_tag(p);
             } else {
@@ -759,12 +760,11 @@ static Node *parse_postfix(Parser *p) {
             advance(p);
             Node *cast = nd_new(ND_CAST);
             cast->left = expr;
+            Token *next = peek(p);
             /* Expect a type token after -> */
-            if (peek(p)->kind == TOK_IDENT || peek(p)->kind == TOK_REF || peek(p)->kind == TOK_PTR || peek(p)->kind == TOK_BIT ||
-                peek(p)->kind == TOK_I8 || peek(p)->kind == TOK_I16 || peek(p)->kind == TOK_I32 || peek(p)->kind == TOK_I64 ||
-                peek(p)->kind == TOK_U8 || peek(p)->kind == TOK_U16 || peek(p)->kind == TOK_U32 || peek(p)->kind == TOK_U64 ||
-                peek(p)->kind == TOK_F32 || peek(p)->kind == TOK_F64) {
-                cast->type_tag = arena_intern(p->arena, advance(p)->text);
+            if (next->kind == TOK_IDENT || next->kind == TOK_REF || next->kind == TOK_PTR || next->kind == TOK_BIT || next->kind == TOK_VOID ||
+                next->kind == TOK_LPAREN || (next->kind >= TOK_I8 && next->kind <= TOK_F64)) {
+                cast->type_tag = parse_type_tag(p);
             } else {
                 report_error(p->filename, p->src, peek(p)->pos, peek(p)->line, 
                     "expected type name after '->' in cast expression");
@@ -832,12 +832,11 @@ static bool is_potential_type_token(Parser *p) {
         TokKind next = p->tokens[p->pos + 1].kind;
         return next == TOK_EQ || next == TOK_ARROW || next == TOK_NEWLINE || next == TOK_SEMICOLON || next == TOK_DEDENT || next == TOK_EOF || next == TOK_LBRACKET;
     }
-    return (k >= TOK_I8 && k <= TOK_F64) || k == TOK_PTR || k == TOK_BIT || k == TOK_REF;
+    return (k >= TOK_I8 && k <= TOK_F64) || k == TOK_PTR || k == TOK_BIT || k == TOK_REF || k == TOK_VOID || k == TOK_LPAREN;
 }
 
 static Node *parse_expr(Parser *p) {
     Node *left = parse_postfix(p);
-
     while (peek(p)->kind == TOK_PLUS  || peek(p)->kind == TOK_MINUS ||
            peek(p)->kind == TOK_STAR  || peek(p)->kind == TOK_SLASH ||
            peek(p)->kind == TOK_PCT   || peek(p)->kind == TOK_LT    ||

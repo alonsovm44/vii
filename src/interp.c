@@ -992,6 +992,10 @@ Value *eval(Node *n, Table *env) {
             if (strstr(target_type, "ptr") == target_type) {
                 return val; // For now, pointer casts just preserve the pointer value
             }
+            /* Cast to void returns nada */
+            if (strcmp(target_type, "void") == 0) {
+                return val_none();
+            }
             /* Future: implement actual bit-level conversions */
             if (strcmp(target_type, "i8") == 0 || strcmp(target_type, "i16") == 0 ||
                 strcmp(target_type, "i32") == 0 || strcmp(target_type, "i64") == 0 ||

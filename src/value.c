@@ -38,6 +38,8 @@ Value *val_ref(Value *target) {
 }
 
 Value *val_none(void) {
+    /* Every 'nada' instance is unique in the arena to prevent pointer 
+       aliasing corruption if a user attempts to mutate the value in-place. */
     Value *v = arena_alloc(global_arena, sizeof(Value));
     v->kind = VAL_NONE;
     return v;
