@@ -1,6 +1,0 @@
-# Test addr builtin
-x i32 = 42
-"Address of x:"
-addr x
-"Value of x:"
-x
