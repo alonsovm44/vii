@@ -1,8 +1,9 @@
 #! ONCE
+#^ this is a shebang that prevents this file from being included multiple times
 
 # 1. Constants and Explicit Hard Types
 VERSION str = "1.4.0"
-PI f64 = 3.14159
+PI f64 = 3.14159 # ALL CAPS are immutable constrants by convention
 
 # 2. Flexible Parameter Syntax and Return Type Annotations
 # This uses a mix of parenthesized and naked parameters

@@ -38,8 +38,9 @@ Value *val_ref(Value *target) {
 }
 
 Value *val_none(void) {
-    static Value v_none = { .kind = VAL_NONE };
-    return &v_none;
+    Value *v = arena_alloc(global_arena, sizeof(Value));
+    v->kind = VAL_NONE;
+    return v;
 }
 
 void val_list_grow(Value *v) {

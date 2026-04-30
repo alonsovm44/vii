@@ -128,6 +128,38 @@ static char* extract_bundled_script(const char *exe_path, size_t *out_len) {
     return script;
 }
 
+static void run_repl(Table *global) {
+    printf("vii 1.4.1 REPL\n");
+    printf("Use 'exit 0' or Ctrl+C to quit.\n\n");
+    
+    char line[4096];
+    while (true) {
+        printf("vii> ");
+        if (!fgets(line, sizeof(line), stdin)) break;
+        if (line[0] == '\n' || line[0] == '\r') continue;
+
+        Lexer lexer = { .src = line, .pos = 0, .filename = "<stdin>", .arena = global_arena };
+        lex(&lexer, "<stdin>");
+        
+        Parser parser = { .tokens = lexer.tokens, .pos = 0, .src = line, .filename = "<stdin>", .arena = global_arena };
+        Node *prog = parse_program(&parser);
+        
+        Value *res = eval(prog, global);
+        
+        bool last_stmt_was_implicit_print = false;
+        if (prog->kind == ND_BLOCK && prog->body_count > 0) {
+            if (prog->body[prog->body_count - 1]->kind == ND_PRINT) {
+                last_stmt_was_implicit_print = true;
+            }
+        }
+
+        if (!last_stmt_was_implicit_print && res && res->kind != VAL_NONE && res->kind != VAL_BREAK) {
+            val_print(res);
+            printf("\n");
+        }
+    }
+}
+
 int main(int argc, char **argv) {
     enable_ansi_colors();
     global_arena = arena_create(512 * 1024 * 1024); // 512MB Arena
@@ -177,8 +209,6 @@ int main(int argc, char **argv) {
     bool debug_ast = false;
     bool check_only = false;
 
-    if (argc < 2) goto usage;
-
     /* Argument Parsing */
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "--debug") == 0) {
@@ -203,7 +233,7 @@ int main(int argc, char **argv) {
         }
     }
 
-    if (!input_path && strcmp(argv[1], "--version") != 0 && strcmp(argv[1], "--help") != 0) goto usage;
+    if (!input_path && argc > 1 && strcmp(argv[1], "--version") != 0 && strcmp(argv[1], "--help") != 0) goto usage;
 
     if (strcmp(argv[1], "--version") == 0) {
         printf("vii 1.4.1\n");
@@ -331,61 +361,65 @@ int main(int argc, char **argv) {
         cli_args->items[cli_args->item_count++] = val_str(argv[i]);
     }
 
-    char *src = read_file(input_path);
-    if (trace) fprintf(stderr, "[TRACE] Read %lu bytes from %s\n", (unsigned long)strlen(src), input_path);
-    Lexer lexer = { .src = src, .pos = 0, .filename = input_path, .arena = global_arena };
-    if (trace) fprintf(stderr, "[TRACE] Starting lexer...\n");
-    lex(&lexer, input_path);
-    if (trace) { fprintf(stderr, "[TRACE] Lexed %d tokens\n", lexer.tok_count); if (log_fp) fprintf(log_fp, "[TRACE] Lexed %d tokens\n", lexer.tok_count); }
-
-    Parser parser = { .tokens = lexer.tokens, .pos = 0, .src = src, .filename = input_path, .arena = global_arena };
-    if (trace) { fprintf(stderr, "[TRACE] Starting parser...\n"); if (log_fp) fprintf(log_fp, "[TRACE] Starting parser...\n"); }
-    Node *prog = parse_program(&parser);
-    if (trace) { fprintf(stderr, "[TRACE] Parsed AST with kind=%d\n", prog->kind); if (log_fp) fprintf(log_fp, "[TRACE] Parsed AST with kind=%d\n", prog->kind); }
-
-    if (debug_ast) {
-        FILE *df = fopen("debug_ast.json", "w");
-        if (df) {
-            dump_ast_json(prog, df, 0);
-            fclose(df);
-            printf("AST dumped to debug_ast.json\n");
-        }
-    }
-
-    if (check_only) {
-        printf("Syntax OK\n");
-        free(src);
-        if (log_fp) fclose(log_fp);
-        return 0;
-    }
-
     /* Interpret the program */
     Table *global = table_new(NULL);
     /* Bind CLI args as 'arg' for bootstrapping compiler compatibility */
     extern Value *cli_args;
     if (trace) { fprintf(stderr, "[TRACE] cli_args kind=%d (VAL_LIST=%d)\n", cli_args ? cli_args->kind : -1, VAL_LIST); if (log_fp) fprintf(log_fp, "[TRACE] cli_args kind=%d (VAL_LIST=%d)\n", cli_args ? cli_args->kind : -1, VAL_LIST); }
     table_set(global, "arg", cli_args);
-    if (trace) { fprintf(stderr, "[TRACE] Starting interpreter...\n"); if (log_fp) fprintf(log_fp, "[TRACE] Starting interpreter...\n"); }
-    Value *res = eval(prog, global); // Evaluate the entire program
-    if (trace) { fprintf(stderr, "[TRACE] Interpreter returned kind=%d\n", res ? res->kind : -1); if (log_fp) fprintf(log_fp, "[TRACE] Interpreter returned kind=%d\n", res ? res->kind : -1); }
 
-    // Check if the last statement in the program was an implicit print.
-    // If so, it has already been printed by the ND_PRINT node.
-    bool last_stmt_was_implicit_print = false;
-    if (prog->kind == ND_BLOCK && prog->body_count > 0) {
-        if (prog->body[prog->body_count - 1]->kind == ND_PRINT) {
-            last_stmt_was_implicit_print = true;
+    if (input_path) {
+        char *src = read_file(input_path);
+        if (trace) fprintf(stderr, "[TRACE] Read %lu bytes from %s\n", (unsigned long)strlen(src), input_path);
+        Lexer lexer = { .src = src, .pos = 0, .filename = input_path, .arena = global_arena };
+        if (trace) fprintf(stderr, "[TRACE] Starting lexer...\n");
+        lex(&lexer, input_path);
+        if (trace) { fprintf(stderr, "[TRACE] Lexed %d tokens\n", lexer.tok_count); if (log_fp) fprintf(log_fp, "[TRACE] Lexed %d tokens\n", lexer.tok_count); }
+
+        Parser parser = { .tokens = lexer.tokens, .pos = 0, .src = src, .filename = input_path, .arena = global_arena };
+        if (trace) { fprintf(stderr, "[TRACE] Starting parser...\n"); if (log_fp) fprintf(log_fp, "[TRACE] Starting parser...\n"); }
+        Node *prog = parse_program(&parser);
+        if (trace) { fprintf(stderr, "[TRACE] Parsed AST with kind=%d\n", prog->kind); if (log_fp) fprintf(log_fp, "[TRACE] Parsed AST with kind=%d\n", prog->kind); }
+
+        if (debug_ast) {
+            FILE *df = fopen("debug_ast.json", "w");
+            if (df) {
+                dump_ast_json(prog, df, 0);
+                fclose(df);
+                printf("AST dumped to debug_ast.json\n");
+            }
         }
-    }
 
-    if (!last_stmt_was_implicit_print && res && res->kind != VAL_NONE && res->kind != VAL_BREAK) {
-        val_print(res); // Only print if not already handled by an implicit print
-        printf("\n"); 
-    }
+        if (check_only) {
+            printf("Syntax OK\n");
+            free(src);
+            if (log_fp) fclose(log_fp);
+            return 0;
+        }
 
-    free(src);
-    if (log_fp) fclose(log_fp);
-    return 0;
+        if (trace) { fprintf(stderr, "[TRACE] Starting interpreter...\n"); if (log_fp) fprintf(log_fp, "[TRACE] Starting interpreter...\n"); }
+        Value *res = eval(prog, global); // Evaluate the entire program
+        if (trace) { fprintf(stderr, "[TRACE] Interpreter returned kind=%d\n", res ? res->kind : -1); if (log_fp) fprintf(log_fp, "[TRACE] Interpreter returned kind=%d\n", res ? res->kind : -1); }
+
+        bool last_stmt_was_implicit_print = false;
+        if (prog->kind == ND_BLOCK && prog->body_count > 0) {
+            if (prog->body[prog->body_count - 1]->kind == ND_PRINT) {
+                last_stmt_was_implicit_print = true;
+            }
+        }
+
+        if (!last_stmt_was_implicit_print && res && res->kind != VAL_NONE && res->kind != VAL_BREAK) {
+            val_print(res);
+            printf("\n"); 
+        }
+
+        free(src);
+        if (log_fp) fclose(log_fp);
+        return 0;
+    } else {
+        run_repl(global);
+        return 0;
+    }
 
 usage:
     fprintf(stderr, "Usage: vii <file.vii> [args...]\n");

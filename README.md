@@ -1,6 +1,6 @@
 # Vii 
 
-**A minimalist language with gradual typing and stack allocation.**
+**As if C and Python had a baby.**
 
 [![Version](https://img.shields.io/badge/version-1.4.0-blue.svg)](https://github.com/alonsovm44/vii)
 [![Language](https://img.shields.io/badge/language-C-orange.svg)](https://en.wikipedia.org/wiki/C_(programming_language))

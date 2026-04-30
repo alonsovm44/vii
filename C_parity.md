@@ -17,8 +17,14 @@ To map C exactly, Vii needs to handle types that don't fit into the "everything 
 
   ```
 
-- [ ] **Enums**: Named integer constants.
+- [ ] **Enums/Index**: Named constants.
   - Convention: `enum Color \n  RED \n  BLUE` (automatically assigned 0, 1, etc.)
+use 
+```vii
+index MyIndex
+  
+```
+
 - [ ] **Type Aliases (`typedef`)**: Allowing `typeset MyInt = i32`.
 - [ ] **Void Type**: Support for `void` and generic pointers `ptr void` for raw memory handling.
 - [x] **Null type**: Nada = Null
