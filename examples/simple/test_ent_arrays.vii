@@ -1,0 +1,47 @@
+# Test script for fixed-size arrays in ent/uni definitions
+
+# Test 1: Basic ent with fixed-size array
+ent Buffer
+  data u8[256]
+  size i32
+
+"Test 1: ent Buffer defined with u8[256] field"
+
+# Test 2: Multiple array fields
+ent Person
+  name str
+  age i32
+  scores f64[10]
+  tags u8[32]
+
+"Test 2: ent Person defined with multiple array fields"
+
+# Test 3: Different array types
+ent MultiArray
+  bytes u8[1024]
+  ints i32[64]
+  floats f64[32]
+  chars i8[128]
+
+"Test 3: ent MultiArray defined with various array types"
+
+# Test 4: uni with fixed-size arrays
+uni Message
+  text str
+  data u8[512]
+
+"Test 4: uni Message defined with array field"
+
+# Test 5: Nested-like structure
+ent Header
+  version u8[4]
+  flags u8[4]
+  length i32
+
+ent Packet
+  header Header
+  payload u8[1024]
+
+"Test 5: ent Packet with nested ent and array field"
+
+"All ent/uni array definitions parsed successfully"

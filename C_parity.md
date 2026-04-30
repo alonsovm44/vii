@@ -51,7 +51,7 @@ Systems programming requires direct bit manipulation which is currently missing.
 - [ ] **Pointer Arithmetic**:
   - Explicit `ptr-add` and `ptr-sub` methods.
   - Support for `ptr_a - ptr_b` to get element distance.
-- [ ] **Fixed-size Arrays in Ents**: Supporting `field u8[32]` inside an `ent` definitions.
+- [ ] **Fixed-size Arrays in Ents**: Supporting `field u8[32]` inside an `ent` definition.
 ## 4. Control Flow Parity (Medium Priority)
 C's efficiency often comes from specific jump and branch logic.
 

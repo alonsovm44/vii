@@ -1,0 +1,10 @@
+# Test fixed-size arrays in ent definitions
+
+ent Person
+  name str
+  age i32
+  data u8[32]
+  scores f64[10]
+
+# Just test that the ent definition parses correctly
+"Ent Person defined successfully"
