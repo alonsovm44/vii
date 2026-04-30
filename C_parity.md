@@ -26,7 +26,11 @@ To map C exactly, Vii needs to handle types that don't fit into the "everything 
      BLUE = 2
    ```
 
-- [ ] **Type Aliases (`typedef`)**: Allowing `typeset MyInt = i32`.
+- [``vii
+  typeset MyInt = i32
+  typeset PtrToFloat = ptr f32
+  ```
+
 - [ ] **Void Type**: Support for `void` and generic pointers `ptr void` for raw memory handling.
 - [x] **Null type**: Nada = Null
 ## 2. Memory Layout & `ent` Evolution (High Priority)

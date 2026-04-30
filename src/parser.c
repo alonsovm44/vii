@@ -211,9 +211,19 @@ static bool are_types_compatible(const char *expected, const char *actual) {
         Node *def = find_entity_def(expected);
         if (def && def->kind == ND_INDEX_DEF) return true;
     }
+    if (is_primitive_numeric_type(actual) || !strcmp(actual, "num")) {
+        Node *def = find_entity_def(expected);
+        if (def && def->kind == ND_INDEX_DEF) return true;
+    }
 
     /* bit/num compatibility */
     if (strcmp(expected, "bit") == 0 && strcmp(actual, "num") == 0) return true;
+
+    /* Type alias resolution */
+    Node *expected_def = find_entity_def(expected);
+    if (expected_def && expected_def->kind == ND_TYPESET_DEF) {
+        return are_types_compatible(expected_def->type_tag, actual);
+    }
     
     /* primitive numeric compatibility */
     if (is_primitive_numeric_type(expected) && (strcmp(actual, "num") == 0 || is_primitive_numeric_type(actual))) return true;
@@ -585,6 +595,18 @@ static Node *parse_primary(Parser *p) {
             expect(p, TOK_DEDENT);
             return n;
         }
+        case TOK_TYPESET: {
+            advance(p);
+            Node *n = nd_new(ND_TYPESET_DEF);
+            n->name = arena_intern(p->arena, advance(p)->text); // Alias name
+            expect(p, TOK_EQ);
+            n->type_tag = parse_type_tag(p); // Base type
+            
+            // Store the alias definition
+            track_entity(n->name, n);
+            return n;
+        }
+
         case TOK_NADA:  advance(p); return nd_new(ND_NADA);
         case TOK_DO: {
             Token *do_tok = t;
@@ -1114,11 +1136,10 @@ static Node *parse_stmt(Parser *p) {
     Node *expr = parse_expr(p);
     if (p->in_func == 0 && expr->kind != ND_ASSIGN && expr->kind != ND_DO && 
         expr->kind != ND_SET && expr->kind != ND_KEY && expr->kind != ND_PUT && 
-        expr->kind != ND_EXIT && expr->kind != ND_BLOCK && expr->kind != ND_BREAK &&
-        expr->kind != ND_OUT && expr->kind != ND_SKIP && expr->kind != ND_IF &&
-        expr->kind != ND_WHILE && expr->kind != ND_FOR && expr->kind != ND_HEAP_FREE &&
-        expr->kind != ND_ENT_DEF && expr->kind != ND_UNI_DEF && expr->kind != ND_INDEX_DEF && 
-        expr->kind != ND_NADA) {
+        expr->kind != ND_EXIT && expr->kind != ND_BLOCK && expr->kind != ND_BREAK && expr->kind != ND_OUT && 
+        expr->kind != ND_SKIP && expr->kind != ND_IF && expr->kind != ND_WHILE && expr->kind != ND_FOR && 
+        expr->kind != ND_HEAP_FREE && expr->kind != ND_ENT_DEF && expr->kind != ND_UNI_DEF && 
+        expr->kind != ND_INDEX_DEF && expr->kind != ND_TYPESET_DEF && expr->kind != ND_NADA) {
         Node *print = nd_new(ND_PRINT);
         print->left = expr;
         return print;

@@ -47,11 +47,11 @@
         "keywords": {
             "patterns": [
                 {
-                "match": "\\b(if|else|while|do|break|for|in|safe|IF|ELSE|out|ent|uni|enum)\\b",
+                "match": "\\b(if|else|while|do|break|for|in|safe|IF|ELSE|out|ent|uni|index|indexes)\\b",
                     "name": "keyword.control.vii"
                 },
                 {
-                "match": "\\b(ask|put|paste|list|at|set|len|ord|chr|tonum|tostr|sys|env|exit|dict|key|keys|slice|type|time|append|ref|split|trim|replace|sizeof|addr|valof)\\b",
+                "match": "\\b(ask|put|paste|list|at|set|len|ord|chr|tonum|tostr|sys|env|exit|dict|key|keys|slice|type|time|append|ref|split|trim|replace|sizeof|addr|valof|typeset)\\b",
                     "name": "support.function.vii"
                 },
                 {

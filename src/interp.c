@@ -421,6 +421,12 @@ Value *eval(Node *n, Table *env) {
             ent_register(n->name, n);
             return val_none();
         }
+        case ND_TYPESET_DEF: {
+            // Type aliases are handled at parse-time for type checking.
+            // At runtime, they just register their definition.
+            ent_register(n->name, n);
+            return val_none();
+        }
         case ND_INDEX_DEF: {
             if (n->name) ent_register(n->name, n);
             double current_val = 0;
