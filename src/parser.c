@@ -2,12 +2,14 @@
 #include <ctype.h>
 
 static int parser_current_line = 0;
+static int parser_current_pos = 0;
 static const char *parser_current_filename = NULL;
 
 Node *nd_new(NdKind kind) {
     Node *n = arena_alloc(global_arena, sizeof(Node));
     n->kind = kind;
     n->line = parser_current_line; // Set the line number here
+    n->pos = parser_current_pos;
     n->filename = (char*)parser_current_filename;
     return n;
 }
@@ -146,12 +148,16 @@ static Node* find_entity_def(const char *name) {
 /* ──────────────────────── Parser helpers ──────────────────────── */
 
 static Token *peek(Parser *p) { 
-    if (p->tokens[p->pos].line > 0) parser_current_line = p->tokens[p->pos].line;
+    if (p->tokens[p->pos].line > 0) {
+        parser_current_line = p->tokens[p->pos].line;
+        parser_current_pos = p->tokens[p->pos].pos;
+    }
     return &p->tokens[p->pos]; 
 }
 static Token *advance(Parser *p) { 
     Token *t = &p->tokens[p->pos++];
     parser_current_line = t->line;
+    parser_current_pos = t->pos;
     return t;
 }
 
@@ -206,11 +212,17 @@ static bool are_types_compatible(const char *expected, const char *actual) {
     if (!expected || !actual || strcmp(actual, "unknown") == 0 || strcmp(expected, "unknown") == 0) return true;
     if (strcmp(expected, actual) == 0) return true;
     
-    /* Index/Enum compatibility: index types are compatible with numbers */
-    if (is_primitive_numeric_type(actual) || !strcmp(actual, "num")) {
-        Node *def = find_entity_def(expected);
-        if (def && def->kind == ND_INDEX_DEF) return true;
+    /* Type alias resolution */
+    Node *expected_def = find_entity_def(expected);
+    if (expected_def && expected_def->kind == ND_TYPESET_DEF) {
+        return are_types_compatible(expected_def->type_tag, actual);
     }
+    Node *actual_def = find_entity_def(actual);
+    if (actual_def && actual_def->kind == ND_TYPESET_DEF) {
+        return are_types_compatible(expected, actual_def->type_tag);
+    }
+
+    /* Index/Enum compatibility: index types are compatible with numbers */
     if (is_primitive_numeric_type(actual) || !strcmp(actual, "num")) {
         Node *def = find_entity_def(expected);
         if (def && def->kind == ND_INDEX_DEF) return true;
@@ -218,12 +230,6 @@ static bool are_types_compatible(const char *expected, const char *actual) {
 
     /* bit/num compatibility */
     if (strcmp(expected, "bit") == 0 && strcmp(actual, "num") == 0) return true;
-
-    /* Type alias resolution */
-    Node *expected_def = find_entity_def(expected);
-    if (expected_def && expected_def->kind == ND_TYPESET_DEF) {
-        return are_types_compatible(expected_def->type_tag, actual);
-    }
     
     /* primitive numeric compatibility */
     if (is_primitive_numeric_type(expected) && (strcmp(actual, "num") == 0 || is_primitive_numeric_type(actual))) return true;
@@ -447,7 +453,7 @@ static void check_call_args(Parser *p, Node *call) {
         
         const char *actual = infer_node_type(call->body[i], p->current_func);
         if (!are_types_compatible(expected, actual)) {
-            report_error(p->filename, p->src, call->line, call->line,
+            report_error(p->filename, p->src, call->pos, call->line,
                 "argument %d to '%s' type mismatch: expected '%s', found '%s'",
                 i + 1, func_name, expected, actual);
         }

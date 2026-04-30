@@ -11,3 +11,6 @@ if letter == back_to_text
   "Yes!"
 else
   "Bug in ord/chr!"
+
+va = 1
+va

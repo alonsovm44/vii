@@ -164,6 +164,7 @@ typedef struct Node {
     char  *str;
     char  *filename;
     int    line;
+    int    pos;
     TokKind op;
     struct Node *left;
     struct Node *right;

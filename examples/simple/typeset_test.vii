@@ -1,0 +1,52 @@
+# Vii Typeset Test Script
+# This script tests the type aliasing functionality (typedef-like)
+
+# 1. Aliasing built-in primitive types
+typeset MyInt = i32
+typeset MyStr = str
+
+# 2. Using aliases in variable declarations
+count MyInt = 42
+label MyStr = "Typeset alias for string"
+
+"Count using MyInt: " + tostr count
+"Label using MyStr: " + label
+
+# 3. Defining a custom Entity (struct)
+ent Vec2
+  x f32
+  y f32
+
+# 4. Aliasing the custom Entity
+typeset Point = Vec2
+
+# 5. Instantiating and using the aliased custom type
+p Point = Vec2
+p..x = 10.5
+p..y = 20.7
+
+"Point from aliased Vec2:"
+"x: " + tostr p..x
+"y: " + tostr p..y
+
+# 6. Type compatibility check
+# Define a function that expects the base type (i32)
+do process_raw_int (v i32)
+  "Processing raw i32: " + tostr v
+
+# Pass a variable declared with the alias to the base type parameter
+process_raw_int count
+
+# 7. Nested aliasing (Alias of an alias)
+typeset SuperInt = MyInt
+bonus SuperInt = 1000
+"Nested alias (SuperInt -> MyInt -> i32): " + tostr bonus
+
+# 8. Aliasing pointers
+typeset PtrToInt = ptr i32
+raw_val i32 = 99
+p_int PtrToInt = addr raw_val
+
+"Value via aliased pointer: " + tostr (valof p_int)
+
+"Typeset tests complete."
