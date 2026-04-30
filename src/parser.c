@@ -1083,7 +1083,8 @@ static Node *parse_stmt(Parser *p) {
         expr->kind != ND_SET && expr->kind != ND_KEY && expr->kind != ND_PUT && 
         expr->kind != ND_EXIT && expr->kind != ND_BLOCK && expr->kind != ND_BREAK &&
         expr->kind != ND_OUT && expr->kind != ND_SKIP && expr->kind != ND_IF &&
-        expr->kind != ND_WHILE && expr->kind != ND_FOR && expr->kind != ND_HEAP_FREE) {
+        expr->kind != ND_WHILE && expr->kind != ND_FOR && expr->kind != ND_HEAP_FREE &&
+        expr->kind != ND_ENT_DEF && expr->kind != ND_UNI_DEF && expr->kind != ND_NADA) {
         Node *print = nd_new(ND_PRINT);
         print->left = expr;
         return print;
