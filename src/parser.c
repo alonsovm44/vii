@@ -533,6 +533,26 @@ static Node *parse_primary(Parser *p) {
             expect(p, TOK_DEDENT);
             return n;
         }
+        case TOK_UNI: {
+            advance(p);
+            Node *n = nd_new(ND_UNI_DEF);
+            n->name = arena_intern(p->arena, advance(p)->text);
+            skip_newlines(p);
+            expect(p, TOK_INDENT);
+            while (peek(p)->kind != TOK_DEDENT && peek(p)->kind != TOK_EOF) {
+                if (peek(p)->kind == TOK_NEWLINE || peek(p)->kind == TOK_SEMICOLON) { advance(p); continue; }
+                Node *field = nd_new(ND_VAR);
+                field->name = arena_intern(p->arena, advance(p)->text);
+                if (peek(p)->kind == TOK_IDENT || (peek(p)->kind >= TOK_I8 && peek(p)->kind <= TOK_F64))
+                    field->type_tag = parse_type_tag(p);
+                nd_push(n, field);
+                skip_newlines(p);
+            }
+            track_entity(n->name, n);
+            expect(p, TOK_DEDENT);
+            return n;
+        }
+        case TOK_NADA:  advance(p); return nd_new(ND_NADA);
         case TOK_DO: {
             Token *do_tok = t;
             advance(p);

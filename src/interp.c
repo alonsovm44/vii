@@ -119,6 +119,14 @@ Value *val_ent(const char *type_name) {
     return v;
 }
 
+Value *val_uni(const char *type_name) {
+    Value *v = arena_alloc(global_arena, sizeof(Value));
+    v->kind = VAL_UNI;
+    v->type_name = (char*)type_name;
+    v->fields = table_new(NULL);
+    return v;
+}
+
 static void runtime_error(Node *n, const char *fmt, ...) {
     fprintf(stderr, COL_RED "Runtime error" COL_RST);
     if (n && n->filename) {
@@ -211,8 +219,13 @@ Value *eval(Node *n, Table *env) {
             Value *val;
             if (n->right->kind == ND_VAR && ent_find(n->right->name)) {
                 EntDef *ed = ent_find(n->right->name);
-                val = val_ent(ed->name);
-                for (int i = 0; i < ed->def->body_count; i++) 
+                if (ed->def->kind == ND_ENT_DEF) {
+                    val = val_ent(ed->name);
+                } else {
+                    val = val_uni(ed->name);
+                }
+                /* Entities initialize all fields to none; unions just need the field table */
+                for (int i = 0; i < ed->def->body_count; i++)
                     table_set(val->fields, ed->def->body[i]->name, val_none());
             } else {
                 val = eval(n->right, env);
@@ -262,11 +275,16 @@ Value *eval(Node *n, Table *env) {
                 }
             } else if (n->left->kind == ND_MEMBER) {
                 Value *obj = val_unwrap(eval(n->left->left, env));
-                if (obj->kind != VAL_ENT) runtime_error(n, "'..' on non-entity");
+                if (obj->kind != VAL_ENT && obj->kind != VAL_UNI) runtime_error(n, "'..' on non-entity/union");
                 EntDef *ed = ent_find(obj->type_name);
                 bool found = false;
                 for(int i=0; i < ed->def->body_count; i++) if(!strcmp(ed->def->body[i]->name, n->left->name)) found = true;
-                if (!found) runtime_error(n, "entity '%s' has no field '%s'", obj->type_name, n->left->name);
+                if (!found) runtime_error(n, "%s '%s' has no field '%s'", 
+                    obj->kind == VAL_ENT ? "entity" : "union", obj->type_name, n->left->name);
+                
+                if (obj->kind == VAL_UNI) {
+                    for (int i = 0; i < TABLE_SIZE; i++) obj->fields->buckets[i] = NULL;
+                }
                 table_set(obj->fields, n->left->name, val);
                 return val;
             }
@@ -399,12 +417,13 @@ Value *eval(Node *n, Table *env) {
             return eval(n->left, env);
         }
         case ND_ENT_DEF: {
+        case ND_UNI_DEF:
             ent_register(n->name, n);
             return val_none();
         }
         case ND_MEMBER: {
             Value *obj = val_unwrap(eval(n->left, env));
-            if (obj->kind != VAL_ENT) runtime_error(n, "'..' on non-entity");
+            if (obj->kind != VAL_ENT && obj->kind != VAL_UNI) runtime_error(n, "'..' on non-entity/union");
             Value *v = table_get(obj->fields, n->name);
             if (!v) runtime_error(n, "entity '%s' has no field '%s'", obj->type_name, n->name);
             return v;
@@ -740,7 +759,8 @@ Value *eval(Node *n, Table *env) {
                 case VAL_BIT:  return val_str("bit");
                 case VAL_PTR:  return val_str("ptr");
                 case VAL_ENT:  return val_str(v->type_name);
-                default:       return val_str("none");
+                case VAL_UNI:  return val_str(v->type_name);
+                default:       return val_str("nada");
             }
         }
         case ND_TIME: return val_num((double)time(NULL));
@@ -917,6 +937,8 @@ Value *eval(Node *n, Table *env) {
         }
         case ND_BLOCK:
             return eval_block(n, env);
+        case ND_NADA:
+            return val_none();
         case ND_STACK_ALLOC:
             /* Stack allocation - create a fixed-size list for bounds checking */
             {

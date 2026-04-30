@@ -1,0 +1,15 @@
+ent Point
+  x i32
+  y i32
+
+p = Point
+
+p..x = 10
+p..y = 20
+
+p..x
+"\n"
+p..y
+"\n"
+type p
+# Clean, no "ent" needed

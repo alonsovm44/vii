@@ -1,0 +1,21 @@
+uni MyUnion
+  i i32
+  f f32
+  s str
+
+# 1. Instantiate the union
+u = MyUnion
+
+# 2. Set the integer member
+u..i = 42
+"Union after setting i=42:"
+u
+
+# 3. Set the float member - this should clear 'i' as they overlap
+u..f = 3.14
+"Union after setting f=3.14 (i should be gone):"
+u
+
+# 4. Check that the type reflects the union name
+"Type of the instance:"
+type u

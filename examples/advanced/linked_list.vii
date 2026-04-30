@@ -16,6 +16,7 @@ n1..next = addr n2
 n3 = Node
 n3..value = 35.7
 n2..next = addr n3
+n3..next = nada
 
 "Linked List Traversal:"
 it = addr n1

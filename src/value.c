@@ -61,6 +61,7 @@ bool val_truthy(Value *v) {
         case VAL_REF:  return val_truthy(v->target);
         case VAL_OUT:  return val_truthy(v->inner);
         case VAL_ENT:  return true;
+        case VAL_UNI:  return true;
         default:       return false;
     }
 }
@@ -91,6 +92,7 @@ Value* val_print_to(Value *v, FILE *f) {
             fprintf(f, "0x%p", (void*)v->target);
             break;
         case VAL_ENT:
+        case VAL_UNI:
             fprintf(f, "%s {", v->type_name);
             bool first = true;
             for (int i = 0; i < TABLE_SIZE; i++) {
@@ -103,7 +105,7 @@ Value* val_print_to(Value *v, FILE *f) {
             }
             fprintf(f, "}");
             break;
-        case VAL_NONE: break;
+        case VAL_NONE: fprintf(f, "nada"); break;
     }
     return v;
 }
@@ -123,8 +125,9 @@ const char* val_kind_name(int kind) {
         case VAL_REF:  return "ref";
         case VAL_OUT:  return "out";
         case VAL_PTR:  return "ptr";
-        case VAL_NONE: return "none";
+        case VAL_NONE: return "nada";
         case VAL_ENT:  return "ent";
+        case VAL_UNI:  return "uni";
         default:       return "unknown";
     }
 }

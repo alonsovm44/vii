@@ -7,13 +7,21 @@
 ## 1. Type System Maturity (High Priority)
 To map C exactly, Vii needs to handle types that don't fit into the "everything is a Value struct" model.
 
-- [ ] **Unions (`uni`)**: Overlapping memory regions.
-  - Syntax: `uni Name \n  i i32 \n  f f32`
+- [x] **Unions (`uni`)**: Overlapping memory regions.
+  - Syntax: `uni Name;  a i32;  b f32`
+  ```vii
+  uni myunion
+    thing f32
+    yyyyy i32 
+    string str 
+
+  ```
+
 - [ ] **Enums**: Named integer constants.
   - Convention: `enum Color \n  RED \n  BLUE` (automatically assigned 0, 1, etc.)
 - [ ] **Type Aliases (`typedef`)**: Allowing `typeset MyInt = i32`.
 - [ ] **Void Type**: Support for `void` and generic pointers `ptr void` for raw memory handling.
-- [ ] **Null type**: Nada = Null
+- [x] **Null type**: Nada = Null
 ## 2. Memory Layout & `ent` Evolution (High Priority)
 Currently, `ent` fields are stored in a `Table`. For C parity, they must support contiguous binary layouts.
 

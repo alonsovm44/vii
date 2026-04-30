@@ -47,11 +47,11 @@
         "keywords": {
             "patterns": [
                 {
-                "match": "\\b(if|else|while|do|break|for|in|safe|IF|ELSE|out|ent)\\b",
+                "match": "\\b(if|else|while|do|break|for|in|safe|IF|ELSE|out|ent|uni|enum)\\b",
                     "name": "keyword.control.vii"
                 },
                 {
-                "match": "\\b(ask|put|paste|list|at|set|len|ord|chr|tonum|tostr|sys|env|exit|dict|key|keys|slice|type|time|append|ref|split|trim|replace|sizeof)\\b",
+                "match": "\\b(ask|put|paste|list|at|set|len|ord|chr|tonum|tostr|sys|env|exit|dict|key|keys|slice|type|time|append|ref|split|trim|replace|sizeof|addr|valof)\\b",
                     "name": "support.function.vii"
                 },
                 {
@@ -63,7 +63,7 @@
                 "name": "keyword.operator.logical.vii"
                 },
                 {
-                    "match": "\\b(num|str|ref|ptr|bit|i8|i16|i32|i64|u8|u16|u32|u64|f32|f64)\\b",
+                    "match": "\\b(num|str|ref|ptr|bit|i8|i16|i32|i64|u8|u16|u32|u64|f32|f64|nada)\\b",
                     "name": "storage.type.vii"
                 }
             ]
