@@ -1,12 +1,18 @@
+# 17 april 
+Began the project
+version 1.0.0
 
-19/04/2026 10:30 pm
+---
+
+
+# 19/04/2026 10:30 pm
 I left trying to fix test_slice.vii not outputing anything.
 
-20/04/2026 10:41 pm
+# 20/04/2026 10:41 pm
 I left pondering about what original new features to add
 i have to finish the expanded std lib 
 
-22/04/2026 10:15 pm
+# 22/04/2026 10:15 pm
 I left almost finishing bootstrapping, i pushed the changes to the Hub.
 in total Vii is 2102 lines of Vii code, according to tokei
 right now running the interpreter with the interpreter yields this
@@ -21,21 +27,26 @@ End of Line.
 
 ---
 
-23/04/2026 9:59 pm 
+# 23/04/2026 9:59 pm 
 I left trying to finish bootstrapping, partial success. I managed to compile Vii from Vii code instead of C
 But it is not completely functional, it does not run scripts or transpile itself. It is like a Mule that can't have offspring
 
 ---
 
-25/04/2026 10:32 pm
+# 25/04/2026 10:32 pm
 I left trying to fix the interpreter to work with the bootstrapped version
 
-26/0472026 10:10 pm 
+# 26/0472026 10:10 pm 
 I left studying pointers and heap allocation to better understand what i am doing. 
 I also studied the output for stack_alloc. 
 Tomorrow i'll spend all day in the uni's library studying pointers, since i have no classes tomorrow
 
 Note: I ditched the transpiler and bootstrapping for now. Vii now bundles by default
 
-27 April 2026 10:32 pm
+# 27 April 2026 10:32 pm
 I left implementing a lot of things today of which i am too lazy and tired to document 
+
+# 28 April 2026 10:09 pm
+I left setting up a better roadmap for C parity ( C_parity.md) 
+I plan on getting an api key to actually use gendox to generate docs for the codebase
+Added basic ent (structs) and managed to make a linked list program in vii that works

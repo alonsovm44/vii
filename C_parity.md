@@ -11,9 +11,9 @@ To map C exactly, Vii needs to handle types that don't fit into the "everything 
   - Syntax: `uni Name \n  i i32 \n  f f32`
 - [ ] **Enums**: Named integer constants.
   - Convention: `enum Color \n  RED \n  BLUE` (automatically assigned 0, 1, etc.)
-- [ ] **Type Aliases (`typedef`)**: Allowing `type MyInt = i32`.
+- [ ] **Type Aliases (`typedef`)**: Allowing `typeset MyInt = i32`.
 - [ ] **Void Type**: Support for `void` and generic pointers `ptr void` for raw memory handling.
-
+- [ ] **Null type**: Nada = Null
 ## 2. Memory Layout & `ent` Evolution (High Priority)
 Currently, `ent` fields are stored in a `Table`. For C parity, they must support contiguous binary layouts.
 
