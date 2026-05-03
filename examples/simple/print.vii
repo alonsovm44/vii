@@ -1,4 +1,90 @@
-do fn 
-  "implicit print"
+# Print Utility for Vii
+# Demonstrates formatted output and string building
 
-fn
+"=== Test 1: Basic Print ==="
+
+# Simple string output
+msg = "hello"
+"Message: " + msg
+
+"=== Test 2: Number to String ==="
+
+# Using tostr for number formatting
+numb = 42
+"The number is: " + tostr numb
+
+pi = 3.14159
+"Pi approx: " + tostr pi
+
+"=== Test 3: String Concatenation ==="
+
+name = "World"
+"Hello, " + name + "!"
+
+"=== Test 4: Formatting Multiple Values ==="
+
+x = 10
+y = 20
+"Position: (" + tostr x + ", " + tostr y + ")"
+
+"=== Test 5: Print Function ==="
+
+# A simple print function
+do print string
+  "[PRINT] " + string
+
+print "This is a test message"
+print "Numbers work too: " + tostr 123
+
+"=== Test 6: Print Value of Any Type ==="
+
+do print_any value
+  # Check type using type() and format accordingly
+  t = type value
+  if t == "num"
+    "[NUM] " + tostr value
+  else
+    if t == "str"
+      "[STR] " + value
+    else
+      "[OTHER] type=" + t
+
+print_any 42
+print_any "text"
+print_any list
+
+"=== Print Utility Demo Complete ==="
+
+"\n\n now implementing a C style printing function"
+
+# Vii function parameters work with or without type annotations
+# Simple form: do funcname param
+# Typed form: do funcname (param i32) or param->i32
+
+# Basic printf-style function
+do printf msg
+  # Print with prefix
+  "[printf] " + msg
+
+# Test the printf function
+test_msg = "hello from printf"
+printf test_msg
+
+# Character-by-character using list
+do print_chars chars
+  # chars should be a list of character codes
+  i = 0
+  result = ""
+  while i < len chars
+    result = result + chr chars at i
+    i = i + 1
+  result
+
+# Test with ASCII codes for "HI"
+char_list = list
+char_list set 0 72  # 'H'
+char_list set 1 73  # 'I'
+"Decoded: " + print_chars char_list
+
+# For C-style ptr parameter passing, you can use:
+# do func (param ptr Type)  # when pointer type annotations are fully implemented

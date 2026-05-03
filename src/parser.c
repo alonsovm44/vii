@@ -544,6 +544,20 @@ static Node *parse_primary(Parser *p) {
             return n;
         }
         case TOK_ADDR: advance(p); { Node *n = nd_new(ND_ADDR); n->left = parse_postfix(p); return n; }
+        case TOK_PTR_ADD: {
+            advance(p);
+            Node *n = nd_new(ND_PTR_ADD);
+            n->left = parse_primary(p);  /* pointer */
+            n->right = parse_primary(p); /* offset */
+            return n;
+        }
+        case TOK_PTR_SUB: {
+            advance(p);
+            Node *n = nd_new(ND_PTR_SUB);
+            n->left = parse_primary(p);  /* pointer */
+            n->right = parse_primary(p); /* offset */
+            return n;
+        }
         case TOK_VALOF: advance(p); { Node *n = nd_new(ND_DEREF); n->left = parse_postfix(p); return n; }
         case TOK_ENV:   advance(p); { Node *n = nd_new(ND_ENV);   n->left = parse_postfix(p); return n; }
         case TOK_EXIT:  advance(p); { Node *n = nd_new(ND_EXIT);  n->left = parse_postfix(p); return n; }

@@ -1,0 +1,14 @@
+# Test arrow syntax for typed function parameters
+
+do add x->num y->num
+  out x + y
+
+do greet name->str
+  "Hello, " + name
+
+# Test the functions
+result = add 10 5
+"10 + 5 = " + tostr result
+
+msg = greet "World"
+msg

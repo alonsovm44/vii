@@ -48,7 +48,7 @@ Systems programming requires direct bit manipulation which is currently missing.
 - [x] **Bitwise Operators**: 
   - `&` (AND), `|` (OR), `^` (XOR), `~` (NOT).
   - `<<` (Left Shift), `>>` (Right Shift).
-- [ ] **Pointer Arithmetic**:
+- [x] **Pointer Arithmetic**:
   - Explicit `ptr-add` and `ptr-sub` methods.
   - Support for `ptr_a - ptr_b` to get element distance.
 - [x] **Fixed-size Arrays in Ents**: Supporting `field u8[32]` inside an `ent` definition.

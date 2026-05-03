@@ -1,0 +1,33 @@
+"=== Pointer Arithmetic Tests ==="
+
+"--- Test 1: Basic ptr-add ---"
+x = 42
+p = addr x
+"Original value at p:"
+valof p
+
+"--- Test 2: ptr-add with offset ---"
+# Create an array-like structure using list
+arr = list
+arr set 0 100
+arr set 1 200
+arr set 2 300
+
+"Array element 0:"
+arr at 0
+
+"Get pointer to arr and add offset"
+arr_p = addr arr
+arr_p
+p1 = ptr-add arr_p 1
+p1
+"Note: p1 now points to arr[1]"
+
+"--- Test 3: ptr-sub ---"
+p0 = ptr-sub p1 1
+arr_p
+p0
+"Note: p0 now points back to arr[0]"
+
+"--- Test Results ---"
+"Pointer arithmetic test completed"

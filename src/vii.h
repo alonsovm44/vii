@@ -49,16 +49,22 @@ typedef enum { VAL_NUM, VAL_STR, VAL_LIST, VAL_DICT, VAL_BIT, VAL_REF, VAL_BREAK
 
 typedef struct Value {
     ValKind kind;
-    double num;
-    char  *str;
-    struct Value **items;
-    struct Value *target; /* for VAL_REF */
-    int    item_count;
-    int    item_cap;
-    int    fixed_cap;     /* for fixed arrays: max size, 0 for dynamic lists */
-    struct Table *fields;
-    struct Value *inner; /* for VAL_OUT */
-    char  *type_name;    /* for VAL_ENT */
+    union {
+        double as_num;           /* VAL_NUM, VAL_BIT */
+        char  *as_str;          /* VAL_STR */
+        struct {                /* VAL_LIST, VAL_DICT */
+            struct Value **items;
+            int item_count;
+            int item_cap;
+            int fixed_cap;
+        } as_list;
+        struct Value *as_ptr;   /* VAL_PTR, VAL_REF */
+        struct {                /* VAL_ENT, VAL_UNI */
+            struct Table *fields;
+            char *type_name;
+        } as_ent;
+        struct Value *as_inner;  /* VAL_OUT */
+    } u;
 } Value;
 
 Value *val_num(double n);
@@ -96,7 +102,7 @@ typedef enum {
     TOK_NUM, TOK_STR, TOK_IDENT,
     TOK_IF, TOK_ELSE, TOK_WHILE, TOK_BREAK, TOK_DO, TOK_ASK, TOK_LIST, TOK_DICT, TOK_KEY, TOK_KEYS, TOK_AT, TOK_SET,
     TOK_PUT, TOK_ARG, TOK_PASTE, TOK_LEN, TOK_ORD, TOK_CHR, TOK_TONUM, TOK_TOSTR, TOK_SLICE, TOK_TYPE, TOK_TIME, TOK_APPEND, TOK_HEAP_ALLOC, TOK_HEAP_FREE, TOK_VALOF, TOK_SIZEOF,
-    TOK_SYS, TOK_ENV, TOK_EXIT, TOK_REF, TOK_PTR, TOK_BIT, TOK_SPLIT, TOK_TRIM, TOK_REPLACE, TOK_SAFE, TOK_ADDR,
+    TOK_SYS, TOK_ENV, TOK_EXIT, TOK_REF, TOK_PTR, TOK_BIT, TOK_SPLIT, TOK_TRIM, TOK_REPLACE, TOK_SAFE, TOK_ADDR, TOK_PTR_ADD, TOK_PTR_SUB,
     TOK_FOR, TOK_IN, TOK_EQ, TOK_EQEQ, TOK_PLUS, TOK_MINUS, TOK_STAR, TOK_SLASH, TOK_PCT, TOK_ARROW,
     TOK_LT, TOK_GT, TOK_LTE, TOK_GTE, TOK_NE, TOK_AND, TOK_OR, 
     TOK_BITAND, TOK_BITOR, TOK_BITXOR, TOK_BITNOT, TOK_LSHIFT, TOK_RSHIFT,
@@ -149,6 +155,8 @@ typedef enum {
     ND_CAST,
     ND_STACK_ALLOC,
     ND_ADDR,
+    ND_PTR_ADD,
+    ND_PTR_SUB,
     ND_BITAND,
     ND_BITOR,
     ND_BITXOR,

@@ -189,8 +189,8 @@ int main(int argc, char **argv) {
         Table *global = table_new(NULL);
         cli_args = val_list();
         for (int i = 1; i < argc; i++) {
-            if (cli_args->item_count >= cli_args->item_cap) val_list_grow(cli_args);
-            cli_args->items[cli_args->item_count++] = val_str(argv[i]);
+            if (cli_args->u.as_list.item_count >= cli_args->u.as_list.item_cap) val_list_grow(cli_args);
+            cli_args->u.as_list.items[cli_args->u.as_list.item_count++] = val_str(argv[i]);
         }
         table_set(global, "arg", cli_args);
         
@@ -355,10 +355,10 @@ int main(int argc, char **argv) {
         if (strcmp(argv[i], "--trace") == 0) continue;
         if (input_path && strcmp(argv[i], input_path) == 0) continue;
 
-        if (cli_args->item_count >= cli_args->item_cap) {
+        if (cli_args->u.as_list.item_count >= cli_args->u.as_list.item_cap) {
             val_list_grow(cli_args);
         }
-        cli_args->items[cli_args->item_count++] = val_str(argv[i]);
+        cli_args->u.as_list.items[cli_args->u.as_list.item_count++] = val_str(argv[i]);
     }
 
     /* Interpret the program */

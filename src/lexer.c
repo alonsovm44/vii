@@ -57,7 +57,7 @@ static const char *tok_kw[] = {
     "at", "set", "put", "arg", "paste", "len", "ord", "chr", "tonum", "tostr",
     "slice", "type", "time", "append", "heap_alloc", "heap_free", "valof",
     "sizeof", "sys", "env", "exit", "ref", "ptr", "bit", "for", "in", "split",
-    "trim", "replace", "safe", "and", "or", "out", "not", "addr", "stack_alloc", "defer",
+    "trim", "replace", "safe", "and", "or", "out", "not", "addr", "ptr-add", "ptr-sub", "stack_alloc", "defer",
     "ent", "uni", "index", "indexes", "nada", "typeset",
     /* Type system keywords */
     "i8", "i16", "i32", "i64", "u8", "u16", "u32", "u64", "f32", "f64"
@@ -67,12 +67,12 @@ static const TokKind kw_kind[] = {
     TOK_AT, TOK_SET, TOK_PUT, TOK_ARG, TOK_PASTE, TOK_LEN, TOK_ORD, TOK_CHR, TOK_TONUM, TOK_TOSTR,
     TOK_SLICE, TOK_TYPE, TOK_TIME, TOK_APPEND, TOK_HEAP_ALLOC, TOK_HEAP_FREE, TOK_VALOF,
     TOK_SIZEOF, TOK_SYS, TOK_ENV, TOK_EXIT, TOK_REF, TOK_PTR, TOK_BIT, TOK_FOR, TOK_IN, TOK_SPLIT,
-    TOK_TRIM, TOK_REPLACE, TOK_SAFE, TOK_AND, TOK_OR, TOK_OUT, TOK_NOT, TOK_ADDR, TOK_STACK_ALLOC, TOK_DEFER,
+    TOK_TRIM, TOK_REPLACE, TOK_SAFE, TOK_AND, TOK_OR, TOK_OUT, TOK_NOT, TOK_ADDR, TOK_PTR_ADD, TOK_PTR_SUB, TOK_STACK_ALLOC, TOK_DEFER,
     TOK_ENT, TOK_UNI, TOK_INDEX, TOK_INDEXES, TOK_NADA, TOK_TYPESET,
     /* Type system tokens */
     TOK_I8, TOK_I16, TOK_I32, TOK_I64, TOK_U8, TOK_U16, TOK_U32, TOK_U64, TOK_F32, TOK_F64
 };
-#define KW_COUNT 53
+#define KW_COUNT 55
 
 static void lex_push(Lexer *l, Token t) {
     if (l->tok_count >= l->tok_cap) {
@@ -351,7 +351,8 @@ static void lex_token(Lexer *l) {
     /* identifier / keyword - with special paste handling */
     if (isalpha(c) || c == '_') {
         int start = l->pos;
-        while (isalnum(l->src[l->pos]) || l->src[l->pos] == '_') l->pos++;
+        while (isalnum(l->src[l->pos]) || l->src[l->pos] == '_' || 
+               (l->src[l->pos] == '-' && l->src[l->pos+1] != '>')) l->pos++;
         int len = l->pos - start;
         char *text = lex_alloc_text(l, len);
         memcpy(text, l->src + start, len);

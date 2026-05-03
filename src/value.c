@@ -2,43 +2,43 @@
 
 Value *val_num(double n) {
     Value *v = arena_alloc(global_arena, sizeof(Value));
-    v->kind = VAL_NUM; v->num = n;
+    v->kind = VAL_NUM; v->u.as_num = n;
     return v;
 }
 
 Value *val_str(const char *s) {
     Value *v = arena_alloc(global_arena, sizeof(Value));
-    v->kind = VAL_STR; v->str = arena_strdup(global_arena, s);
+    v->kind = VAL_STR; v->u.as_str = arena_strdup(global_arena, s);
     return v;
 }
 
 Value *val_bit(bool b) {
     Value *v = arena_alloc(global_arena, sizeof(Value));
-    v->kind = VAL_BIT; v->num = b ? 1 : 0;
+    v->kind = VAL_BIT; v->u.as_num = b ? 1 : 0;
     return v;
 }
 
 Value *val_list(void) {
     Value *v = arena_alloc(global_arena, sizeof(Value));
-    v->kind = VAL_LIST; v->item_count = 0; v->item_cap = 8;
-    v->items = arena_alloc(global_arena, v->item_cap * sizeof(Value*));
+    v->kind = VAL_LIST; v->u.as_list.item_count = 0; v->u.as_list.item_cap = 8;
+    v->u.as_list.items = arena_alloc(global_arena, v->u.as_list.item_cap * sizeof(Value*));
     return v;
 }
 
 Value *val_ptr(Value *target) {
     Value *v = arena_alloc(global_arena, sizeof(Value));
-    v->kind = VAL_PTR; v->target = target;
+    v->kind = VAL_PTR; v->u.as_ptr = target;
     return v;
 }
 
 Value *val_ref(Value *target) {
     Value *v = arena_alloc(global_arena, sizeof(Value));
-    v->kind = VAL_REF; v->target = target;
+    v->kind = VAL_REF; v->u.as_ptr = target;
     return v;
 }
 
 Value *val_none(void) {
-    /* Every 'nada' instance is unique in the arena to prevent pointer 
+    /* Every 'nada' instance is unique in the arena to prevent pointer
        aliasing corruption if a user attempts to mutate the value in-place. */
     Value *v = arena_alloc(global_arena, sizeof(Value));
     v->kind = VAL_NONE;
@@ -46,23 +46,23 @@ Value *val_none(void) {
 }
 
 void val_list_grow(Value *v) {
-    int old_cap = v->item_cap;
-    v->item_cap = v->item_cap ? v->item_cap * 2 : 8;
-    Value **new_items = arena_alloc(global_arena, v->item_cap * sizeof(Value*));
-    if (v->items) memcpy(new_items, v->items, old_cap * sizeof(Value*));
-    v->items = new_items;
+    int old_cap = v->u.as_list.item_cap;
+    v->u.as_list.item_cap = v->u.as_list.item_cap ? v->u.as_list.item_cap * 2 : 8;
+    Value **new_items = arena_alloc(global_arena, v->u.as_list.item_cap * sizeof(Value*));
+    if (v->u.as_list.items) memcpy(new_items, v->u.as_list.items, old_cap * sizeof(Value*));
+    v->u.as_list.items = new_items;
 }
 
 bool val_truthy(Value *v) {
     if (!v) return false;
     switch (v->kind) {
-        case VAL_NUM:  return v->num != 0;
-        case VAL_STR:  return v->str[0] != '\0';
-        case VAL_LIST: return v->item_count > 0;
-        case VAL_BIT:  return v->num != 0;
-        case VAL_PTR:  return v->target != NULL;
-        case VAL_REF:  return val_truthy(v->target);
-        case VAL_OUT:  return val_truthy(v->inner);
+        case VAL_NUM:  return v->u.as_num != 0;
+        case VAL_STR:  return v->u.as_str[0] != '\0';
+        case VAL_LIST: return v->u.as_list.item_count > 0;
+        case VAL_BIT:  return v->u.as_num != 0;
+        case VAL_PTR:  return v->u.as_ptr != NULL;
+        case VAL_REF:  return val_truthy(v->u.as_ptr);
+        case VAL_OUT:  return val_truthy(v->u.as_inner);
         case VAL_ENT:  return true;
         case VAL_UNI:  return true;
         default:       return false;
@@ -71,35 +71,35 @@ bool val_truthy(Value *v) {
 
 Value* val_print_to(Value *v, FILE *f) {
     if (!v) return val_none();
-    if (v->kind == VAL_REF) { val_print_to(v->target, f); return v; }
-    if (v->kind == VAL_OUT) { val_print_to(v->inner, f); return v; }
+    if (v->kind == VAL_REF) { val_print_to(v->u.as_ptr, f); return v; }
+    if (v->kind == VAL_OUT) { val_print_to(v->u.as_inner, f); return v; }
     switch (v->kind) {
         case VAL_NUM:
-            if (v->num == (long long)v->num)
-                fprintf(f, "%lld", (long long)v->num);
+            if (v->u.as_num == (long long)v->u.as_num)
+                fprintf(f, "%lld", (long long)v->u.as_num);
             else
-                fprintf(f, "%g", v->num);
+                fprintf(f, "%g", v->u.as_num);
             break;
-        case VAL_STR:  fprintf(f, "%s", v->str); break;
+        case VAL_STR:  fprintf(f, "%s", v->u.as_str); break;
         case VAL_LIST:
             fputc('[', f);
-            for (int i = 0; i < v->item_count; i++) {
+            for (int i = 0; i < v->u.as_list.item_count; i++) {
                 if (i) fprintf(f, ", ");
-                val_print_to(v->items[i], f);
+                val_print_to(v->u.as_list.items[i], f);
             }
             fputc(']', f);
             break;
-        case VAL_BIT:  fprintf(f, v->num ? "1" : "0"); break;
+        case VAL_BIT:  fprintf(f, v->u.as_num ? "1" : "0"); break;
         case VAL_PTR:
             /* Print pointer address for debugging/introspection */
-            fprintf(f, "0x%p", (void*)v->target);
+            fprintf(f, "0x%p", (void*)v->u.as_ptr);
             break;
         case VAL_ENT:
         case VAL_UNI:
-            fprintf(f, "%s {", v->type_name);
+            fprintf(f, "%s {", v->u.as_ent.type_name);
             bool first = true;
             for (int i = 0; i < TABLE_SIZE; i++) {
-                for (Entry *e = v->fields->buckets[i]; e; e = e->next) {
+                for (Entry *e = v->u.as_ent.fields->buckets[i]; e; e = e->next) {
                     if (!first) fprintf(f, ", ");
                     fprintf(f, "%s: ", e->key);
                     val_print_to(e->val, f);

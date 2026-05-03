@@ -1,0 +1,61 @@
+# Calculator Test (Non-interactive version)
+# Tests the calculator operations without user input
+
+do add args
+  out (args at 0) + (args at 1)
+
+do sub args
+  out (args at 0) - (args at 1)
+
+do mul args
+  out (args at 0) * (args at 1)
+
+do div args
+  x = args at 0
+  y = args at 1
+  if y == 0
+    "" put "Error: division by zero not allowed"
+    out 0
+  out x / y
+
+# Test addition
+"=== Test: Addition ==="
+args1 = list
+args1 set 0 10
+args1 set 1 5
+res1 = add args1
+"10 + 5 = " + tostr res1
+
+# Test subtraction
+"=== Test: Subtraction ==="
+args2 = list
+args2 set 0 10
+args2 set 1 5
+res2 = sub args2
+"10 - 5 = " + tostr res2
+
+# Test multiplication
+"=== Test: Multiplication ==="
+args3 = list
+args3 set 0 10
+args3 set 1 5
+res3 = mul args3
+"10 * 5 = " + tostr res3
+
+# Test division
+"=== Test: Division ==="
+args4 = list
+args4 set 0 10
+args4 set 1 5
+res4 = div args4
+"10 / 5 = " + tostr res4
+
+# Test division by zero
+"=== Test: Division by Zero ==="
+args5 = list
+args5 set 0 10
+args5 set 1 0
+res5 = div args5
+"10 / 0 = " + tostr res5
+
+"=== All Calculator Tests Passed ==="

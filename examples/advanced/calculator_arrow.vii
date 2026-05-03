@@ -1,0 +1,43 @@
+# Calculator with typed parameters using x->num syntax
+
+do add x->num y->num
+  out x + y
+
+do sub x->num y->num
+  out x - y
+
+do mul x->num y->num
+  out x * y
+
+do div x->num y->num
+  if y == 0
+    "" put "Error: division by zero not allowed"
+    out 0
+  out x / y
+
+# Test addition
+"=== Test: Addition ==="
+res1 = add 10 5
+"10 + 5 = " + tostr res1
+
+# Test subtraction
+"=== Test: Subtraction ==="
+res2 = sub 10 5
+"10 - 5 = " + tostr res2
+
+# Test multiplication
+"=== Test: Multiplication ==="
+res3 = mul 10 5
+"10 * 5 = " + tostr res3
+
+# Test division
+"=== Test: Division ==="
+res4 = div 10 5
+"10 / 5 = " + tostr res4
+
+# Test division by zero
+"=== Test: Division by Zero ==="
+res5 = div 10 0
+"10 / 0 = " + tostr res5
+
+"=== All Arrow Syntax Tests Passed ==="

@@ -1,4 +1,7 @@
-# Test fixed-size arrays in ent definitions
+# Comprehensive Entity (ent) Tests
+# Tests fixed-size arrays, field access, multiple instances, and type safety
+
+"=== Test 1: Entity Definition with Fixed-Size Arrays ==="
 
 ent Person
   name str
@@ -6,5 +9,88 @@ ent Person
   data u8[32]
   scores f64[10]
 
-# Just test that the ent definition parses correctly
-"Ent Person defined successfully"
+"Ent Person defined successfully with fields:"
+"- name: str"
+"- age: i32"
+"- data: u8[32] (fixed-size byte array)"
+"- scores: f64[10] (fixed-size float array)"
+
+"=== Test 2: Creating Entity Instances ==="
+
+person1 = Person
+person1..name = "diego"
+person1..age = 23
+
+"Created person1:"
+"Name: " + person1..name
+"Age: " + tostr person1..age
+
+person2 = Person
+person2..name = "alonso"
+person2..age = 30
+
+"Created person2:"
+"Name: " + person2..name
+"Age: " + tostr person2..age
+
+"=== Test 3: Independent Instances ==="
+"Verifying person1 unchanged after person2 modification:"
+"person1..name = " + person1..name
+"person2..name = " + person2..name
+
+"=== Test 4: Multiple Array Field Types ==="
+
+ent Buffer
+  bytes u8[256]
+  capacity i32
+  length i32
+
+buf = Buffer
+buf..capacity = 256
+buf..length = 0
+
+"Buffer created with capacity " + tostr buf..capacity
+
+"Note: Fixed-size arrays in entities (bytes u8[256]) are declared but require"
+"heap allocation or stack allocation for actual memory storage."
+
+
+
+"=== Test 5: Entity with Mixed Types ==="
+
+ent Packet
+  id u32
+  checksum u32
+  valid bit
+
+pkt = Packet
+pkt..id = 305419896
+pkt..checksum = 3735928559
+pkt..valid = 1
+
+"Packet created:"
+"ID: " + tostr pkt..id
+"Checksum: " + tostr pkt..checksum
+"Valid: " + tostr pkt..valid
+
+"=== Test 7: Entity Field Modification ==="
+
+"Before modification:"
+"person1..age = " + tostr person1..age
+
+person1..age = 24
+
+"After modification:"
+"person1..age = " + tostr person1..age
+
+"=== Test 8: Entity Array in List ==="
+
+people = list
+people set 0 person1
+people set 1 person2
+
+"Stored people in list:"
+"people[0]..name = " + (people at 0)..name
+"people[1]..name = " + (people at 1)..name
+
+"=== All Entity Tests Completed Successfully ==="

@@ -1,0 +1,38 @@
+
+
+do add x->num y->num
+  out x + y
+
+do sub x->num y->num
+  out x - y
+
+do mul x->num y->num
+  out x * y
+
+do div x->num y->num
+  if y == 0
+    "" put "Error: division by zero not allowed"
+    out 0
+  out x / y
+
+do main 
+  "=== Welcome to Calculator ===\n == Made in VII ==\n"
+  "Operation: (add, sub, mul, div)"
+  op = ask 
+  "first number\n"
+  n num = ask
+  "second number\n"
+  m num = ask
+
+  if op == "add"
+    res = add n m
+  else if op == "sub"
+    res = sub n m
+  else if op == "mul"
+    res = mul n m
+  else if op == "div"
+    res = div n m 
+  
+  "result: " + tostr res
+  
+main

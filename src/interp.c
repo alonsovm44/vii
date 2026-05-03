@@ -38,7 +38,7 @@ static bool table_update(Table *t, const char *key, Value *val) {
                     exit(1);
                 }
                 if (e->val && e->val->kind == VAL_REF) {
-                    *(e->val->target) = *val;
+                    *(e->val->u.as_ptr) = *val;
                 } else {
                     e->val = val;
                 }
@@ -117,7 +117,7 @@ static Func *func_find(const char *name) {
 Value *val_dict(void) {
     Value *v = arena_alloc(global_arena, sizeof(Value));
     v->kind = VAL_DICT;
-    v->fields = table_new(NULL);
+    v->u.as_ent.fields = table_new(NULL);
     return v;
 }
 
@@ -136,16 +136,16 @@ Value *val_skip(void) {
 Value *val_ent(const char *type_name) {
     Value *v = arena_alloc(global_arena, sizeof(Value));
     v->kind = VAL_ENT;
-    v->type_name = (char*)type_name;
-    v->fields = table_new(NULL);
+    v->u.as_ent.type_name = (char*)type_name;
+    v->u.as_ent.fields = table_new(NULL);
     return v;
 }
 
 Value *val_uni(const char *type_name) {
     Value *v = arena_alloc(global_arena, sizeof(Value));
     v->kind = VAL_UNI;
-    v->type_name = (char*)type_name;
-    v->fields = table_new(NULL);
+    v->u.as_ent.type_name = (char*)type_name;
+    v->u.as_ent.fields = table_new(NULL);
     return v;
 }
 
@@ -174,9 +174,9 @@ static Value *val_unwrap(Value *v) {
     int depth = 0;
     while (v) {
         if (v->kind == VAL_REF) {
-            v = v->target;
+            v = v->u.as_ptr;
         } else if (v->kind == VAL_OUT) {
-            v = v->inner;
+            v = v->u.as_inner;
         } else {
             break;
         }
@@ -232,7 +232,7 @@ Value *eval(Node *n, Table *env) {
         case ND_OUT: {
             Value *v = arena_alloc(global_arena, sizeof(Value));
             v->kind = VAL_OUT;
-            v->inner = eval(n->left, env);
+            v->u.as_inner = eval(n->left, env);
             return v;
         }
         case ND_UMINUS: {
@@ -240,26 +240,25 @@ Value *eval(Node *n, Table *env) {
             if (v->kind != VAL_NUM) {
                 runtime_error(n, "unary minus requires a number");
             }
-            return val_num(0 - v->num);
+            return val_num(0 - v->u.as_num);
         }
         case ND_BITNOT: {
             Value *v = val_unwrap(eval(n->left, env));
             if (v->kind != VAL_NUM) {
                 runtime_error(n, "bitwise NOT requires a number");
             }
-            return val_num(~(long long)v->num);
+            return val_num(~(long long)v->u.as_num);
         }
         case ND_VAR:   {
             Value *v = table_get(env, n->name);
             extern int trace;
-            if (trace) fprintf(stderr, "[TRACE] VAR lookup: %s -> kind=%d\n", n->name, v ? v->kind : -1);
             if (!v) {
                 Func *fn = func_find(n->name);
                 if (fn) {
                     Table *scope = table_new(env);
                     Value *res = eval_block(fn->def->left, scope);
                     table_free(scope);
-                    if (res->kind == VAL_OUT) return res->inner;
+                    if (res->kind == VAL_OUT) return res->u.as_inner;
                     return res;
                 }
                 runtime_error(n, "undefined variable '%s'", n->name);
@@ -284,7 +283,7 @@ Value *eval(Node *n, Table *env) {
                 }
                 /* Entities initialize all fields to none; unions just need the field table */
                 for (int i = 0; i < ed->def->body_count; i++)
-                    table_set(val->fields, ed->def->body[i]->name, val_none());
+                    table_set(val->u.as_ent.fields, ed->def->body[i]->name, val_none());
             } else {
                 val = eval(n->right, env);
             }
@@ -296,49 +295,49 @@ Value *eval(Node *n, Table *env) {
             } else if (n->left->kind == ND_DEREF) { // Assignment to a dereferenced pointer: valof x = ...
                 Value *p_val = val_unwrap(eval(n->left->left, env)); // Get the pointer value
                 if (p_val->kind != VAL_PTR) { runtime_error(n, "assignment to non-pointer dereference"); }
-                if (!p_val->target) { runtime_error(n, "attempt to assign to null pointer dereference"); }
+                if (!p_val->u.as_ptr) { runtime_error(n, "attempt to assign to null pointer dereference"); }
 
-                Value *target_val = p_val->target; // The Value struct being pointed to
+                Value *target_val = p_val->u.as_ptr; // The Value struct being pointed to
                 *target_val = *val;
                 return val;
             } else if (n->left->kind == ND_AT) {
                 Value *list = val_unwrap(eval(n->left->left, env));
                 Value *idx  = val_unwrap(eval(n->left->right, env));
                 if (list->kind != VAL_LIST) { fprintf(stderr, "Runtime error: 'at' on non-list\n"); exit(1); }
-                int i = (int)idx->num;
-                if (i < 0) i += list->item_count;
+                int i = (int)idx->u.as_num;
+                if (i < 0) i += list->u.as_list.item_count;
                 /* For fixed arrays, enforce bounds strictly (no appending) */
-                if (list->fixed_cap > 0) {
-                    if (i < 0 || i >= list->item_count) {
-                        fprintf(stderr, "Runtime error: index %d out of bounds for fixed array of size %d\n", i, list->item_count);
+                if (list->u.as_list.fixed_cap > 0) {
+                    if (i < 0 || i >= list->u.as_list.item_count) {
+                        fprintf(stderr, "Runtime error: index %d out of bounds for fixed array of size %d\n", i, list->u.as_list.item_count);
                         exit(1);
                     }
-                    list->items[i] = val;
+                    list->u.as_list.items[i] = val;
                 } else {
                     /* Dynamic list: allow appending */
-                    if (i == list->item_count) {
-                        if (list->item_count >= list->item_cap) {
+                    if (i == list->u.as_list.item_count) {
+                        if (list->u.as_list.item_count >= list->u.as_list.item_cap) {
                             val_list_grow(list);
                         }
-                        list->items[list->item_count++] = val;
+                        list->u.as_list.items[list->u.as_list.item_count++] = val;
                     } else {
-                        if (i < 0 || i >= list->item_count) { fprintf(stderr, "Runtime error: index %d out of range\n", i); exit(1); }
-                        list->items[i] = val;
+                        if (i < 0 || i >= list->u.as_list.item_count) { fprintf(stderr, "Runtime error: index %d out of range\n", i); exit(1); }
+                        list->u.as_list.items[i] = val;
                     }
                 }
             } else if (n->left->kind == ND_MEMBER) {
                 Value *obj = val_unwrap(eval(n->left->left, env));
                 if (obj->kind != VAL_ENT && obj->kind != VAL_UNI) runtime_error(n, "'..' on non-entity/union");
-                EntDef *ed = ent_find(obj->type_name);
+                EntDef *ed = ent_find(obj->u.as_ent.type_name);
                 bool found = false;
                 for(int i=0; i < ed->def->body_count; i++) if(!strcmp(ed->def->body[i]->name, n->left->name)) found = true;
                 if (!found) runtime_error(n, "%s '%s' has no field '%s'", 
-                    obj->kind == VAL_ENT ? "entity" : "union", obj->type_name, n->left->name);
+                    obj->kind == VAL_ENT ? "entity" : "union", obj->u.as_ent.type_name, n->left->name);
                 
                 if (obj->kind == VAL_UNI) {
-                    for (int i = 0; i < TABLE_SIZE; i++) obj->fields->buckets[i] = NULL;
+                    for (int i = 0; i < TABLE_SIZE; i++) obj->u.as_ent.fields->buckets[i] = NULL;
                 }
-                table_set(obj->fields, n->left->name, val);
+                table_set(obj->u.as_ent.fields, n->left->name, val);
                 return val;
             }
             return val;
@@ -356,9 +355,9 @@ Value *eval(Node *n, Table *env) {
         case ND_HEAP_FREE: {
             Value *p_val = val_unwrap(eval(n->left, env));
             if (p_val->kind != VAL_PTR) runtime_error(n, "heap_free requires a pointer");
-            if (p_val->target) {
-                free(p_val->target);
-                p_val->target = NULL; // Prevent double free
+            if (p_val->u.as_ptr) {
+                free(p_val->u.as_ptr);
+                p_val->u.as_ptr = NULL; // Prevent double free
             }
             return val_none();
         }
@@ -377,14 +376,14 @@ Value *eval(Node *n, Table *env) {
             /* sizeof expression: returns the total memory footprint of the value */
             Value *v = val_unwrap(eval(n->left, env));
             size_t size = sizeof(Value);
-            if (v->kind == VAL_STR && v->str) {
-                size += strlen(v->str) + 1;
-            } else if (v->kind == VAL_LIST && v->items) {
-                size += v->item_cap * sizeof(Value*);
-            } else if (v->kind == VAL_DICT && v->fields) {
+            if (v->kind == VAL_STR && v->u.as_str) {
+                size += strlen(v->u.as_str) + 1;
+            } else if (v->kind == VAL_LIST && v->u.as_list.items) {
+                size += v->u.as_list.item_cap * sizeof(Value*);
+            } else if (v->kind == VAL_DICT && v->u.as_ent.fields) {
                 size += sizeof(Table);
                 for (int i = 0; i < TABLE_SIZE; i++) {
-                    for (Entry *e = v->fields->buckets[i]; e; e = e->next) {
+                    for (Entry *e = v->u.as_ent.fields->buckets[i]; e; e = e->next) {
                         size += sizeof(Entry);
                     }
                 }
@@ -399,8 +398,8 @@ Value *eval(Node *n, Table *env) {
                 fprintf(stderr, "This error occurs when you try to iterate over a non-list value. In Vii for loops are reserved to lists for simplicity.");
                  exit(1); 
                 }
-            for (int i = 0; i < list->item_count; i++) {
-                table_set(env, n->name, list->items[i]);
+            for (int i = 0; i < list->u.as_list.item_count; i++) {
+                table_set(env, n->name, list->u.as_list.items[i]);
                 Value *res = eval_block(n->body[0], env);
                 if (res->kind == VAL_BREAK) break;
                 if (res->kind == VAL_SKIP) continue; // Continue to next iteration
@@ -413,14 +412,14 @@ Value *eval(Node *n, Table *env) {
             Value *delim = val_unwrap(eval(n->right, env));
             if (str->kind != VAL_STR || delim->kind != VAL_STR) return val_list();
             Value *res = val_list();
-            char *s = strdup(str->str);
-            char *token = strtok(s, delim->str);
+            char *s = strdup(str->u.as_str);
+            char *token = strtok(s, delim->u.as_str);
             while (token) {
-                if (res->item_count >= res->item_cap) {
+                if (res->u.as_list.item_count >= res->u.as_list.item_cap) {
                     val_list_grow(res);
                 }
-                res->items[res->item_count++] = val_str(token);
-                token = strtok(NULL, delim->str);
+                res->u.as_list.items[res->u.as_list.item_count++] = val_str(token);
+                token = strtok(NULL, delim->u.as_str);
             }
             free(s);
             return res;
@@ -428,7 +427,7 @@ Value *eval(Node *n, Table *env) {
         case ND_TRIM: {
             Value *v = val_unwrap(eval(n->left, env));
             if (v->kind != VAL_STR) return v;
-            char *s = v->str;
+            char *s = v->u.as_str;
             while(isspace((unsigned char)*s)) s++;
             if(*s == 0) return val_str("");
             char *end = s + strlen(s) - 1;
@@ -442,9 +441,9 @@ Value *eval(Node *n, Table *env) {
             Value *repl = val_unwrap(eval(n->body[1], env));
             if (v->kind != VAL_STR || target->kind != VAL_STR || repl->kind != VAL_STR) return v;
             
-            char *s = v->str;
-            char *t = target->str;
-            char *r = repl->str;
+            char *s = v->u.as_str;
+            char *t = target->u.as_str;
+            char *r = repl->u.as_str;
             size_t t_len = strlen(t);
             if (t_len == 0) return v;
 
@@ -488,7 +487,7 @@ Value *eval(Node *n, Table *env) {
                 Value *v;
                 if (item->left) {
                     v = eval(item->left, env);
-                    if (v->kind == VAL_NUM) current_val = v->num;
+                    if (v->kind == VAL_NUM) current_val = v->u.as_num;
                 } else {
                     v = val_num(current_val);
                 }
@@ -500,8 +499,8 @@ Value *eval(Node *n, Table *env) {
         case ND_MEMBER: {
             Value *obj = val_unwrap(eval(n->left, env));
             if (obj->kind != VAL_ENT && obj->kind != VAL_UNI) runtime_error(n, "'..' on non-entity/union");
-            Value *v = table_get(obj->fields, n->name);
-            if (!v) runtime_error(n, "entity '%s' has no field '%s'", obj->type_name, n->name);
+            Value *v = table_get(obj->u.as_ent.fields, n->name);
+            if (!v) runtime_error(n, "entity '%s' has no field '%s'", obj->u.as_ent.type_name, n->name);
             return v;
         }
         case ND_BINOP: {
@@ -521,7 +520,7 @@ Value *eval(Node *n, Table *env) {
             Value *l = val_unwrap(eval(n->left, env));
             Value *r = val_unwrap(eval(n->right, env));
             if (l->kind == VAL_STR && r->kind == VAL_STR) {
-                int cmp = strcmp(l->str, r->str);
+                int cmp = strcmp(l->u.as_str, r->u.as_str);
                 switch (n->op) {
                     case TOK_LT:  return val_bit(cmp < 0);
                     case TOK_GT:  return val_bit(cmp > 0);
@@ -530,18 +529,18 @@ Value *eval(Node *n, Table *env) {
                     default: break;
                 }
             }
-            double a = l->num, b = r->num;
+            double a = l->u.as_num, b = r->u.as_num;
             if (n->op == TOK_PLUS && (l->kind == VAL_STR || r->kind == VAL_STR)) {
                 char la[512], ra[512];
-                if (l->kind == VAL_STR) snprintf(la, sizeof(la), "%s", l->str);
-                else snprintf(la, sizeof(la), "%g", l->num);
-                if (r->kind == VAL_STR) snprintf(ra, sizeof(ra), "%s", r->str);
-                else snprintf(ra, sizeof(ra), "%g", r->num);
+                if (l->kind == VAL_STR) snprintf(la, sizeof(la), "%s", l->u.as_str);
+                else snprintf(la, sizeof(la), "%g", l->u.as_num);
+                if (r->kind == VAL_STR) snprintf(ra, sizeof(ra), "%s", r->u.as_str);
+                else snprintf(ra, sizeof(ra), "%g", r->u.as_num);
                 size_t total_len = strlen(la) + strlen(ra) + 1;
                 char *combined = arena_alloc(global_arena, total_len);
                 memcpy(combined, la, strlen(la));
                 memcpy(combined + strlen(la), ra, strlen(ra) + 1);
-                Value *res = val_num(0); res->kind = VAL_STR; res->str = combined;
+                Value *res = val_num(0); res->kind = VAL_STR; res->u.as_str = combined;
                 return res;
             }
             switch (n->op) {
@@ -556,12 +555,12 @@ Value *eval(Node *n, Table *env) {
                 case TOK_GTE:   return val_bit(a >= b);
                 case TOK_NE:    {
                     if (l->kind == VAL_STR && r->kind == VAL_STR)
-                        return val_bit(strcmp(l->str, r->str) != 0);
+                        return val_bit(strcmp(l->u.as_str, r->u.as_str) != 0);
                     return val_bit(a != b);
                 }
                 case TOK_EQEQ:  {
                     if (l->kind == VAL_STR && r->kind == VAL_STR)
-                        return val_bit(strcmp(l->str, r->str) == 0);
+                        return val_bit(strcmp(l->u.as_str, r->u.as_str) == 0);
                     return val_bit(a == b);
                 }
                 case TOK_BITAND: return val_num((long long)a & (long long)b);
@@ -614,11 +613,31 @@ Value *eval(Node *n, Table *env) {
             if (!v) { runtime_error(n, "undefined variable '%s'", n->left->name); }
             return val_ptr(v);
         }
+        case ND_PTR_ADD: { // Pointer addition: ptr-add ptr offset
+            Value *ptr_val = val_unwrap(eval(n->left, env));
+            if (ptr_val->kind != VAL_PTR) { runtime_error(n, "ptr-add requires a pointer"); }
+            Value *offset_val = val_unwrap(eval(n->right, env));
+            if (offset_val->kind != VAL_NUM) { runtime_error(n, "ptr-add requires numeric offset"); }
+            /* Calculate new pointer: add offset * sizeof(Value) bytes */
+            Value **base = (Value**)ptr_val->u.as_ptr;
+            int offset = (int)offset_val->u.as_num;
+            return val_ptr((Value*)(base + offset));
+        }
+        case ND_PTR_SUB: { // Pointer subtraction: ptr-sub ptr offset
+            Value *ptr_val = val_unwrap(eval(n->left, env));
+            if (ptr_val->kind != VAL_PTR) { runtime_error(n, "ptr-sub requires a pointer"); }
+            Value *offset_val = val_unwrap(eval(n->right, env));
+            if (offset_val->kind != VAL_NUM) { runtime_error(n, "ptr-sub requires numeric offset"); }
+            /* Calculate new pointer: subtract offset * sizeof(Value) bytes */
+            Value **base = (Value**)ptr_val->u.as_ptr;
+            int offset = (int)offset_val->u.as_num;
+            return val_ptr((Value*)(base - offset));
+        }
         case ND_DEREF: { // Dereference operator
             Value *p_val = val_unwrap(eval(n->left, env));
             if (p_val->kind != VAL_PTR) { runtime_error(n, "valof requires a pointer"); }
-            if (!p_val->target) { runtime_error(n, "attempt to dereference null pointer"); }
-            return p_val->target;
+            if (!p_val->u.as_ptr) { runtime_error(n, "attempt to dereference null pointer"); }
+            return p_val->u.as_ptr;
         }
         case ND_ASK: {
             char buf[1024];
@@ -632,7 +651,7 @@ Value *eval(Node *n, Table *env) {
         case ND_ASKFILE: {
             Value *path = eval(n->left, env);
             if (path->kind != VAL_STR) { fprintf(stderr, "Runtime error: ask requires a string path\n"); exit(1); }
-            FILE *f = fopen(path->str, "rb");
+            FILE *f = fopen(path->u.as_str, "rb");
             if (!f) return val_str("");
             fseek(f, 0, SEEK_END);
             long len = ftell(f);
@@ -656,12 +675,12 @@ Value *eval(Node *n, Table *env) {
             if (dict->kind != VAL_DICT) { fprintf(stderr, "Runtime error: keys requires a dict\n"); exit(1); }
             Value *res = val_list();
             for (int i = 0; i < TABLE_SIZE; i++) {
-                for (Entry *e = dict->fields->buckets[i]; e; e = e->next) {
+                for (Entry *e = dict->u.as_ent.fields->buckets[i]; e; e = e->next) {
                     /* Grow list capacity if necessary */
-                    if (res->item_count >= res->item_cap) {
+                    if (res->u.as_list.item_count >= res->u.as_list.item_cap) {
                         val_list_grow(res);
                     }
-                    res->items[res->item_count++] = val_str(e->key);
+                    res->u.as_list.items[res->u.as_list.item_count++] = val_str(e->key);
                 }
             }
             return res;
@@ -672,7 +691,7 @@ Value *eval(Node *n, Table *env) {
             Value *val = eval(n->body[1], env);
             if (dict->kind != VAL_DICT) { runtime_error(n, "'key' on non-dict"); }
             if (key->kind != VAL_STR) { runtime_error(n, "dict key must be string"); }
-            table_set(dict->fields, key->str, val);
+            table_set(dict->u.as_ent.fields, key->u.as_str, val);
             return val;
         }
         case ND_AT: {
@@ -680,14 +699,14 @@ Value *eval(Node *n, Table *env) {
             Value *idx  = val_unwrap(eval(n->right, env));
             if (list->kind == VAL_DICT) {
                 if (idx->kind != VAL_STR) { runtime_error(n, "dict index must be string"); }
-                Value *v = table_get(list->fields, idx->str);
+                Value *v = table_get(list->u.as_ent.fields, idx->u.as_str);
                 return v ? v : val_none();
             }
             if (list->kind == VAL_STR) {
-                int i = (int)idx->num;
-                if (i < 0) i += (int)strlen(list->str);
-                if (i < 0 || i >= (int)strlen(list->str)) return val_none();
-                char buf[2] = { list->str[i], '\0' };
+                int i = (int)idx->u.as_num;
+                if (i < 0) i += (int)strlen(list->u.as_str);
+                if (i < 0 || i >= (int)strlen(list->u.as_str)) return val_none();
+                char buf[2] = { list->u.as_str[i], '\0' };
                 return val_str(buf);
             }
             if (list->kind != VAL_LIST) { 
@@ -695,35 +714,35 @@ Value *eval(Node *n, Table *env) {
                     list->kind, n->filename ? n->filename : "unknown", n->line); 
                 exit(1); 
             }
-            int i = (int)idx->num;
-            if (i < 0) i += list->item_count;
-            if (i < 0 || i >= list->item_count) return val_none();
-            return list->items[i];
+            int i = (int)idx->u.as_num;
+            if (i < 0) i += list->u.as_list.item_count;
+            if (i < 0 || i >= list->u.as_list.item_count) return val_none();
+            return list->u.as_list.items[i];
         }
         case ND_SET: {
             Value *list = val_unwrap(eval(n->left, env));
             if (list->kind != VAL_LIST) { fprintf(stderr, "Runtime error: 'set' on non-list\n"); exit(1); }
             Value *idx  = val_unwrap(eval(n->body[0], env));
             Value *val  = eval(n->body[1], env);
-            int i = (int)idx->num;
-            if (i < 0) i += list->item_count;
+            int i = (int)idx->u.as_num;
+            if (i < 0) i += list->u.as_list.item_count;
             /* For fixed arrays, enforce bounds strictly (no appending) */
-            if (list->fixed_cap > 0) {
-                if (i < 0 || i >= list->item_count) {
-                    fprintf(stderr, "Runtime error: index %d out of bounds for fixed array of size %d\n", i, list->item_count);
+            if (list->u.as_list.fixed_cap > 0) {
+                if (i < 0 || i >= list->u.as_list.item_count) {
+                    fprintf(stderr, "Runtime error: index %d out of bounds for fixed array of size %d\n", i, list->u.as_list.item_count);
                     exit(1);
                 }
-                list->items[i] = val;
+                list->u.as_list.items[i] = val;
             } else {
                 /* Dynamic list: allow appending */
-                if (i == list->item_count) {
-                    if (list->item_count >= list->item_cap) {
+                if (i == list->u.as_list.item_count) {
+                    if (list->u.as_list.item_count >= list->u.as_list.item_cap) {
                         val_list_grow(list);
                     }
-                    list->items[list->item_count++] = val;
+                    list->u.as_list.items[list->u.as_list.item_count++] = val;
                 } else {
-                    if (i < 0 || i >= list->item_count) { fprintf(stderr, "Runtime error: index %d out of range\n", i); exit(1); }
-                    list->items[i] = val;
+                    if (i < 0 || i >= list->u.as_list.item_count) { fprintf(stderr, "Runtime error: index %d out of range\n", i); exit(1); }
+                    list->u.as_list.items[i] = val;
                 }
             }
             return val;
@@ -733,10 +752,10 @@ Value *eval(Node *n, Table *env) {
             Value *data = eval(n->right, env);
             if (path->kind != VAL_STR) { runtime_error(n, "put requires a string path"); }
             FILE *f;
-            if (path->str[0] == '\0') f = stdout;
-            else f = fopen(path->str, (n->op == TOK_APPEND) ? "a" : "w");
-            if (!f) { runtime_error(n, "cannot open '%s' for writing", path->str); }
-            if (data->kind == VAL_STR) fprintf(f, "%s", data->str);
+            if (path->u.as_str[0] == '\0') f = stdout;
+            else f = fopen(path->u.as_str, (n->op == TOK_APPEND) ? "a" : "w");
+            if (!f) { runtime_error(n, "cannot open '%s' for writing", path->u.as_str); }
+            if (data->kind == VAL_STR) fprintf(f, "%s", data->u.as_str);
             else val_print_to(data, f);
             if (f != stdout) fclose(f);
             return val_none();
@@ -746,12 +765,12 @@ Value *eval(Node *n, Table *env) {
         }
         case ND_LEN: {
             Value *v = eval(n->left, env);
-            if (v->kind == VAL_STR) return val_num((double)strlen(v->str));
-            if (v->kind == VAL_LIST) return val_num(v->item_count);
+            if (v->kind == VAL_STR) return val_num((double)strlen(v->u.as_str));
+            if (v->kind == VAL_LIST) return val_num(v->u.as_list.item_count);
             if (v->kind == VAL_DICT) {
                 int count = 0;
                 for (int i = 0; i < TABLE_SIZE; i++) {
-                    for (Entry *e = v->fields->buckets[i]; e; e = e->next) {
+                    for (Entry *e = v->u.as_ent.fields->buckets[i]; e; e = e->next) {
                         count++;
                     }
                 }
@@ -761,20 +780,20 @@ Value *eval(Node *n, Table *env) {
         }
         case ND_ORD: {
             Value *v = eval(n->left, env);
-            if (v->kind == VAL_STR && v->str[0]) return val_num((unsigned char)v->str[0]);
+            if (v->kind == VAL_STR && v->u.as_str[0]) return val_num((unsigned char)v->u.as_str[0]);
             return val_num(0);
         }
         case ND_CHR: {
             Value *v = eval(n->left, env);
-            char buf[2] = { (char)(int)v->num, '\0' };
+            char buf[2] = { (char)(int)v->u.as_num, '\0' };
             return val_str(buf);
         }
         case ND_TONUM: {
             Value *v = eval(n->left, env);
             if (v->kind == VAL_STR) {
                 char *end;
-                double d = strtod(v->str, &end);
-                if (*end == '\0' && end != v->str) return val_num(d);
+                double d = strtod(v->u.as_str, &end);
+                if (*end == '\0' && end != v->u.as_str) return val_num(d);
                 return val_num(0);
             }
             if (v->kind == VAL_NUM) return v;
@@ -784,10 +803,10 @@ Value *eval(Node *n, Table *env) {
             Value *v = eval(n->left, env);
             if (v->kind == VAL_NUM) {
                 char buf[64];
-                if (v->num == (long long)v->num)
-                    snprintf(buf, sizeof(buf), "%lld", (long long)v->num);
+                if (v->u.as_num == (long long)v->u.as_num)
+                    snprintf(buf, sizeof(buf), "%lld", (long long)v->u.as_num);
                 else
-                    snprintf(buf, sizeof(buf), "%g", v->num);
+                    snprintf(buf, sizeof(buf), "%g", v->u.as_num);
                 return val_str(buf);
             }
             if (v->kind == VAL_STR) return v;
@@ -797,9 +816,9 @@ Value *eval(Node *n, Table *env) {
             Value *v = eval(n->left, env);
             Value *sv = eval(n->body[0], env);
             Value *ev = eval(n->body[1], env);
-            int s = (int)sv->num, e = (int)ev->num;
+            int s = (int)sv->u.as_num, e = (int)ev->u.as_num;
             if (v->kind == VAL_STR) {
-                int l = strlen(v->str);
+                int l = strlen(v->u.as_str);
                 if (s < 0) s += l;
                 if (e < 0) e += l;
                 if (s < 0) s = 0;
@@ -807,13 +826,13 @@ Value *eval(Node *n, Table *env) {
                 if (s >= e) return val_str("");
                 int len = e - s;
                 char *b = arena_alloc(global_arena, len + 1);
-                memcpy(b, v->str + s, len);
+                memcpy(b, v->u.as_str + s, len);
                 b[len] = 0;
-                Value *res = val_num(0); res->kind = VAL_STR; res->str = b;
+                Value *res = val_num(0); res->kind = VAL_STR; res->u.as_str = b;
                 return res;
             }
             if (v->kind == VAL_LIST) {
-                int l = v->item_count;
+                int l = v->u.as_list.item_count;
                 if (s < 0) s += l;
                 if (e < 0) e += l;
                 if (s < 0) s = 0;
@@ -821,10 +840,10 @@ Value *eval(Node *n, Table *env) {
                 Value *res = val_list();
                 if (s >= e) return res;
                 for (int i = s; i < e; i++) {
-                    if (res->item_count >= res->item_cap) {
+                    if (res->u.as_list.item_count >= res->u.as_list.item_cap) {
                         val_list_grow(res);
                     }
-                    res->items[res->item_count++] = v->items[i];
+                    res->u.as_list.items[res->u.as_list.item_count++] = v->u.as_list.items[i];
                 }
                 return res;
             }
@@ -839,8 +858,8 @@ Value *eval(Node *n, Table *env) {
                 case VAL_DICT: return val_str("dict");
                 case VAL_BIT:  return val_str("bit");
                 case VAL_PTR:  return val_str("ptr");
-                case VAL_ENT:  return val_str(v->type_name);
-                case VAL_UNI:  return val_str(v->type_name);
+                case VAL_ENT:  return val_str(v->u.as_ent.type_name);
+                case VAL_UNI:  return val_str(v->u.as_ent.type_name);
                 default:       return val_str("nada");
             }
         }
@@ -848,16 +867,16 @@ Value *eval(Node *n, Table *env) {
         case ND_SYS: {
             Value *v = eval(n->left, env);
             if (v->kind != VAL_STR) return val_num(-1);
-            int result = system(v->str);
+            int result = system(v->u.as_str);
             return val_num((double)result);
         }
         case ND_ENV: {
             Value *v = eval(n->left, env);
             if (v->kind != VAL_STR) return val_str("");
-            char *e = getenv(v->str);
+            char *e = getenv(v->u.as_str);
             return e ? val_str(e) : val_str("");
         }
-        case ND_EXIT: exit((int)eval(n->left, env)->num); return val_none();
+        case ND_EXIT: exit((int)eval(n->left, env)->u.as_num); return val_none();
         case ND_CALL: {
             const char *fname = n->left->name;
             /* Handle built-in runtime functions */
@@ -871,18 +890,18 @@ Value *eval(Node *n, Table *env) {
             if (strcmp(fname, "table_new") == 0) {
                 Value *v = arena_alloc(global_arena, sizeof(Value));
                 v->kind = VAL_DICT;
-                v->fields = table_new(NULL);
+                v->u.as_ent.fields = table_new(NULL);
                 return v;
             }
             if (strcmp(fname, "len") == 0) {
                 if (n->body_count < 1) runtime_error(n, "len requires an argument");
                 Value *v = val_unwrap(eval(n->body[0], env));
-                if (v->kind == VAL_LIST) return val_num(v->item_count);
-                if (v->kind == VAL_STR) return val_num(strlen(v->str));
+                if (v->kind == VAL_LIST) return val_num(v->u.as_list.item_count);
+                if (v->kind == VAL_STR) return val_num(strlen(v->u.as_str));
                 if (v->kind == VAL_DICT) {
                     int count = 0;
                     for (int i = 0; i < TABLE_SIZE; i++) {
-                        for (Entry *e = v->fields->buckets[i]; e; e = e->next) count++;
+                        for (Entry *e = v->u.as_ent.fields->buckets[i]; e; e = e->next) count++;
                     }
                     return val_num(count);
                 }
@@ -895,14 +914,14 @@ Value *eval(Node *n, Table *env) {
                 Value *end = val_unwrap(eval(n->body[2], env));
                 if (v->kind != VAL_STR || start->kind != VAL_NUM || end->kind != VAL_NUM) 
                     return val_str("");
-                int s = (int)start->num;
-                int e = (int)end->num;
-                int len = strlen(v->str);
+                int s = (int)start->u.as_num;
+                int e = (int)end->u.as_num;
+                int len = strlen(v->u.as_str);
                 if (s < 0) s = 0;
                 if (e > len) e = len;
                 if (s >= e) return val_str("");
                 char *buf = malloc(e - s + 1);
-                strncpy(buf, v->str + s, e - s);
+                strncpy(buf, v->u.as_str + s, e - s);
                 buf[e - s] = '\0';
                 Value *r = val_str(buf);
                 free(buf);
@@ -913,7 +932,7 @@ Value *eval(Node *n, Table *env) {
                 Value *haystack = val_unwrap(eval(n->body[0], env));
                 Value *needle = val_unwrap(eval(n->body[1], env));
                 if (haystack->kind != VAL_STR || needle->kind != VAL_STR) return val_num(0);
-                return val_num(strstr(haystack->str, needle->str) != NULL);
+                return val_num(strstr(haystack->u.as_str, needle->u.as_str) != NULL);
             }
             if (strcmp(fname, "str_replace") == 0) {
                 if (n->body_count < 3) runtime_error(n, "str_replace requires string, target, replacement");
@@ -921,15 +940,15 @@ Value *eval(Node *n, Table *env) {
                 Value *t = val_unwrap(eval(n->body[1], env));
                 Value *r = val_unwrap(eval(n->body[2], env));
                 if (v->kind != VAL_STR || t->kind != VAL_STR || r->kind != VAL_STR) return val_str("");
-                char *result = malloc(strlen(v->str) + 1);
+                char *result = malloc(strlen(v->u.as_str) + 1);
                 result[0] = '\0';
-                char *p = v->str;
-                size_t tl = strlen(t->str);
-                size_t rl = strlen(r->str);
+                char *p = v->u.as_str;
+                size_t tl = strlen(t->u.as_str);
+                size_t rl = strlen(r->u.as_str);
                 while (*p) {
-                    char *f = strstr(p, t->str);
+                    char *f = strstr(p, t->u.as_str);
                     if (f == p) {
-                        strcat(result, r->str);
+                        strcat(result, r->u.as_str);
                         p += tl;
                     } else {
                         size_t len = strlen(result);
@@ -945,7 +964,7 @@ Value *eval(Node *n, Table *env) {
                 if (n->body_count < 1) runtime_error(n, "read_file requires a filename");
                 Value *v = val_unwrap(eval(n->body[0], env));
                 if (v->kind != VAL_STR) return val_str("");
-                FILE *f = fopen(v->str, "r");
+                FILE *f = fopen(v->u.as_str, "r");
                 if (!f) return val_str("");
                 fseek(f, 0, SEEK_END);
                 long sz = ftell(f);
@@ -962,7 +981,7 @@ Value *eval(Node *n, Table *env) {
                 if (n->body_count < 1) runtime_error(n, "arena_alloc requires a size");
                 Value *size_val = val_unwrap(eval(n->body[0], env));
                 if (size_val->kind != VAL_NUM) runtime_error(n, "arena_alloc requires a numeric size");
-                void *p = arena_alloc(global_arena, (size_t)size_val->num);
+                void *p = arena_alloc(global_arena, (size_t)size_val->u.as_num);
                 return val_num((long long)p);
             }
             if (strcmp(fname, "keys") == 0) {
@@ -972,21 +991,21 @@ Value *eval(Node *n, Table *env) {
                 // Count keys
                 int count = 0;
                 for (int i = 0; i < TABLE_SIZE; i++) {
-                    for (Entry *e = v->fields->buckets[i]; e; e = e->next) count++;
+                    for (Entry *e = v->u.as_ent.fields->buckets[i]; e; e = e->next) count++;
                 }
                 Value *list = arena_alloc(global_arena, sizeof(Value));
                 list->kind = VAL_LIST;
-                list->item_count = count;
+                list->u.as_list.item_count = count;
                 if (count > 0) {
-                    list->items = arena_alloc(global_arena, count * sizeof(Value*));
+                    list->u.as_list.items = arena_alloc(global_arena, count * sizeof(Value*));
                     int idx = 0;
                     for (int i = 0; i < TABLE_SIZE; i++) {
-                        for (Entry *e = v->fields->buckets[i]; e; e = e->next) {
-                            list->items[idx++] = val_str(e->key);
+                        for (Entry *e = v->u.as_ent.fields->buckets[i]; e; e = e->next) {
+                            list->u.as_list.items[idx++] = val_str(e->key);
                         }
                     }
                 } else {
-                    list->items = NULL;
+                    list->u.as_list.items = NULL;
                 }
                 return list;
             }
@@ -1006,7 +1025,7 @@ Value *eval(Node *n, Table *env) {
             table_free(scope);
             free(argv);
             if (result->kind == VAL_BREAK) return val_none();
-            if (result->kind == VAL_OUT) return result->inner;
+            if (result->kind == VAL_OUT) return result->u.as_inner;
             return result;
         }
         case ND_PRINT: {
@@ -1025,14 +1044,14 @@ Value *eval(Node *n, Table *env) {
             {
                 Value *list = val_list();
                 int size = (int)n->num;
-                list->fixed_cap = size;  /* Mark as fixed array */
+                list->u.as_list.fixed_cap = size;  /* Mark as fixed array */
                 if (size > 0) {
                     /* Pre-allocate to fixed size */
                     for (int i = 0; i < size; i++) {
-                        if (i >= list->item_cap) val_list_grow(list);
-                        list->items[i] = val_none();
+                        if (i >= list->u.as_list.item_cap) val_list_grow(list);
+                        list->u.as_list.items[i] = val_none();
                     }
-                    list->item_count = size;
+                    list->u.as_list.item_count = size;
                 }
                 return list;
             }
@@ -1066,10 +1085,10 @@ Value *eval(Node *n, Table *env) {
                 /* Cast to string */
                 if (val->kind == VAL_NUM) {
                     char buf[64];
-                    if (val->num == (double)(long long)val->num) {
-                        snprintf(buf, sizeof(buf), "%lld", (long long)val->num);
+                    if (val->u.as_num == (double)(long long)val->u.as_num) {
+                        snprintf(buf, sizeof(buf), "%lld", (long long)val->u.as_num);
                     } else {
-                        snprintf(buf, sizeof(buf), "%g", val->num);
+                        snprintf(buf, sizeof(buf), "%g", val->u.as_num);
                     }
                     return val_str(buf);
                 } else if (val->kind == VAL_STR) {
@@ -1082,7 +1101,7 @@ Value *eval(Node *n, Table *env) {
                 if (val->kind == VAL_NUM) {
                     return val;
                 } else if (val->kind == VAL_STR) {
-                    return val_num(atof(val->str));
+                    return val_num(atof(val->u.as_str));
                 } else {
                     runtime_error(n, "cannot cast %s to num", val_kind_name(val->kind));
                 }

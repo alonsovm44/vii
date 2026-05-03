@@ -10,7 +10,6 @@ color = Colors
 "Colors"
 i=0
 while i < 4
-  i
   i = i + 1
   if i == 4
     color..RED

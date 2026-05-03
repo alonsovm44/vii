@@ -1,0 +1,129 @@
+# Comprehensive Array Tests for Vii
+# Tests various array/list operations and patterns
+
+"=== Test 1: Basic List Operations ==="
+
+nums = list
+nums set 0 10
+nums set 1 20
+nums set 2 30
+
+"List created with 3 elements:"
+"nums[0] = " + tostr nums at 0
+"nums[1] = " + tostr nums at 1
+"nums[2] = " + tostr nums at 2
+"Length: " + tostr len nums
+
+"=== Test 2: List Append and Dynamic Growth ==="
+
+dynamic = list
+dynamic set 0 "first"
+
+"Appending more elements:"
+dynamic set 1 "second"
+dynamic set 2 "third"
+dynamic set 3 "fourth"
+
+"Final list contents:"
+"dynamic[0] = " + dynamic at 0
+"dynamic[3] = " + dynamic at 3
+"Length: " + tostr len dynamic
+
+"=== Test 3: List with Mixed Types ==="
+
+mixed = list
+mixed set 0 42
+mixed set 1 "hello"
+mixed set 2 3.14
+
+"Mixed type list:"
+"mixed[0] (num): " + tostr mixed at 0
+"mixed[1] (str): " + mixed at 1
+"mixed[2] (num): " + tostr mixed at 2
+
+"=== Test 4: Nested Lists ==="
+
+matrix = list
+row1 = list
+row1 set 0 1
+row1 set 1 2
+row1 set 2 3
+
+row2 = list
+row2 set 0 4
+row2 set 1 5
+row2 set 2 6
+
+matrix set 0 row1
+matrix set 1 row2
+
+"2x3 Matrix:"
+"matrix[0][0] = " + tostr (matrix at 0) at 0
+"matrix[0][2] = " + tostr (matrix at 0) at 2
+"matrix[1][1] = " + tostr (matrix at 1) at 1
+
+"=== Test 5: List Iteration Pattern ==="
+
+items = list
+items set 0 "apple"
+items set 1 "banana"
+items set 2 "cherry"
+
+"Iterating over list (indices 0 to " + tostr (len items - 1) + "):"
+i = 0
+while i < len items
+  "Item " + tostr i + ": " + items at i
+  i = i + 1
+
+"=== Test 6: List of Entities ==="
+
+ent Item
+  name str
+  price i32
+
+item1 = Item
+item1..name = "sword"
+item1..price = 100
+
+item2 = Item
+item2..name = "shield"
+item2..price = 75
+
+inventory = list
+inventory set 0 item1
+inventory set 1 item2
+
+"Inventory items:"
+"Item 0: " + (inventory at 0)..name + " - " + tostr (inventory at 0)..price + " gold"
+"Item 1: " + (inventory at 1)..name + " - " + tostr (inventory at 1)..price + " gold"
+
+"=== Test 7: Dictionary as Array Alternative ==="
+
+scores = dict
+scores key "alice" 95
+scores key "bob" 87
+scores key "carol" 92
+
+"Dictionary scores:"
+"alice: " + tostr scores at "alice"
+"bob: " + tostr scores at "bob"
+"Keys: " + tostr len scores
+
+"=== Test 8: List Operations with Functions ==="
+
+ent Numbers
+  values list
+  count i32
+
+collection = Numbers
+collection..values = list
+collection..values set 0 5
+collection..values set 1 10
+collection..values set 2 15
+collection..count = 3
+
+"Entity with embedded list:"
+"Count: " + tostr collection..count
+"Sum would be: " + tostr ((collection..values at 0) + (collection..values at 1) + (collection..values at 2))
+
+"=== All Array Tests Completed Successfully ==="
